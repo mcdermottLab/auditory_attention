@@ -121,6 +121,10 @@ save
 TODO
 checkpoint
 run.sh
+ckpt
+outLogs
+result
+
 
 # swap file
 *.swp
