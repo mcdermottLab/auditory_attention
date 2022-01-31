@@ -20,6 +20,7 @@ class Solver(BaseSolver):
         assert self.config['data']['corpus']['name'] == self.src_config['data']['corpus']['name']
         self.config['data']['corpus']['path'] = self.src_config['data']['corpus']['path']
         self.config['data']['corpus']['bucketing'] = False
+        self.config['data']['corpus']['batch_size'] = self.src_config['data']['corpus']['batch_size']
 
         # The follow attribute should be identical to training config
         self.config['data']['audio'] = self.src_config['data']['audio']
@@ -34,7 +35,7 @@ class Solver(BaseSolver):
         self.greedy = self.config['decode']['beam_size'] == 1
         if not self.greedy:
             self.config['data']['corpus']['batch_size'] = 1
-        
+            
         self.step = 0
     
     def fetch_data(self, data):
@@ -68,6 +69,8 @@ class Solver(BaseSolver):
             from src.plugin import EmbeddingRegularizer
             self.emb_decoder = EmbeddingRegularizer(
                 self.tokenizer, self.model.dec_dim, **self.config['emb'])
+        else:
+            self.emb_decoder = None 
 
         # Load target model in eval mode
         self.load_ckpt()
@@ -96,7 +99,7 @@ class Solver(BaseSolver):
         
         self.verbose(self.decoder.create_msg())
         del self.model
-        del self.emb_decoder
+#         del self.emb_decoder
 
     def greedy_decode(self, dv_set):
         ''' Greedy Decoding '''
