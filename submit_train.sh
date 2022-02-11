@@ -20,5 +20,5 @@ source activate /om4/group/mcdermott/user/imgriff/conda_envs_files/pytorch_ASR
 
 
 
-python3 main.py --config config/libri/lib_word_example.yaml --njobs 4
+python3 main.py --config config/libri/lib_word_example.yaml --njobs 4 --name librispeech_words_fixed_labels_sd0
 

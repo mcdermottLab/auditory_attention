@@ -1,10 +1,10 @@
 #!/bin/bash
-#SBATCH --job-name=jupyter_notebook
-#SBATCH --output=outLogs/notebook%j.out
-#SBATCH --error=outLogs/notebook%j.err
-#SBATCH --mem=10Gb
-#SBATCH --cpus-per-task=10
-#SBATCH --time=12:00:00
+#SBATCH --job-name=LAS
+#SBATCH --output=outLogs/LAS_CTC_librispeech_%j.out
+#SBATCH --error=outLogs/LAS_CTC_librispeech_%j.err
+#SBATCH --mem=20Gb
+#SBATCH --cpus-per-task=4
+#SBATCH --time=94:00:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:GEFORCEGTX1080TI:1
 
@@ -20,5 +20,5 @@ source activate /om4/group/mcdermott/user/imgriff/conda_envs_files/pytorch_ASR
 
 
 
-export LC_ALL=C; unset XDG_RUNTIME_DIR && jupyter notebook --no-browser --ip='0.0.0.0' --port=1338
+python3 main.py --config config/libri/lib_word_ctc_train.yaml --njobs 4 
 
