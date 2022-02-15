@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 
 
 # Additional (official) text src provided
-OFFICIAL_TXT_SRC = ['text']
+OFFICIAL_TXT_SRC = ['data/text']
 # Remove longest N sentence in text
 REMOVE_TOP_N_TXT = 5000000
 # Default num. of threads used for loading GigaSpeech
@@ -52,7 +52,7 @@ class GigaDataset(Dataset):
         return self.file_list[index], text
 
     def __getitem__(self, index):
-        # Returns wav segment & text vs file path & text from index 
+        # Returns wav segment & text vs file path & text from index
         if self.bucket_size > 1:
             # Return a bucket
             index = min(len(self.file_list)-self.bucket_size, index)
