@@ -98,7 +98,7 @@ class ExtractAudioFromArray(nn.Module):
         self.num_mel_bins = num_mel_bins
         self.kwargs = kwargs
         self.sample_rate = sample_rate
-        
+
     def forward(self, np_array):
         waveform = torch.from_numpy(np_array)
         y = self.extract_fn(waveform,
@@ -142,7 +142,7 @@ def create_transform(audio_config):
     delta_order = audio_config.pop("delta_order", 0)
     delta_window_size = audio_config.pop("delta_window_size", 2)
     apply_cmvn = audio_config.pop("apply_cmvn")
-    is_wav = True if 'is_wav' in audio_config else False
+    is_wav = audio_config.pop("is_wav")
 
     if is_wav:
         transforms = [ExtractAudioFromArray(feat_type, feat_dim, **audio_config)]
