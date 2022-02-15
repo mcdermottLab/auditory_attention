@@ -88,15 +88,17 @@ class Postprocess(torch.jit.ScriptModule):
         # [time, channel, feature_dim] -> [time, feature_dim * channel]
         return x.reshape(x.size(0), -1).detach()
 
+
 # TODO(Windqaq): make this scriptable
 class ExtractAudioFromArray(nn.Module):
-    def __init__(self, mode="fbank", num_mel_bins=40, **kwargs):
+    def __init__(self, mode="fbank", num_mel_bins=40, sample_rate=16000, **kwargs):
         super(ExtractAudioFromArray, self).__init__()
         self.mode = mode
         self.extract_fn = torchaudio.compliance.kaldi.fbank if mode == "fbank" else torchaudio.compliance.kaldi.mfcc
         self.num_mel_bins = num_mel_bins
         self.kwargs = kwargs
-
+        self.sample_rate = sample_rate
+        
     def forward(self, np_array):
         waveform = torch.from_numpy(np_array)
         y = self.extract_fn(waveform,
@@ -143,8 +145,9 @@ def create_transform(audio_config):
     is_wav = True if 'is_wav' in audio_config else False
 
     if is_wav:
-        transforms = []
-    transforms = [ExtractAudioFeature(feat_type, feat_dim, **audio_config)]
+        transforms = [ExtractAudioFromArray(feat_type, feat_dim, **audio_config)]
+    else:
+        transforms = [ExtractAudioFeature(feat_type, feat_dim, **audio_config)]
 
     if delta_order >= 1:
         transforms.append(Delta(delta_order, delta_window_size))

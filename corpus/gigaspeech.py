@@ -44,12 +44,13 @@ class GigaDataset(Dataset):
 
     def get_wav_from_item(self, item):
         # Parses contents of csv item and wavscp to return wav and transcript
+        name = item.wav_filename
         speaker = item.speaker
         start_time = int(float(item.start) * SAMPLING_RATE)
         end_time = int(float(item.end) * SAMPLING_RATE)
         wav = self.wavscp[speaker][1][start_time:end_time]
         text = item.transcript
-        return self.file_list[index], text
+        return name, wav, text
 
     def __getitem__(self, index):
         # Returns wav segment & text vs file path & text from index
@@ -60,8 +61,8 @@ class GigaDataset(Dataset):
                     self.file_csv.iloc[index:index+self.bucket_size]]
         else:
             item = self.file_csv.iloc[index]
-            wav, text = self.get_wav_from_item(item)
-            return wav, text
+            name, wav, text = self.get_wav_from_item(item)
+            return name, wav, text
 
     def __len__(self):
         return len(self.file_csv)

@@ -12,7 +12,7 @@ HALF_BATCHSIZE_TEXT_LEN = 150
 
 
 def collect_audio_batch(batch, audio_transform, mode):
-    '''Collects a batch, should be list of tuples (audio_path <str>, list of int token <list>) 
+    '''Collects a batch, should be list of tuples (audio_path <str>, list of int token <list>)
        e.g. [(file1,txt1),(file2,txt2),...] '''
 
     # Bucketed batch should be [[(file1,txt1),(file2,txt2),...]]
@@ -42,9 +42,41 @@ def collect_audio_batch(batch, audio_transform, mode):
 
     return file, audio_feat, audio_len, text
 
+def collect_audio_array_batch(batch, audio_transform, mode):
+    '''Collects a batch, should be list of tuples
+     (segment name <str>, audio wav <np.array>, list of int token <list>)
+       e.g. [(seg1,wav1,txt1),(seg2,wav2,txt2),...] '''
+
+    # Bucketed batch should be [[(file1,txt1),(file2,txt2),...]]
+    if type(batch[0]) is not tuple:
+        batch = batch[0]
+    # Make sure that batch size is reasonable
+    first_len = audio_transform(batch[0][1]).shape[0]
+    if first_len > HALF_BATCHSIZE_AUDIO_LEN and mode == 'train':
+        batch = batch[:len(batch)//2]
+
+    # Read batch
+    file, audio_feat, audio_len, text = [], [], [], []
+    with torch.no_grad():
+        for b in batch:
+            file.append(b[0])
+            feat = audio_transform(b[1])
+            audio_feat.append(feat)
+            audio_len.append(len(feat))
+            text.append(torch.LongTensor(b[2]))
+    # Descending audio length within each batch
+    audio_len, file, audio_feat, text = zip(*[(feat_len, f_name, feat, txt)
+                                              for feat_len, f_name, feat, txt in sorted(zip(audio_len, file, audio_feat, text), reverse=True, key=lambda x:x[0])])
+    # Zero-padding
+    audio_feat = pad_sequence(audio_feat, batch_first=True)
+    text = pad_sequence(text, batch_first=True)
+    audio_len = torch.LongTensor(audio_len)
+
+    return file, audio_feat, audio_len, text
+
 
 def collect_text_batch(batch, mode):
-    '''Collects a batch of text, should be list of list of int token 
+    '''Collects a batch of text, should be list of list of int token
        e.g. [txt1 <list>,txt2 <list>,...] '''
 
     # Bucketed batch should be [[txt1, txt2,...]]
@@ -68,6 +100,8 @@ def create_dataset(tokenizer, ascending, name, path, bucketing, batch_size,
     # Recognize corpus
     if name.lower() == "librispeech":
         from corpus.librispeech import LibriDataset as Dataset
+    elif name.lower() == "gigaspeech":
+        from corpus.gigaspeech import GigaDataset as Dataset
     else:
         raise NotImplementedError
 
@@ -137,9 +171,13 @@ def load_dataset(n_jobs, use_gpu, pin_memory, ascending, corpus, audio, text):
     tr_set, dv_set, tr_loader_bs, dv_loader_bs, mode, data_msg = create_dataset(
         tokenizer, ascending, **corpus)
     # Collect function
-    collect_tr = partial(collect_audio_batch,
+    if corpus.lower() == 'gigaspeech':
+        audio_batch_fn = collect_audio_array_batch
+    else:
+        audio_batch_fn = collect_audio_batch
+    collect_tr = partial(audio_batch_fn,
                          audio_transform=audio_transform, mode=mode)
-    collect_dv = partial(collect_audio_batch,
+    collect_dv = partial(audio_batch_fn,
                          audio_transform=audio_transform, mode='test')
     # Shuffle/drop applied to training set only
     shuffle = (mode == 'train' and not ascending)
