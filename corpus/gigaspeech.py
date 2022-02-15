@@ -22,6 +22,8 @@ class GigaDataset(Dataset):
         self.path = path
         self.bucket_size = bucket_size
         # Load csv
+        if type(split) is list:
+            split = split[0]
         csv_path = Path(path,f"data/{split}.csv")
         file_csv = pd.read_csv(csv_path, sep='\t', dtype='str')
         # filter bad files
