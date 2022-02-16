@@ -25,24 +25,24 @@ class GigaDataset(Dataset):
         if type(split) is list:
             split = split[0]
         csv_path = Path(path,f"data/{split}.csv")
-        file_csv = pd.read_csv(csv_path, sep='\t', dtype='str')
+        file_csv = pd.read_csv(csv_path, sep='\t', dtype='str') 
         # filter bad files
         file_csv = file_csv[~file_csv.isna().any(axis=1)]
         # load file segments - csv of excerpt, wav file path, eg start, eg end
         segments_path = Path(path, f"data/segments")
         segments = pd.read_csv(segments_path, header=None,
                        names=['wav_filename', 'speaker', 'start', 'end'],
-                       sep='\t', dtype='str')
+                       sep='\t')
         # map of speaker to wav path
         self.wavscp = kaldiio.load_scp(Path(path,'data','wav.scp').as_posix())
 
         # merge file csv with segmnet onsets & offsets
-        file_csv[['start', 'end']] = segments[['start', 'end']][segments['wav_filename'].isin(file_csv['wav_filename'])]
+        times = segments[['start', 'end']][segments.wav_filename.isin(file_csv.wav_filename)]
+        file_csv = pd.concat([file_csv, times.set_index(file_csv.index)], axis=1)
         # Tokenize transcript
         file_csv['transcript'] = file_csv['transcript'].apply(tokenizer.encode)
-
         # Sort dataset by text length & make attribute
-        self.file_csv = file_csv.sort_values(by='transcript', key=lambda x: x.str.len(), ascending=ascending, inplace=True)
+        self.file_csv = file_csv.sort_values(by='transcript', key=lambda x: x.str.len(), ascending=ascending)
 
     def get_wav_from_item(self, item):
         # Parses contents of csv item and wavscp to return wav and transcript
@@ -58,9 +58,9 @@ class GigaDataset(Dataset):
         # Returns wav segment & text vs file path & text from index
         if self.bucket_size > 1:
             # Return a bucket
-            index = min(len(self.file_list)-self.bucket_size, index)
-            return [(self.get_wav_from_(item)) for item in
-                    self.file_csv.iloc[index:index+self.bucket_size]]
+            index = min(len(self.file_csv)-self.bucket_size, index)
+            return [(self.get_wav_from_item(item[1])) for item in
+                    self.file_csv.iloc[index:index+self.bucket_size].iterrows()]
         else:
             item = self.file_csv.iloc[index]
             name, wav, text = self.get_wav_from_item(item)

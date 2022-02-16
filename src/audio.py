@@ -100,7 +100,8 @@ class ExtractAudioFromArray(nn.Module):
         self.sample_rate = sample_rate
 
     def forward(self, np_array):
-        waveform = torch.from_numpy(np_array)
+        # Need to cast np_array of wav to tensor of type float32
+        waveform = torch.tensor(np_array.reshape(1,-1),dtype=torch.float32)
         y = self.extract_fn(waveform,
                             num_mel_bins=self.num_mel_bins,
                             channel=-1,

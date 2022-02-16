@@ -47,7 +47,7 @@ def collect_audio_array_batch(batch, audio_transform, mode):
      (segment name <str>, audio wav <np.array>, list of int token <list>)
        e.g. [(seg1,wav1,txt1),(seg2,wav2,txt2),...] '''
 
-    # Bucketed batch should be [[(file1,txt1),(file2,txt2),...]]
+    # Bucketed batch should be [[(seg1,wav1,txt1),(seg2,wav2,txt2),...]]
     if type(batch[0]) is not tuple:
         batch = batch[0]
     # Make sure that batch size is reasonable
@@ -171,7 +171,7 @@ def load_dataset(n_jobs, use_gpu, pin_memory, ascending, corpus, audio, text):
     tr_set, dv_set, tr_loader_bs, dv_loader_bs, mode, data_msg = create_dataset(
         tokenizer, ascending, **corpus)
     # Collect function
-    if corpus.lower() == 'gigaspeech':
+    if corpus['name'].lower() == 'gigaspeech':
         audio_batch_fn = collect_audio_array_batch
     else:
         audio_batch_fn = collect_audio_batch
