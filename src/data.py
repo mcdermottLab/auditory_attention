@@ -54,7 +54,6 @@ def collect_audio_array_batch(batch, audio_transform, mode):
     first_len = audio_transform(batch[0][1]).shape[0]
     if first_len > HALF_BATCHSIZE_AUDIO_LEN and mode == 'train':
         batch = batch[:len(batch)//2]
-
     # Read batch
     file, audio_feat, audio_len, text = [], [], [], []
     with torch.no_grad():

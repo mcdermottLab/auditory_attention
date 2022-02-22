@@ -20,9 +20,9 @@ class Solver(BaseSolver):
     def fetch_data(self, data):
         ''' Move data to device and compute text seq. length'''
         _, feat, feat_len, txt = data
-        feat = feat.to(self.device)
-        feat_len = feat_len.to(self.device)
-        txt = txt.to(self.device)
+        feat = feat.to(self.device, non_blocking=True)
+        feat_len = feat_len.to(self.device, non_blocking=True)
+        txt = txt.to(self.device, non_blocking=True)
         txt_len = torch.sum(txt != 0, dim=-1)
 
         return feat, feat_len, txt, txt_len
@@ -81,7 +81,7 @@ class Solver(BaseSolver):
         ctc_loss, att_loss, emb_loss = None, None, None
         n_epochs = 0
         self.timer.set()
-
+#         self.model = torch.nn.DataParallel(self.model)
         while self.step < self.max_step:
             # Renew dataloader to enable random sampling
             if self.curriculum > 0 and n_epochs == self.curriculum:

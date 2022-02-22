@@ -5,7 +5,8 @@ from pathlib import Path
 from os.path import join, getsize
 from joblib import Parallel, delayed
 from torch.utils.data import Dataset
-
+import torchaudio
+import torch
 
 # Additional (official) text src provided
 OFFICIAL_TXT_SRC = ['data/text']
@@ -21,11 +22,13 @@ class GigaDataset(Dataset):
         # Setup
         self.path = path
         self.bucket_size = bucket_size
+        self.tokenizer = tokenizer
         # Load csv
         if type(split) is list:
             split = split[0]
         csv_path = Path(path,f"data/{split}.csv")
-        file_csv = pd.read_csv(csv_path, sep='\t', dtype='str') 
+        file_csv = pd.read_csv(csv_path, sep='\t',
+                               usecols=['wav_filename', 'speaker', 'transcript']) 
         # filter bad files
         file_csv = file_csv[~file_csv.isna().any(axis=1)]
         # load file segments - csv of excerpt, wav file path, eg start, eg end
@@ -34,43 +37,59 @@ class GigaDataset(Dataset):
                        names=['wav_filename', 'speaker', 'start', 'end'],
                        sep='\t')
         # map of speaker to wav path
-        self.wavscp = kaldiio.load_scp(Path(path,'data','wav.scp').as_posix())
-
+        self.wavscp = pd.read_csv(Path(path,'data','wav.scp'), header=None,
+                                 names=['speaker', 'wav_path'], sep='\t')
+        # make dict for fast access
+        self.wavscp = self.wavscp.set_index('speaker')['wav_path'].to_dict() 
+    
         # merge file csv with segmnet onsets & offsets
         times = segments[['start', 'end']][segments.wav_filename.isin(file_csv.wav_filename)]
         file_csv = pd.concat([file_csv, times.set_index(file_csv.index)], axis=1)
-        # Tokenize transcript
-        file_csv['transcript'] = file_csv['transcript'].apply(tokenizer.encode)
-        # Sort dataset by text length & make attribute
-        self.file_csv = file_csv.sort_values(by='transcript', key=lambda x: x.str.len(), ascending=ascending)
-
+        # Convert to list for faster iteration
+        self.files = file_csv.to_dict('records')
+        # Sort dataset by text length & set as attribute
+        self.files = sorted(self.files, key=lambda file: len(file['transcript']), reverse=not ascending)
+        # clear from memory 
+        del file_csv 
+        del segments 
+        del times
+        
     def get_wav_from_item(self, item):
-        # Parses contents of csv item and wavscp to return wav and transcript
-        name = item.wav_filename
-        speaker = item.speaker
-        start_time = int(float(item.start) * SAMPLING_RATE)
-        end_time = int(float(item.end) * SAMPLING_RATE)
-        wav = self.wavscp[speaker][1][start_time:end_time]
-        text = item.transcript
+        # Parses contents of csv item and wavscp to return
+        # tuple of (name, wav, text) per item 
+        name = item['wav_filename']
+        speaker = item['speaker']
+        # get wav path
+        wav_path = self.wavscp[speaker]
+        # get excertp frames 
+        start = int(float(item['start']) * SAMPLING_RATE)
+        end = int(float(item['end']) * SAMPLING_RATE)
+        num_frames = end - start 
+        # Load wav excerpt 
+        wav, _ = torchaudio.load(wav_path,
+                                frame_offset=start,
+                                num_frames = num_frames)
+        # Tokenize transcript
+        text = self.tokenizer.encode(item['transcript'])
         return name, wav, text
 
     def __getitem__(self, index):
         # Returns wav segment & text vs file path & text from index
         if self.bucket_size > 1:
             # Return a bucket
-            index = min(len(self.file_csv)-self.bucket_size, index)
-            return [(self.get_wav_from_item(item[1])) for item in
-                    self.file_csv.iloc[index:index+self.bucket_size].iterrows()]
+            index = min(len(self.files)-self.bucket_size, index)
+            return [(self.get_wav_from_item(item)) for item in
+                    self.files[index:index+self.bucket_size]]
         else:
-            item = self.file_csv.iloc[index]
+            item = self.files[index]
             name, wav, text = self.get_wav_from_item(item)
             return name, wav, text
 
     def __len__(self):
-        return len(self.file_csv)
+        return len(self.files)
 
 
-class GigaTextDataset(Dataset): # # TODO: Make
+class GigaTextDataset(Dataset): # # TODO: Convert this from librispeech to gigaspeech
     def __init__(self, path, split, tokenizer, bucket_size):
         # Setup
         self.path = path

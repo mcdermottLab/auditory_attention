@@ -90,19 +90,18 @@ class Postprocess(torch.jit.ScriptModule):
 
 
 # TODO(Windqaq): make this scriptable
-class ExtractAudioFromArray(nn.Module):
+class ExtractMelFromWav(nn.Module):
     def __init__(self, mode="fbank", num_mel_bins=40, sample_rate=16000, **kwargs):
-        super(ExtractAudioFromArray, self).__init__()
+        super(ExtractMelFromWav, self).__init__()
         self.mode = mode
         self.extract_fn = torchaudio.compliance.kaldi.fbank if mode == "fbank" else torchaudio.compliance.kaldi.mfcc
         self.num_mel_bins = num_mel_bins
         self.kwargs = kwargs
         self.sample_rate = sample_rate
 
-    def forward(self, np_array):
-        # Need to cast np_array of wav to tensor of type float32
-        waveform = torch.tensor(np_array.reshape(1,-1),dtype=torch.float32)
-        y = self.extract_fn(waveform,
+    def forward(self, wav_tensor):
+        # Make MelSpec from torch tensor 
+        y = self.extract_fn(wav_tensor,
                             num_mel_bins=self.num_mel_bins,
                             channel=-1,
                             sample_frequency=self.sample_rate,
@@ -146,7 +145,7 @@ def create_transform(audio_config):
     is_wav = audio_config.pop("is_wav")
 
     if is_wav:
-        transforms = [ExtractAudioFromArray(feat_type, feat_dim, **audio_config)]
+        transforms = [ExtractMelFromWav(feat_type, feat_dim, **audio_config)]
     else:
         transforms = [ExtractAudioFeature(feat_type, feat_dim, **audio_config)]
 
