@@ -2,8 +2,8 @@ data:
   corpus:
     name: 'GigaSpeech'                   # Specify corpus
     path: '/om2/data/public/GigaSpeech/' # Path to raw GigaSpeech dataset
-    train_split: ['XL']                  # Name of data splits to be used as training set
-    dev_split: ['DEV']                   # Name of data splits to be used as validation set
+    train_split: ['XL_munged']                  # Name of data splits to be used as training set
+    dev_split: ['DEV_munged']                   # Name of data splits to be used as validation set
     bucketing: True                      # Enable/Disable bucketing
     batch_size: 16
   audio:                                  # Attributes of audio feature

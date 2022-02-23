@@ -100,7 +100,6 @@ class ExtractMelFromWav(nn.Module):
         self.sample_rate = sample_rate
 
     def forward(self, wav_tensor):
-        # Make MelSpec from torch tensor 
         y = self.extract_fn(wav_tensor,
                             num_mel_bins=self.num_mel_bins,
                             channel=-1,

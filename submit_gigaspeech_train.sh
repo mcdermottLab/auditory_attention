@@ -3,7 +3,7 @@
 #SBATCH --output=outLogs/LAS_gigaspeech_%j.out
 #SBATCH --error=outLogs/LAS_gigaspeech_%j.err
 #SBATCH --mem=128Gb
-#SBATCH --cpus-per-task=6
+#SBATCH --cpus-per-task=48
 #SBATCH --time=94:00:00
 #SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:GEFORCEGTX1080TI:1
@@ -20,5 +20,5 @@ source activate /om4/group/mcdermott/user/imgriff/conda_envs_files/pytorch_ASR
 
 
 
-python3 main.py --config config/giga/giga_word_attn_train.yaml --njobs 6 
+python3 main.py --config config/giga/giga_word_attn_train.yaml --njobs 48 
 
