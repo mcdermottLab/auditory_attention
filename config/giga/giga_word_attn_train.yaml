@@ -16,6 +16,7 @@ data:
     delta_order: 0                        # 0: do nothing, 1: add delta, 2: add delta and accelerate
     delta_window_size: 0
     is_wav: True
+    resample: False
   text:
     mode: 'word'                       # 'character'/'word'/'subword'
     vocab_file: 'tests/sample_data/gigaspeech_words-10k.vocab'

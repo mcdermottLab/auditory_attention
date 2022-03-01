@@ -101,6 +101,8 @@ def create_dataset(tokenizer, ascending, name, path, bucketing, batch_size,
         from corpus.librispeech import LibriDataset as Dataset
     elif name.lower() == "gigaspeech":
         from corpus.gigaspeech import GigaDataset as Dataset
+    elif name.lower() == "single_word":
+        from corpus.single_word import SingleWordDataset as Dataset
     else:
         raise NotImplementedError
 

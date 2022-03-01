@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchaudio
-
+import torchaudio.transforms as T
 
 class CMVN(torch.jit.ScriptModule):
 
@@ -133,18 +133,53 @@ class ExtractAudioFeature(nn.Module):
     def extra_repr(self):
         return "mode={}, num_mel_bins={}".format(self.mode, self.num_mel_bins)
 
+    
+# TODO(Windqaq): make this scriptable
+class ExtractAndResampleFeature(nn.Module):
+    def __init__(self, mode="fbank", num_mel_bins=40, saved_rate=44100, new_rate=16000, **kwargs):
+        super(ExtractAndResampleFeature, self).__init__()
+        self.mode = mode
+        # Using default params from torchaudio demo - move params to **kwargs in config file if works
+        self.resampler = T.Resample(saved_rate, new_rate, lowpass_filter_width=64,
+                           rolloff=0.9475937167399596, 
+                           resampling_method="kaiser_window",beta=14.769656459379492, dtype=torch.float32)
+        self.extract_fn = torchaudio.compliance.kaldi.fbank if mode == "fbank" else torchaudio.compliance.kaldi.mfcc
+        self.num_mel_bins = num_mel_bins
+        self.kwargs = kwargs
 
+    def forward(self, filepath):
+        waveform, sample_rate = torchaudio.load(filepath)
+        y = self.resampler(waveform)
+        y = self.extract_fn(y,
+                            num_mel_bins=self.num_mel_bins,
+                            channel=-1,
+                            sample_frequency=sample_rate,
+                            **self.kwargs)
+        return y.transpose(0, 1).unsqueeze(0).detach()
+
+    def extra_repr(self):
+        return "mode={}, num_mel_bins={}".format(self.mode, self.num_mel_bins)
+    
+    
 def create_transform(audio_config):
     feat_type = audio_config.pop("feat_type")
     feat_dim = audio_config.pop("feat_dim")
-
+    
     delta_order = audio_config.pop("delta_order", 0)
     delta_window_size = audio_config.pop("delta_window_size", 2)
     apply_cmvn = audio_config.pop("apply_cmvn")
+    
     is_wav = audio_config.pop("is_wav")
+    
+    resample = audio_config.pop("resample")
+    if resample:
+        saved_rate = audio_config.pop("saved_rate")
+        new_rate = audio_config.pop("new_rate")
 
     if is_wav:
         transforms = [ExtractMelFromWav(feat_type, feat_dim, **audio_config)]
+    elif resample:
+        transforms = [ExtractAndResampleFeature(feat_type, feat_dim, saved_rate, new_rate, **audio_config)]
     else:
         transforms = [ExtractAudioFeature(feat_type, feat_dim, **audio_config)]
 

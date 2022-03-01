@@ -17,13 +17,13 @@ class Solver(BaseSolver):
         super().__init__(config, paras, mode)
 
         # ToDo : support tr/eval on different corpus
-        assert self.config['data']['corpus']['name'] == self.src_config['data']['corpus']['name']
-        self.config['data']['corpus']['path'] = self.src_config['data']['corpus']['path']
+#         assert self.config['data']['corpus']['name'] == self.src_config['data']['corpus']['name']
+#         self.config['data']['corpus']['path'] = self.src_config['data']['corpus']['path']
         self.config['data']['corpus']['bucketing'] = False
         self.config['data']['corpus']['batch_size'] = self.src_config['data']['corpus']['batch_size']
 
         # The follow attribute should be identical to training config
-        self.config['data']['audio'] = self.src_config['data']['audio']
+#         self.config['data']['audio'] = self.src_config['data']['audio']
         self.config['data']['text'] = self.src_config['data']['text']
         self.config['hparas'] = self.src_config['hparas']
         self.config['model'] = self.src_config['model']
