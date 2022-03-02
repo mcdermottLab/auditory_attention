@@ -27,6 +27,9 @@ class Solver(BaseSolver):
         self.config['data']['text'] = self.src_config['data']['text']
         self.config['hparas'] = self.src_config['hparas']
         self.config['model'] = self.src_config['model']
+        
+        if 'audio' not in self.config['data']:
+            self.config['data']['audio'] = self.src_config['data']['audio']
 
         # Output file
         self.output_file = str(self.ckpdir)+'_{}_{}.csv'

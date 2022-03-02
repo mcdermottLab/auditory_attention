@@ -169,9 +169,9 @@ def create_transform(audio_config):
     delta_window_size = audio_config.pop("delta_window_size", 2)
     apply_cmvn = audio_config.pop("apply_cmvn")
     
-    is_wav = audio_config.pop("is_wav")
+    is_wav = audio_config.pop("is_wav") if 'is_wav' in audio_config else False
     
-    resample = audio_config.pop("resample")
+    resample = audio_config.pop("resample") if 'resample' in audio_config else False
     if resample:
         saved_rate = audio_config.pop("saved_rate")
         new_rate = audio_config.pop("new_rate")
