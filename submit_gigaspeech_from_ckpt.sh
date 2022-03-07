@@ -5,7 +5,7 @@
 #SBATCH --mem=128Gb
 #SBATCH --cpus-per-task=48
 #SBATCH --time=94:00:00
-#SBATCH --partition=normal
+#SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:GEFORCEGTX1080TI:1
 
 
