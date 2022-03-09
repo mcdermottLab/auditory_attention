@@ -26,10 +26,9 @@ data:
     vocab_file: 'tests/sample_data/gigaspeech_words-10k.vocab'
 
 decode:
-  beam_size: 1
-  top_n: 10
+  beam_size: 10
   min_len_ratio: 0.01
-  max_len_ratio: 0.07
+  max_len_ratio: 1
 #   lm_path: 'ckpt/lm_example_sd0/best_ppx.pth'
 #   lm_config: 'config/libri/lm_example.yaml'
   lm_weight: 0
