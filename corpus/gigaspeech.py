@@ -29,33 +29,6 @@ class GigaDataset(Dataset):
         self.dataset = self.dataset.sort(column='transcript', reverse=not ascending)
         self._len = self.dataset.num_rows
         
-#         file_csv = pd.read_csv(csv_path, sep='\t',
-#                                usecols=['wav_filename', 'speaker', 'transcript']) 
-#         # filter bad files
-#         file_csv = file_csv[~file_csv.isna().any(axis=1)]
-#         # load file segments - csv of excerpt, wav file path, eg start, eg end
-#         segments_path = Path(path, f"data/segments")
-#         segments = pd.read_csv(segments_path, header=None,
-#                        names=['wav_filename', 'speaker', 'start', 'end'],
-#                        sep='\t')
-#         # map of speaker to wav path
-#         self.wavscp = pd.read_csv(Path(path,'data','wav.scp'), header=None,
-#                                  names=['speaker', 'wav_path'], sep='\t')
-#         # make dict for fast access
-#         self.wavscp = self.wavscp.set_index('speaker')['wav_path'].to_dict() 
-    
-#         # merge file csv with segmnet onsets & offsets
-#         times = segments[['start', 'end']][segments.wav_filename.isin(file_csv.wav_filename)]
-#         file_csv = pd.concat([file_csv, times.set_index(file_csv.index)], axis=1)
-#         # Convert to list for faster iteration
-#         self.files = file_csv.to_dict('records')
-#         # Sort dataset by text length & set as attribute
-#         self.files = sorted(self.files, key=lambda file: len(file['transcript']), reverse=not ascending)
-#         # clear from memory 
-#         del file_csv 
-#         del segments 
-#         del times
-        
     def get_wav_from_item(self, item):
         # Parses contents of csv item and wavscp to return
         # tuple of (name, wav, text) per item 
@@ -66,8 +39,7 @@ class GigaDataset(Dataset):
         start = int(float(item['start']) * SAMPLING_RATE)
         end = int(float(item['end']) * SAMPLING_RATE)
         num_frames = end - start 
-        # Make MelSpec from torch tensor 
-                # Load wav excerpt 
+        # Load wav excerpt 
         wav, _ = torchaudio.load(wav_path,
                                 frame_offset = start,
                                 num_frames = num_frames)

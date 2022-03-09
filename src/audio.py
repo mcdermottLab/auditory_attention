@@ -4,6 +4,96 @@ import torch.nn.functional as F
 import torchaudio
 import torchaudio.transforms as T
 
+
+def ch_demean(x, dim=0):
+    '''
+    Helper function to mean-subtract tensor.
+
+    Args
+    ----
+    x (tensor): tensor to be mean-subtracted
+    dim (int): kwarg for torch.mean (dim along which to compute mean)
+
+    Returns
+    -------
+    x_demean (tensor): mean-subtracted tensor
+    '''
+    x_demean = torch.sub(x, torch.mean(x, dim=dim))
+    return x_demean
+
+
+def ch_rms(x, dim=0):
+    '''
+    Helper function to compute RMS amplitude of a tensor.
+
+    Args
+    ----
+    x (tensor): tensor for which RMS amplitude should be computed
+    dim (int): kwarg for torch.mean (dim along which to compute mean)
+
+    Returns
+    -------
+    rms_x (tensor): root-mean-square amplitude of x
+    '''
+    rms_x = torch.sqrt(torch.mean(torch.pow(x, 2), dim=dim))
+    return rms_x
+
+
+class CombineWithRandomDBSNR(torch.nn.Module):
+    """
+    Takes two signals and combines them at a specified dB SNR level.
+
+    Args:
+        low_snr (float): the low end for the range of dB SNR to draw from
+        high_snr (float): the high end for the range of db SNR to draw from
+        rms_level (float): the end RMS value for the combined sound
+
+    Returns:
+        signal_in_noise, None
+
+    """
+    def __init__(self, low_snr=-10, high_snr=10):
+        self.low_snr=low_snr
+        self.high_snr=high_snr
+        super(CombineWithRandomDBSNR, self).__init__()
+
+
+    def forward(self, foreground_wav, background_wav):
+        """
+        Args:
+            foreground_wav (torch.Tensor): the waveform that will be used as
+                the foreground audio sample (usually speech)
+            background_wav (torch.Tensor): the waveform that will be used as
+                the background audio sample
+        """
+        rand_db_snr = random.uniform(self.low_snr, self.high_snr)
+        rms_ratio = torch.pow(10.0, rand_db_snr / 20.0)
+        # Demean signal and noise before computing rms
+        foreground_wav = torch.sub(foreground_wav, torch.mean(foreground_wav, dim=0))
+        background_wav = torch.sub(background_wav, torch.mean(background_wav, dim=0))
+
+        rms_foreground = torch.sqrt(torch.mean(torch.pow(foreground_wav, 2), dim=0))
+        rms_background = torch.sqrt(torch.mean(torch.pow(background_wav, 2), dim=0))
+
+        # Calculate the scale factor for the two sounds
+        # TODO: filter out the signals that are only foreground or only background.
+        # For now, to align with the jsinv3 dataset, we include the infinite SNR
+        # cases
+        if rms_foreground == 0: # No foreground condition (just noise)
+            noise_scale_factor = 1
+        elif rms_background == 0:
+            noise_scale_factor = 0
+        else:
+            noise_scale_factor = torch.div(rms_foreground,
+                                           torch.mul(rms_background,
+                                                     rms_ratio))
+
+        background_wav = torch.mul(noise_scale_factor, background_wav)
+        signal_in_noise = torch.add(foreground_wav, background_wav)
+
+        return signal_in_noise
+
+
 class CMVN(torch.jit.ScriptModule):
 
     __constants__ = ["mode", "dim", "eps"]

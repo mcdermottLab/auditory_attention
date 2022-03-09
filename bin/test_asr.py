@@ -36,6 +36,7 @@ class Solver(BaseSolver):
 
         # Override batch size for beam decoding
         self.greedy = self.config['decode']['beam_size'] == 1
+        self.top_N = self.config['decode']['top_n'] if 'top_n' in self.config['decode'] else False
         if not self.greedy:
             self.config['data']['corpus']['batch_size'] = 1
             
@@ -126,6 +127,29 @@ class Solver(BaseSolver):
                 results.append((str(idx), [hyp_seqs], true_txt))
         return results
     
+    def greedy_decode_top_N(self, dv_set):
+        ''' Greedy Decoding for top N guesses per word'''
+        results = []
+        top_n = self.config['decode']['top_n']
+        for i,data in enumerate(dv_set):
+            self.progress('Valid step - {}/{}'.format(i+1,len(dv_set)))
+            # Fetch data
+            feat, feat_len, txt, txt_len = self.fetch_data(data)
+            # Forward model
+            with torch.no_grad():
+                ctc_output, encode_len, att_output, att_align, dec_state = \
+                    self.decoder( feat, feat_len, int(float(feat_len.max()) * self.config['decode']['max_len_ratio']), 
+                                    emb_decoder=self.emb_decoder)
+            for j in range(len(txt)):
+                idx = j + self.config['data']['corpus']['batch_size'] * i
+                if att_output is not None:
+                    hyp_seqs = att_output[j].argsort(dim=-1, descending=True)[:top_n].tolist()
+                else:
+                    hyp_seqs = ctc_output[j].argsort(dim=-1, descending=True)[:top_n].tolist()
+                true_txt = txt[j]
+                results.append((str(idx), [hyp_seqs], true_txt))
+        return results
+    
     def exec(self):
         ''' Testing End-to-end ASR system '''
         for s, ds in zip(['dev','test'],[self.dv_set,self.tt_set]):
@@ -134,11 +158,19 @@ class Solver(BaseSolver):
             with open(self.cur_output_path,'w',encoding='UTF-8') as f:
                 f.write('idx\thyp\ttruth\n')
 
-            if self.greedy:
+            if self.greedy and not self.top_N:
                 # Greedy decode
                 self.verbose(
                     'Performing batch-wise greedy decoding on {} set, num of batch = {}.'.format(s, len(ds)))
                 results = self.greedy_decode(ds)
+                self.verbose('Results will be stored at {}'.format(
+                    self.cur_output_path))
+                self.write_hyp(results, self.cur_output_path, '-')
+            elif self.top_N:
+                # Greedy decode top N words
+                self.verbose(
+                    'Performing batch-wise top N decoding on {} set, num of batch = {}.'.format(s, len(ds)))
+                results = self.greedy_decode_top_N(ds)
                 self.verbose('Results will be stored at {}'.format(
                     self.cur_output_path))
                 self.write_hyp(results, self.cur_output_path, '-')
