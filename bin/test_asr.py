@@ -143,9 +143,12 @@ class Solver(BaseSolver):
             for j in range(len(txt)):
                 idx = j + self.config['data']['corpus']['batch_size'] * i
                 if att_output is not None:
-                    hyp_seqs = att_output[j].argsort(dim=-1, descending=True)[:top_n].tolist()
+                    hyp_seqs = att_output[j].argsort(dim=-1, descending=True)[:,:top_n].flatten().tolist() 
+#                     probs = att_output[j].gather(-1, hyp_seqs)
+#                     hyp_seqs = hyp_seqs.gather(-1, probs).argsort(dim=-1, descending=True)
                 else:
-                    hyp_seqs = ctc_output[j].argsort(dim=-1, descending=True)[:top_n].tolist()
+                    hyp_seqs = ctc_output[j].argsort(dim=-1, descending=True)[:,:top_n].flatten().tolist() 
+                    
                 true_txt = txt[j]
                 results.append((str(idx), [hyp_seqs], true_txt))
         return results
@@ -220,6 +223,8 @@ class Solver(BaseSolver):
             if self.ctc_only and not self.greedy:
                 new_hyp_seqs = [self.tokenizer.decode(hyp, ignore_repeat=False) for hyp in hyp_seqs[:-1]]
                 hyp_seqs = new_hyp_seqs + [self.tokenizer.decode(hyp_seqs[-1], ignore_repeat=True)]
+            elif self.top_N:
+                hyp_seqs = [self.tokenizer.decode(hyp, ignore_repeat=True) for hyp in hyp_seqs]
             else:
                 hyp_seqs = [self.tokenizer.decode(hyp) for hyp in hyp_seqs]
             
