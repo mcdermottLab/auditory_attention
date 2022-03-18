@@ -19,7 +19,7 @@ class Solver(BaseSolver):
 
     def fetch_data(self, data):
         ''' Move data to device and compute text seq. length'''
-        feat, feat_len, txt = data
+        _, feat, feat_len, txt = data
         feat = feat.to(self.device, non_blocking=True)
         feat_len = feat_len.to(self.device, non_blocking=True)
         txt = txt.to(self.device, non_blocking=True)
@@ -39,7 +39,7 @@ class Solver(BaseSolver):
         # Model
         init_adadelta = self.config['hparas']['optimizer'] == 'Adadelta'
         self.model = ASR(self.feat_dim, self.vocab_size, init_adadelta, **
-                         self.config['model'])
+                         self.config['model']).to(self.device)
         self.verbose(self.model.create_msg())
         model_paras = [{'params': self.model.parameters()}]
 
@@ -65,9 +65,6 @@ class Solver(BaseSolver):
         # Optimizer
         self.optimizer = Optimizer(model_paras, **self.config['hparas'])
         self.verbose(self.optimizer.create_msg())
-
-        # Model Parallel
-        self.model = torch.nn.DataParallel(self.model).cuda()
 
         # Enable AMP if needed
         self.enable_apex()
