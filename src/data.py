@@ -55,23 +55,22 @@ def collect_audio_array_batch(batch, audio_transform, mode):
     if first_len > HALF_BATCHSIZE_AUDIO_LEN and mode == 'train':
         batch = batch[:len(batch)//2]
     # Read batch
-    file, audio_feat, audio_len, text = [], [], [], []
+    audio_feat, audio_len, text = [], [], []
     with torch.no_grad():
         for b in batch:
-            file.append(b[0])
             feat = audio_transform(b[1])
             audio_feat.append(feat)
             audio_len.append(len(feat))
             text.append(torch.LongTensor(b[2]))
     # Descending audio length within each batch
-    audio_len, file, audio_feat, text = zip(*[(feat_len, f_name, feat, txt)
-                                              for feat_len, f_name, feat, txt in sorted(zip(audio_len, file, audio_feat, text), reverse=True, key=lambda x:x[0])])
+    audio_len, audio_feat, text = zip(*[(feat_len, feat, txt)
+                                              for feat_len, feat, txt in sorted(zip(audio_len, audio_feat, text), reverse=True, key=lambda x:x[0])])
     # Zero-padding
     audio_feat = pad_sequence(audio_feat, batch_first=True)
     text = pad_sequence(text, batch_first=True)
     audio_len = torch.LongTensor(audio_len)
 
-    return file, audio_feat, audio_len, text
+    return audio_feat, audio_len, text
 
 
 def collect_text_batch(batch, mode):
