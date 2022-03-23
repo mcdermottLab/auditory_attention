@@ -44,7 +44,10 @@ class GigaDataset(Dataset):
                                 frame_offset = start,
                                 num_frames = num_frames)
         # Tokenize transcript
-        text = self.tokenizer.encode(item['transcript'])
+        if self.tokenizer != None:
+            text = self.tokenizer.encode(item['transcript'])
+        else:
+            text = item['transcript']
         return name, wav, text
 
     def __getitem__(self, index):

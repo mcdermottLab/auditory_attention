@@ -1,0 +1,45 @@
+data:
+  corpus:
+    name: 'GigaSpeech'                   # Specify corpus
+    path: '/om2/data/public/GigaSpeech/' # Path to raw GigaSpeech dataset
+    train_split: ['XL_munged']                  # Name of data splits to be used as training set
+    dev_split: ['DEV_munged']                   # Name of data splits to be used as validation set
+    bucketing: True                      # Enable/Disable bucketing
+    batch_size: 16
+  audio:                                  # Attributes of audio feature
+    n_mels:  40
+    sample_rate: 16000
+    n_fft: 400                            # 25ms
+    hop_length: 160                       # 10ms
+    f_min: 20                             # 20Hz lower cuttoff
+  text:
+    mode: 'word'                       # 'character'/'word'/'subword'
+    vocab_file: 'tests/sample_data/gigaspeech_words-10k.vocab'
+
+hparas:                                   # Experiment hyper-parameters
+  lr: 5e-4
+  eps: 0.00000001                         # 1e-8
+  epochs: 120
+  valid_step: 5000
+
+
+model:                                    # Model architecture
+  name: 'RNNT'
+  encoder:
+    prenet: 'vgg'                         # 'vgg'/'cnn'/''
+    # vgg: True                             # 4x reduction on time feature extraction
+    module: 'LSTM'                        # 'LSTM'/'GRU'/'Transformer'
+    bidirection: False
+    dim: [512,512,512,512,512]
+    dropout: [0.3,0.3,0.3,0.3,0.3]
+    layer_norm: [True,True,True,True,True]
+    proj: [True,True,True,True,True]      # Linear projection + Tanh after each rnn layer
+    sample_rate: [1,1,1,1,1]
+    sample_style: 'drop'                  # 'drop'/'concat'
+  decoder:
+    module: 'LSTM'                        # 'LSTM'/'GRU'/'Transformer'
+    symbol_embedding_dim: 512
+    num_lstm_layers: 3
+    lstm_layer_norm: True
+    lstm_layer_norm_epsilon: 1e-3
+    lstm_dropout: 0.3

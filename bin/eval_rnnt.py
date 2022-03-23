@@ -1,10 +1,13 @@
-mport logging
+# Following is originally copied from PyTorch RNN-T ASR Example:
+# https://github.com/pytorch/audio/tree/820b383b3b21fc06e91631a5b1e6ea1557836216/examples/asr/librispeech_emformer_rnnt
+
+import logging
 import pathlib
 from argparse import ArgumentParser
 
 import torch
 import torchaudio
-from lightning import RNNTModule
+from src.lightning import RNNTModule
 
 
 logger = logging.getLogger()
