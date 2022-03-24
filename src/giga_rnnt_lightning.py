@@ -142,7 +142,6 @@ def post_process_hypos(
 class RNNTModule(LightningModule):
     def __init__(
         self,
-        *,
         config: dict,
     ):
         super().__init__()

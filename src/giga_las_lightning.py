@@ -167,19 +167,30 @@ class LASModule(LightningModule):
             CMVN(dim=1) # input is channel, time, n_mel
         )
 
-        init_adadelta = self.config['hparas']['optimizer'] == 'Adadelta'
         self.model = ASR(self.feat_dim, self.vocab_size, init_adadelta, **
                          self.config['model'])
-        model_paras = [{'params': self.model.parameters()}]
         
         # Losses
         self.seq_loss = torch.nn.CrossEntropyLoss(ignore_index=0)
         # Note: zero_infinity=False is unstable?
         self.ctc_loss = torch.nn.CTCLoss(blank=0, zero_infinity=False)
-        self.optimizer = Optimizer(model_paras, **self.config['hparas'])
+
+        # Optimizer
+        opt_cfg = self.config['hparas']
+        opt = getattr(torch.optim, opt_cfg['optimizer'])
+        self.optimizer = opt(self.model.parameters(),
+                            lr=opt_cfg['lr'], betas=(0.9, 0.999), eps=opt_cfg['eps'])
         self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, factor=0.96, patience=0)
-        self.warmup_lr_scheduler = WarmupLR(self.optimizer, 10000)
+        if opt_cfg['lr_scheduler'] == 'warmup':
+            self.warmup_lr_scheduler = WarmupLR(self.optimizer, 4000)
         self.step = 0 
+
+        # Teacher Forcing 
+        tf_start = opt_cfg['tf_start']
+        tf_end = opt_cfg['tf_end']
+        tf_step = opt_cfg['tf_step']
+        self.tf_rate = lambda step: max(
+            tf_end, tf_start-(tf_start-tf_end)*step/tf_step)
 
     def _extract_labels(self, samples: List):
         targets = [self.tokenizer.encode(sample[2].upper()) for sample in samples]
@@ -222,7 +233,7 @@ class LASModule(LightningModule):
         if batch is None:
             return None
 
-        tf_rate = self.optimizer.pre_step(self.step)
+        tf_rate = self.tf_rate(self.step)
         ctc_output, encode_len, att_output, att_align, dec_state = \
             self.model(batch.features,
                        batch.feature_lengths,
