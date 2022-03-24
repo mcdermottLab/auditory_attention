@@ -14,7 +14,6 @@ import torch
 import torchaudio
 import torchaudio.functional as F
 from pytorch_lightning import LightningModule
-from torchaudio.models import Hypothesis
 from corpus.gigaspeech import GigaDataset
 from src.audio import CMVN, Postprocess
 from src.text import load_text_encoder
@@ -123,7 +122,7 @@ class WarmupLR(torch.optim.lr_scheduler._LRScheduler):
 
 
 def post_process_hypos(
-    hypos: List[Hypothesis], tokenizer: spm.SentencePieceProcessor
+    hypos: List[int], tokenizer: object
 ) -> List[Tuple[str, float, List[int], List[int]]]:
     post_process_remove_list = [
         tokenizer.unk_idx(),
@@ -131,7 +130,7 @@ def post_process_hypos(
         tokenizer.pad_idx(),
     ]
     filtered_hypo_tokens = [
-        [token_index for token_index in h.tokens[1:] if token_index not in post_process_remove_list] for h in hypos
+        [token_index for token_index in h[1:] if token_index not in post_process_remove_list] for h in hypos
     ]
     hypos_str = [tokenizer.decode(s) for s in filtered_hypo_tokens]
     hypos_ali = [h.alignment[1:] for h in hypos]
@@ -146,7 +145,6 @@ def post_process_hypos(
 class LASModule(LightningModule):
     def __init__(
         self,
-        *,
         config: dict,
     ):
         super().__init__()
@@ -155,7 +153,7 @@ class LASModule(LightningModule):
         self.feat_dim = self.config['data']['audio']['n_mels']
         self.audio_rep = torchaudio.transforms.MelSpectrogram(**self.config['data']['audio'])
 
-        self.gigaspeech_path = self.config['data']['path']
+        self.gigaspeech_path = self.config['data']['corpus']['path']
 
         self.tokenizer = load_text_encoder(self.config['data']['text']['mode'],
                                         self.config['data']['text']['vocab_file'])
@@ -244,7 +242,7 @@ class LASModule(LightningModule):
             total_loss += att_loss*(1-self.model.ctc_weight)
 
         self.log(f"Losses/{step_type}_loss", total_loss, on_step=True, on_epoch=True)
-        if step_type is 'train':
+        if step_type == 'train':
             self.step += 1
             
         if step_type != 'train':

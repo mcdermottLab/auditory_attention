@@ -18,5 +18,5 @@ source activate /om4/group/mcdermott/user/imgriff/conda_envs_files/pytorch_ASR
 
 
 
-export LC_ALL=C; unset XDG_RUNTIME_DIR && jupyter notebook --no-browser --ip='0.0.0.0' --port=1337
+export LC_ALL=C; unset XDG_RUNTIME_DIR && jupyter notebook --no-browser --ip='0.0.0.0' --port=1446
 

@@ -18,7 +18,7 @@ data:
 
 hparas:                                   # Experiment hyper-parameters
   valid_step: 5000
-  epocs: 120
+  epochs: 120
   tf_start: 1.0
   tf_end: 1.0
   tf_step: 500000
@@ -28,8 +28,8 @@ hparas:                                   # Experiment hyper-parameters
   lr_scheduler: 'warmup'                   # 'fixed'/'warmup'
   curriculum: 0
 
+model_name: 'LAS'
 model:                                    # Model architecture
-  name: 'LAS'
   ctc_weight: 0.0                         # Weight for CTC loss
   encoder:
     prenet: 'vgg'                         # 'vgg'/'cnn'/''

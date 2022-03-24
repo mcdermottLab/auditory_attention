@@ -23,14 +23,14 @@ data:
 
 hparas:                                   # Experiment hyper-parameters
   valid_step: 5000
-  max_step: 2000001
+  max_step: 5000001
   tf_start: 1.0
   tf_end: 1.0
   tf_step: 500000
   optimizer: 'Adadelta'
   lr: 1.0
   eps: 0.00000001                         # 1e-8
-  lr_scheduler: 'fixed'                   # 'fixed'/'warmup'
+  lr_scheduler: 'warmup'                   # 'fixed'/'warmup'
   curriculum: 0
 
 model:                                    # Model architecture

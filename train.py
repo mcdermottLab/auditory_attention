@@ -43,10 +43,10 @@ def run_train(args):
         gradient_clip_val=10.0,
         callbacks=callbacks,
     )
-    if config['model']['name'] == 'RNNT':
+    if config['model_name'] == 'RNNT':
         from src.giga_rnnt_lightning import RNNTModule
         model = RNNTModule(config)
-    elif config['model']['name'] == 'LAS':
+    elif config['model_name'] == 'LAS':
         from src.giga_las_lightning import LASModule
         model = LASModule(config)      
     trainer.fit(model)
@@ -69,13 +69,13 @@ def cli_main():
     # )
     parser.add_argument(
         "--num_nodes",
-        default=4,
+        default=1,
         type=int,
         help="Number of nodes to use for training. (Default: 4)",
     )
     parser.add_argument(
         "--gpus",
-        default=8,
+        default=4,
         type=int,
         help="Number of GPUs per node to use for training. (Default: 8)",
     )
