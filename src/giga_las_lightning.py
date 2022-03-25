@@ -24,6 +24,7 @@ from src.decode import BeamDecoder
 
 # from utils import GAIN, piecewise_linear_log, spectrogram_transform
 
+mel_spec_transform = torchaudio.transforms.MelSpectrogram(sample_rate=16000, n_fft=400, n_mels=40, hop_length=160)
 
 Batch = namedtuple("Batch", ["features", "feature_lengths", "targets", "target_lengths"])
 
@@ -172,11 +173,6 @@ class LASModule(LightningModule):
         # Make config sent to init
         self.config = config
         self.feat_dim = self.config['data']['audio']['n_mels']
-        self.audio_rep = torch.nn.Sequential(
-                            torchaudio.transforms.MelSpectrogram(
-                                **self.config['data']['audio']
-                                )
-                            )
 
         self.gigaspeech_path = self.config['data']['corpus']['path']
 
@@ -233,14 +229,14 @@ class LASModule(LightningModule):
         return targets, lengths
 
     def _train_extract_features(self, samples: List):
-        mel_features = [self.audio_rep(sample[1].squeeze()).transpose(1, 0) for sample in samples]
+        mel_features = [mel_spec_transform(sample[1].squeeze()).transpose(1, 0) for sample in samples]
         features = torch.nn.utils.rnn.pad_sequence(mel_features, batch_first=True)
         features = self.train_data_pipeline(features)
         lengths = torch.tensor([elem.shape[0] for elem in mel_features], dtype=torch.int32)
         return features, lengths
 
     def _valid_extract_features(self, samples: List):
-        mel_features = [self.audio_rep(sample[1].squeeze()).transpose(1, 0) for sample in samples]
+        mel_features = [mel_spec_transform(sample[1].squeeze()).transpose(1, 0) for sample in samples]
         features = torch.nn.utils.rnn.pad_sequence(mel_features, batch_first=True)
         features = self.valid_data_pipeline(features)
         lengths = torch.tensor([elem.shape[0] for elem in mel_features], dtype=torch.int32)
