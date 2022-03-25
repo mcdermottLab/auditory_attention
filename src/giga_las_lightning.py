@@ -15,7 +15,6 @@ import torchaudio
 import torchaudio.functional as F
 from pytorch_lightning import LightningModule
 from corpus.gigaspeech import GigaDataset
-from src.audio import CMVN, Postprocess
 from src.text import load_text_encoder
 from src.asr import ASR
 from src.optim import Optimizer
@@ -110,8 +109,30 @@ class GlobalStatsNormalization(torch.nn.Module):
 
     def forward(self, input):
         return (input - self.mean) * self.invstddev
+    
+    
+class CMVN(torch.nn.Module):
+    def __init__(self, mode="global", dim=2, eps=1e-10):
+        # `torchaudio.load()` loads audio with shape [channel, feature_dim, time]
+        # so perform normalization on dim=2 by default
+        super(CMVN, self).__init__()
 
+        if mode != "global":
+            raise NotImplementedError(
+                "Only support global mean variance normalization.")
 
+        self.mode = mode
+        self.dim = dim
+        self.eps = eps
+
+    def forward(self, x):
+        if self.mode == "global":
+            return (x - x.mean(self.dim, keepdim=True)) / (self.eps + x.std(self.dim, keepdim=True))
+
+    def extra_repr(self):
+        return "mode={}, dim={}, eps={}".format(self.mode, self.dim, self.eps)
+
+    
 class WarmupLR(torch.optim.lr_scheduler._LRScheduler):
     def __init__(self, optimizer, warmup_updates, last_epoch=-1, verbose=False):
         self.warmup_updates = warmup_updates
@@ -151,7 +172,11 @@ class LASModule(LightningModule):
         # Make config sent to init
         self.config = config
         self.feat_dim = self.config['data']['audio']['n_mels']
-        self.audio_rep = torchaudio.transforms.MelSpectrogram(**self.config['data']['audio'])
+        self.audio_rep = torch.nn.Sequential(
+                            torchaudio.transforms.MelSpectrogram(
+                                **self.config['data']['audio']
+                                )
+                            )
 
         self.gigaspeech_path = self.config['data']['corpus']['path']
 
@@ -166,6 +191,8 @@ class LASModule(LightningModule):
         self.valid_data_pipeline = torch.nn.Sequential(
             CMVN(dim=1) # input is channel, time, n_mel
         )
+
+        init_adadelta = self.config['hparas']['optimizer'] == 'Adadelta'
 
         self.model = ASR(self.feat_dim, self.vocab_size, init_adadelta, **
                          self.config['model'])
@@ -186,12 +213,15 @@ class LASModule(LightningModule):
         self.step = 0 
 
         # Teacher Forcing 
-        tf_start = opt_cfg['tf_start']
-        tf_end = opt_cfg['tf_end']
-        tf_step = opt_cfg['tf_step']
-        self.tf_rate = lambda step: max(
-            tf_end, tf_start-(tf_start-tf_end)*step/tf_step)
+        self.tf_start = opt_cfg['tf_start']
+        self.tf_end = opt_cfg['tf_end']
+        self.tf_step = opt_cfg['tf_step']
+        
+    def get_tf_rate(self,step):
+        return max(self.tf_end,
+                   self.tf_start-(self.tf_start-self.tf_end)*step/self.tf_step)
 
+            
     def _extract_labels(self, samples: List):
         targets = [self.tokenizer.encode(sample[2].upper()) for sample in samples]
         lengths = torch.tensor([len(elem) for elem in targets]).to(dtype=torch.int32)
@@ -233,7 +263,7 @@ class LASModule(LightningModule):
         if batch is None:
             return None
 
-        tf_rate = self.tf_rate(self.step)
+        tf_rate = self.get_tf_rate(self.step)
         ctc_output, encode_len, att_output, att_align, dec_state = \
             self.model(batch.features,
                        batch.feature_lengths,
@@ -307,8 +337,9 @@ class LASModule(LightningModule):
             dataset,
             batch_size=self.config['data']['corpus']['batch_size'],
             collate_fn=self._train_collate_fn,
-            num_workers=10, # maybe set as config parameter?
-            shuffle=True,
+            num_workers=5, # maybe set as config parameter?
+            shuffle=False,
+            pin_memory=True
         )
         return dataloader
 
@@ -326,7 +357,7 @@ class LASModule(LightningModule):
             dataset,
             batch_size=self.config['data']['corpus']['batch_size'],
             collate_fn=self._valid_collate_fn,
-            num_workers=10,
+            num_workers=5,
         )
         return dataloader
 

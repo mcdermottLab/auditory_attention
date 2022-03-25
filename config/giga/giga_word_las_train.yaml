@@ -4,8 +4,8 @@ data:
     path: '/om2/data/public/GigaSpeech/' # Path to raw GigaSpeech dataset
     train_split: ['XL_munged']                  # Name of data splits to be used as training set
     dev_split: ['DEV_munged']                   # Name of data splits to be used as validation set
-    bucketing: True                      # Enable/Disable bucketing
-    batch_size: 16
+    bucketing: False                      # Enable/Disable bucketing
+    batch_size: 4
   audio:                                  # Attributes of audio feature
     n_mels:  40
     sample_rate: 16000

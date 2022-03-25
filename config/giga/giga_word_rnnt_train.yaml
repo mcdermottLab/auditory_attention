@@ -22,9 +22,10 @@ hparas:                                   # Experiment hyper-parameters
   epochs: 120
   valid_step: 5000
 
+model_name: 'RNNT'
+
 
 model:                                    # Model architecture
-  name: 'RNNT'
   encoder:
     prenet: 'vgg'                         # 'vgg'/'cnn'/''
     # vgg: True                             # 4x reduction on time feature extraction

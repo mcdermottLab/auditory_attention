@@ -26,7 +26,6 @@ class GigaDataset(Dataset):
             split = split[0]
         csv_path = join(path, f"data/{split}.csv")
         self.dataset = load_dataset('csv', data_files=csv_path, split='train') # train is from huggingface 
-        self.dataset = self.dataset.sort(column='transcript', reverse=not ascending)
         self._len = self.dataset.num_rows
         
     def get_wav_from_item(self, item):

@@ -135,7 +135,7 @@ class Solver(BaseSolver):
             with open(self.cur_output_path,'w',encoding='UTF-8') as f:
                 f.write('idx\thyp\ttruth\n')
 
-            if self.greedy and not self.top_N:
+            if self.greedy:
                 # Greedy decode
                 self.verbose(
                     'Performing batch-wise greedy decoding on {} set, num of batch = {}.'.format(s, len(ds)))

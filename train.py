@@ -9,6 +9,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 
+
 def run_train(args):
     config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
     checkpoint_dir = args.exp_dir / "checkpoints"
@@ -38,7 +39,10 @@ def run_train(args):
         num_nodes=args.num_nodes,
         gpus=args.gpus,
         accelerator="gpu",
-        strategy="ddp",
+        fast_dev_run=True,
+        limit_train_batches=10,
+        limit_val_batches=10,
+        strategy='ddp',
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=10.0,
         callbacks=callbacks,
