@@ -282,17 +282,15 @@ class LASModule(LightningModule):
                 att_output.view(b*t, -1), batch.targets.view(-1))
             total_loss += att_loss*(1-self.model.ctc_weight)
 
-        self.log(f"Losses/{step_type}_loss", total_loss, on_step=True, on_epoch=True)
-        if step_type == 'train':
-            self.step += 1
+        self.log(f"Losses/{step_type}_loss", total_loss, on_step=True, on_epoch=True, rank_zero_only=True)        
             
         if step_type != 'train':
             wer_att = cal_er(self.tokenizer, att_output, batch.targets)
             wer_ctc = cal_er(self.tokenizer, ctc_output, batch.targets, ctc=True)
             if att_output is not None:
-                self.log(f"WER/{step_type}_att", wer_att, on_step=True, on_epoch=True)
+                self.log(f"WER/{step_type}_att", wer_att, on_step=True, on_epoch=True, sync_dist=True)
             if ctc_output is not None:
-                self.log(f"WER/{step_type}_ctc", wer_ctc, on_step=True, on_epoch=True)
+                self.log(f"WER/{step_type}_ctc", wer_ctc, on_step=True, on_epoch=True, sync_dist=True)
 
         return total_loss
 
@@ -315,6 +313,7 @@ class LASModule(LightningModule):
         return post_process_hypos(hypotheses, self.tokenizer)[0][0]
 
     def training_step(self, batch: Batch, batch_idx):
+        self.step += 1
         return self._step(batch, batch_idx, "train")
 
     def validation_step(self, batch, batch_idx):
