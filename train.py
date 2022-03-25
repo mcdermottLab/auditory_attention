@@ -7,6 +7,8 @@ import yaml
 
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.plugins import DDPPlugin
+
 
 
 
@@ -36,15 +38,14 @@ def run_train(args):
     trainer = Trainer(
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
+        log_every_n_steps = 10,
         num_nodes=args.num_nodes,
         gpus=args.gpus,
         accelerator="gpu",
-        fast_dev_run=True,
-        limit_train_batches=10,
-        limit_val_batches=10,
-        strategy='ddp',
+        strategy=DDPPlugin(find_unused_parameters=False),
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=10.0,
+        profiler="simple",
         callbacks=callbacks,
     )
     if config['model_name'] == 'RNNT':

@@ -54,19 +54,19 @@ class CustomDataset(torch.utils.data.Dataset):
     def __init__(self, base_dataset, max_token_limit):
         super().__init__()
         self.base_dataset = base_dataset
-
-        # Using GigaSpeech, samples already sorted on init 
+        # Using GigaSpeech, samples already sorted in munged csv 
         
-        idx_target_lengths = [
-            (idx, len(sample['transcript'].split()))
-            for idx, sample in enumerate(self.base_dataset.dataset)
-        ]
+        # use pre-saved info in csv loaded by huggingface 
+        # don't unpack to list - we only need this info once to make batches 
+        idx_target_lengths = zip(self.base_dataset.dataset['index'],
+                                 self.base_dataset.dataset['n_words'])
+        
+        assert len(self.base_dataset.dataset) > 0
 
-        assert len(idx_target_lengths) > 0
-
-        assert max_token_limit >= idx_target_lengths[0][1]
+        assert max_token_limit >= self.base_dataset.dataset['n_words'][0]
 
         self.batches = _batch_by_token_count(idx_target_lengths, max_token_limit)
+        print("Done Initializing Data")
 
     def __getitem__(self, idx):
         return [self.base_dataset[subidx] for subidx in self.batches[idx]]
@@ -225,7 +225,7 @@ class LASModule(LightningModule):
             [torch.tensor(elem) for elem in targets],
             batch_first=True,
             padding_value=1.0,
-        ).to(dtype=torch.int32)
+        ).type(torch.LongTensor)
         return targets, lengths
 
     def _train_extract_features(self, samples: List):
@@ -258,7 +258,7 @@ class LASModule(LightningModule):
     def _step(self, batch, batch_idx, step_type):
         if batch is None:
             return None
-
+        total_loss = 0
         tf_rate = self.get_tf_rate(self.step)
         ctc_output, encode_len, att_output, att_align, dec_state = \
             self.model(batch.features,
@@ -278,15 +278,15 @@ class LASModule(LightningModule):
                 att_output.view(b*t, -1), batch.targets.view(-1))
             total_loss += att_loss*(1-self.model.ctc_weight)
 
-        self.log(f"Losses/{step_type}_loss", total_loss, on_step=True, on_epoch=True, rank_zero_only=True)        
+        self.log(f"Losses/{step_type}_loss", total_loss, on_step=True, on_epoch=True)        
             
         if step_type != 'train':
             wer_att = cal_er(self.tokenizer, att_output, batch.targets)
             wer_ctc = cal_er(self.tokenizer, ctc_output, batch.targets, ctc=True)
             if att_output is not None:
-                self.log(f"WER/{step_type}_att", wer_att, on_step=True, on_epoch=True, sync_dist=True)
+                self.log(f"WER/{step_type}_att", wer_att, on_step=True, on_epoch=True)
             if ctc_output is not None:
-                self.log(f"WER/{step_type}_ctc", wer_ctc, on_step=True, on_epoch=True, sync_dist=True)
+                self.log(f"WER/{step_type}_ctc", wer_ctc, on_step=True, on_epoch=True)
 
         return total_loss
 
@@ -320,39 +320,41 @@ class LASModule(LightningModule):
 
     def train_dataloader(self):
         dataset = torch.utils.data.ConcatDataset(
-                CustomDataset(
+                [CustomDataset(
                     GigaDataset(self.gigaspeech_path, 
                                 'XL_munged',
                                 None, # No tokenizer - do in collate
                                 1, # Batching handled by Trainer
                                 True), # Sort in ascending order 
-                    100) # Max word length 
+                    50) # Max words per batch 
+                ]
         )
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=None,
             collate_fn=self._train_collate_fn,
-            num_workers=1, # maybe set as config parameter?
-            shuffle=False,
+            num_workers=12, # maybe set as config parameter?
+            shuffle=True,
             pin_memory=True
         )
         return dataloader
 
     def val_dataloader(self):
         dataset = torch.utils.data.ConcatDataset(
-                CustomDataset(
+                [CustomDataset(
                     GigaDataset(self.gigaspeech_path, 
                                 'DEV_munged',
                                 None, # No tokenizer - do in collate
                                 1, # Batching handled by Trainer
                                 True), # Sort in ascending order 
-                    100) # Max word length 
+                    50) # Max words per batch 
+                ]
         )
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=None,
             collate_fn=self._valid_collate_fn,
-            num_workers=1,
+            num_workers=12,
         )
         return dataloader
 
