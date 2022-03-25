@@ -330,13 +330,13 @@ class LASModule(LightningModule):
                                 None, # No tokenizer - do in collate
                                 1, # Batching handled by Trainer
                                 True), # Sort in ascending order 
-                    1000) # Max word length 
+                    100) # Max word length 
         )
         dataloader = torch.utils.data.DataLoader(
             dataset,
-            batch_size=self.config['data']['corpus']['batch_size'],
+            batch_size=None,
             collate_fn=self._train_collate_fn,
-            num_workers=5, # maybe set as config parameter?
+            num_workers=1, # maybe set as config parameter?
             shuffle=False,
             pin_memory=True
         )
@@ -350,13 +350,13 @@ class LASModule(LightningModule):
                                 None, # No tokenizer - do in collate
                                 1, # Batching handled by Trainer
                                 True), # Sort in ascending order 
-                    1000) # Max word length 
+                    100) # Max word length 
         )
         dataloader = torch.utils.data.DataLoader(
             dataset,
-            batch_size=self.config['data']['corpus']['batch_size'],
+            batch_size=None,
             collate_fn=self._valid_collate_fn,
-            num_workers=5,
+            num_workers=1,
         )
         return dataloader
 
