@@ -14,6 +14,9 @@ from pytorch_lightning.plugins import DDPPlugin
 
 def run_train(args):
     config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
+    
+    config['data']['n_jobs'] = args.n_jobs
+    
     checkpoint_dir = args.exp_dir / "checkpoints"
     checkpoint = ModelCheckpoint(
         checkpoint_dir,
@@ -42,6 +45,7 @@ def run_train(args):
         num_nodes=args.num_nodes,
         gpus=args.gpus,
         accelerator="gpu",
+        limit_train_batches=0.1, 
         strategy=DDPPlugin(find_unused_parameters=False),
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=10.0,
@@ -76,13 +80,19 @@ def cli_main():
         "--num_nodes",
         default=1,
         type=int,
-        help="Number of nodes to use for training. (Default: 4)",
+        help="Number of nodes to use for training. (Default: 1)",
     )
     parser.add_argument(
         "--gpus",
         default=4,
         type=int,
-        help="Number of GPUs per node to use for training. (Default: 8)",
+        help="Number of GPUs per node to use for training. (Default: 4)",
+    )
+    parser.add_argument(
+    "--n_jobs",
+    default=0,
+    type=int,
+    help="Number of CPUs for dataloader. (Default: 0)",
     )
     args = parser.parse_args()
 

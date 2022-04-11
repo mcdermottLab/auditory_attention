@@ -26,6 +26,9 @@ from src.decode import BeamDecoder
 
 mel_spec_transform = torchaudio.transforms.MelSpectrogram(sample_rate=16000, n_fft=400, n_mels=40, hop_length=160)
 
+
+
+
 Batch = namedtuple("Batch", ["features", "feature_lengths", "targets", "target_lengths"])
 
 
@@ -325,7 +328,7 @@ class LASModule(LightningModule):
                                 'XL_munged',
                                 None, # No tokenizer - do in collate
                                 1, # Batching handled by Trainer
-                                True), # Sort in ascending order 
+                                False), # Sort in ascending order 
                     50) # Max words per batch 
                 ]
         )
@@ -333,7 +336,7 @@ class LASModule(LightningModule):
             dataset,
             batch_size=None,
             collate_fn=self._train_collate_fn,
-            num_workers=12, # maybe set as config parameter?
+            num_workers=self.config['data']['n_jobs'], 
             shuffle=True,
             pin_memory=True
         )
@@ -354,7 +357,7 @@ class LASModule(LightningModule):
             dataset,
             batch_size=None,
             collate_fn=self._valid_collate_fn,
-            num_workers=12,
+            num_workers=self.config['data']['n_jobs'],
         )
         return dataloader
 
