@@ -24,9 +24,12 @@ from src.decode import BeamDecoder
 
 # from utils import GAIN, piecewise_linear_log, spectrogram_transform
 
-mel_spec_transform = torchaudio.transforms.MelSpectrogram(sample_rate=16000, n_fft=400, n_mels=40, hop_length=160)
+mel_spec_transform = torchaudio.compliance.kaldi.fbank
 
 
+def spectrogram_transform(wav):
+    return mel_spec_transform(wav, num_mel_bins=40, sample_frequency=16000,channel=-1,
+                       frame_length=25, frame_shift=10)
 
 
 Batch = namedtuple("Batch", ["features", "feature_lengths", "targets", "target_lengths"])
@@ -232,14 +235,14 @@ class LASModule(LightningModule):
         return targets, lengths
 
     def _train_extract_features(self, samples: List):
-        mel_features = [mel_spec_transform(sample[1].squeeze()).transpose(1, 0) for sample in samples]
+        mel_features = [spectrogram_transform(sample[1]) for sample in samples]
         features = torch.nn.utils.rnn.pad_sequence(mel_features, batch_first=True)
         features = self.train_data_pipeline(features)
         lengths = torch.tensor([elem.shape[0] for elem in mel_features], dtype=torch.int32)
         return features, lengths
 
     def _valid_extract_features(self, samples: List):
-        mel_features = [mel_spec_transform(sample[1].squeeze()).transpose(1, 0) for sample in samples]
+        mel_features = [spectrogram_transform(sample[1]) for sample in samples]
         features = torch.nn.utils.rnn.pad_sequence(mel_features, batch_first=True)
         features = self.valid_data_pipeline(features)
         lengths = torch.tensor([elem.shape[0] for elem in mel_features], dtype=torch.int32)
@@ -301,8 +304,8 @@ class LASModule(LightningModule):
                     "scheduler": self.lr_scheduler,
                     "monitor": "WER/val_att",
                     "interval": "epoch",
-                },
-                {"scheduler": self.warmup_lr_scheduler, "interval": "step"},
+                }
+               
             ],
         )
 
