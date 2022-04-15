@@ -23,7 +23,7 @@ hparas:                                   # Experiment hyper-parameters
   tf_end: 0.9
   tf_step: 70000
   optimizer: 'Adam'
-  lr: 0.2
+  lr: 0.001
   eps: 0.00000001                         # 1e-8
   lr_scheduler: 'fixed'                   # 'fixed'/'warmup'
   curriculum: 0
@@ -37,7 +37,7 @@ model:                                    # Model architecture
     module: 'LSTM'                        # 'LSTM'/'GRU'/'Transformer'
     bidirection: False
     dim: [512,512,512,512,512]
-    dropout: [0.2,0.2,0.2,0.2,0.2]
+    dropout: [0,0,0,0,0]
     layer_norm: [False,False,False,False,False]
     proj: [True,True,True,True,True]      # Linear projection + Tanh after each rnn layer
     sample_rate: [1,1,1,1,1]

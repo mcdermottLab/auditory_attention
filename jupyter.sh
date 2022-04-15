@@ -2,12 +2,12 @@
 #SBATCH --job-name=jupyter_notebook
 #SBATCH --output=outLogs/notebook%j.out
 #SBATCH --error=outLogs/notebook%j.err
-#SBATCH --mem=24Gb
+#SBATCH --mem=12Gb
 #SBATCH --time=12:00:00
-#SBATCH --partition=normal
+#SBATCH --partition=mcdermott
 
 
-module add openmind/miniconda/2020-01-29-py3.7
+module add openmind/miniconda
 
 
 
