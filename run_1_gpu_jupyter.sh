@@ -2,7 +2,7 @@
 #SBATCH --job-name=jupyter_notebook
 #SBATCH --output=outLogs/notebook%j.out
 #SBATCH --error=outLogs/notebook%j.err
-#SBATCH --mem=32Gb
+#SBATCH --mem=24Gb
 #SBATCH --cpus-per-task=10
 #SBATCH --time=12:00:00
 #SBATCH --partition=mcdermott
@@ -16,7 +16,7 @@ module add openmind/cuda/9.1
 
 export CONDA_ENVS_PATH=~/my-envs:/om4/group/mcdermott/user/imgriff/conda_envs_files
 
-source activate /om4/group/mcdermott/user/imgriff/conda_envs_files/pytorch_ASR
+source activate /om4/group/mcdermott/user/imgriff/conda_envs_files/torchaudio_11
 
 
 

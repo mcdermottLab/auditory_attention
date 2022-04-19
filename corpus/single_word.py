@@ -17,19 +17,28 @@ READ_FILE_THREADS = 4
 SAMPLING_RATE=16000
 
 
+class NullTokenizer(object):
+    def encode(self, sentence):
+        return sentence.split()
+        
+        
 class SingleWordDataset(Dataset):
     def __init__(self, path, split, tokenizer, bucket_size, ascending=False):
         # Setup
         self.path = path
         self.bucket_size = bucket_size
-        self.tokenizer = tokenizer
+        if tokenizer == None:
+            self.tokenizer = NullTokenizer()
+        else:
+            self.tokenizer = tokenizer
+        
         # Load csv
         if type(split) is list:
             split = split[0]
         csv_path = join(path, f"{split}.csv")
         self.dataset = load_dataset('csv', data_files=csv_path, split='train') # train is from huggingface 
         self._len = self.dataset.num_rows
-        
+    
     def __getitem__(self, index):
         # Returns wav segment & text vs file path & text from index
         if self.bucket_size > 1:

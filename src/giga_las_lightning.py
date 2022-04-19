@@ -8,7 +8,7 @@ import math
 import os
 from collections import namedtuple
 from typing import List, Tuple
-
+import numpy as np 
 # import sentencepiece as spm
 import torch
 import torchaudio
@@ -207,11 +207,19 @@ class LASModule(LightningModule):
         # Optimizer
         opt_cfg = self.config['hparas']
         opt = getattr(torch.optim, opt_cfg['optimizer'])
-        self.optimizer = opt(self.model.parameters(),
-                            lr=opt_cfg['lr'], betas=(0.9, 0.999), eps=opt_cfg['eps'])
-        self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, factor=0.96, patience=0)
+        model_paras = [{'params': self.model.parameters()}]
+        
         if opt_cfg['lr_scheduler'] == 'warmup':
-            self.warmup_lr_scheduler = WarmupLR(self.optimizer, 4000)
+            warmup_step = 4000.0
+            init_lr = opt_cfg['lr']
+            update_rule= lambda step: init_lr * warmup_step ** 0.5 * \
+                min((step+1)*warmup_step**-1.5, (step+1)**-0.5)
+            self.optimizer = opt(model_paras, lr=1.0)
+            self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, update_rule) 
+        else:
+            self.lr_scheduler = None
+            self.optimizer = opt(model_paras,lr=opt_cfg['lr'], eps=opt_cfg['eps'])       
+            
         self.step = 0 
 
         # Teacher Forcing 
@@ -219,9 +227,17 @@ class LASModule(LightningModule):
         self.tf_end = opt_cfg['tf_end']
         self.tf_step = opt_cfg['tf_step']
         
-    def get_tf_rate(self,step):
+    def _tf_rate(self,step):
         return max(self.tf_end,
                    self.tf_start-(self.tf_start-self.tf_end)*step/self.tf_step)
+    
+    def _pre_step(self, step):
+        if self.lr_scheduler is not None:
+            cur_lr = self.lr_scheduler.get_last_lr()[0]
+            for param_group in self.optimizer.param_groups:
+                param_group['lr'] = cur_lr
+#         self.opt.zero_grad()
+        return self._tf_rate(step)
 
             
     def _extract_labels(self, samples: List):
@@ -265,7 +281,7 @@ class LASModule(LightningModule):
         if batch is None:
             return None
         total_loss = 0
-        tf_rate = self.get_tf_rate(self.step)
+        tf_rate = self._pre_step(self.step)
         ctc_output, encode_len, att_output, att_align, dec_state = \
             self.model(batch.features,
                        batch.feature_lengths,
