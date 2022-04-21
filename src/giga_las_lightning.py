@@ -245,9 +245,7 @@ class LASModule(LightningModule):
         lengths = torch.tensor([len(elem) for elem in targets]).to(dtype=torch.int32)
         targets = torch.nn.utils.rnn.pad_sequence(
             [torch.tensor(elem) for elem in targets],
-            batch_first=True,
-            padding_value=1.0,
-        ).type(torch.LongTensor)
+            batch_first=True).type(torch.LongTensor)
         return targets, lengths
 
     def _train_extract_features(self, samples: List):

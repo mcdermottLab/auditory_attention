@@ -1,0 +1,57 @@
+data:
+  corpus:
+    name: 'GigaSpeech'                   # Specify corpus
+    path: '/om2/data/public/GigaSpeech/' # Path to raw GigaSpeech dataset
+    train_split: ['XL_munged']                  # Name of data splits to be used as training set
+    dev_split: ['DEV_munged']                   # Name of data splits to be used as validation set
+    bucketing: False                      # Enable/Disable bucketing
+   
+  audio:                                  # Attributes of audio feature
+    n_mels:  40
+    sample_rate: 16000
+    n_fft: 400                            # 25ms
+    hop_length: 160                       # 10ms
+    f_min: 20                             # 20Hz lower cuttoff
+  text:
+    mode: 'word'                       # 'character'/'word'/'subword'
+    vocab_file: '/om4/group/mcdermott/user/imgriff/projects/End-to-end-ASR-Pytorch/tests/sample_data/gigaspeech_words-10k.vocab'
+
+hparas:                                   # Experiment hyper-parameters
+  valid_step: 5000
+  epochs: 120
+  tf_start: 1.0
+  tf_end: 1.0
+  tf_step: 500000
+  optimizer: 'Adadelta'
+  lr: 1.0
+  eps: 0.00000001                         # 1e-8
+  lr_scheduler: 'warmup'                   # 'fixed'/'warmup'
+  curriculum: 0
+
+model_name: 'LAS'
+model:                                    # Model architecture
+  ctc_weight: 0.0                         # Weight for CTC loss
+  encoder:
+    prenet: 'vgg'                         # 'vgg'/'cnn'/''
+    # vgg: True                             # 4x reduction on time feature extraction
+    module: 'LSTM'                        # 'LSTM'/'GRU'/'Transformer'
+    bidirection: False
+    dim: [512,512,512,512,512]
+    dropout: [0,0,0,0,0]
+    layer_norm: [False,False,False,False,False]
+    proj: [True,True,True,True,True]      # Linear projection + Tanh after each rnn layer
+    sample_rate: [1,1,1,1,1]
+    sample_style: 'drop'                  # 'drop'/'concat'
+  attention:
+    mode: 'loc'                           # 'dot'/'loc'
+    dim: 300
+    num_head: 1
+    v_proj: False                         # if False and num_head>1, encoder state will be duplicated for each head
+    temperature: 0.5                      # scaling factor for attention
+    loc_kernel_size: 100                  # just for mode=='loc'
+    loc_kernel_num: 10                    # just for mode=='loc'
+  decoder:
+    module: 'LSTM'                        # 'LSTM'/'GRU'/'Transformer'
+    dim: 512
+    layer: 1
+    dropout: 0
