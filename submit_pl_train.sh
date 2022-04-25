@@ -4,7 +4,7 @@
 #SBATCH --error=outLogs/LAS_pl_gigaspeech_%j.err
 #SBATCH --mem=128Gb
 #SBATCH --cpus-per-task=24
-#SBATCH --time=94:00:00
+#SBATCH --time=120:00:00
 #SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:GEFORCEGTX1080TI:4
 

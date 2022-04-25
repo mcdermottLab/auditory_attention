@@ -4,14 +4,19 @@ data:
     path: '/om2/data/public/GigaSpeech/' # Path to raw GigaSpeech dataset
     train_split: ['XL_munged']                  # Name of data splits to be used as training set
     dev_split: ['DEV_munged']                   # Name of data splits to be used as validation set
-    bucketing: False                      # Enable/Disable bucketing
-   
+    bucketing: True                      # Enable/Disable bucketing
+    batch_size: 16
   audio:                                  # Attributes of audio feature
-    n_mels:  40
-    sample_rate: 16000
-    n_fft: 400                            # 25ms
-    hop_length: 160                       # 10ms
-    f_min: 20                             # 20Hz lower cuttoff
+    feat_type: 'fbank'
+    feat_dim:  40
+    frame_length: 25                      # ms
+    frame_shift: 10                       # ms
+    dither: 0                             # random dither audio, 0: no dither
+    apply_cmvn: True
+    delta_order: 0                        # 0: do nothing, 1: add delta, 2: add delta and accelerate
+    delta_window_size: 0
+    is_wav: True
+    resample: False
   text:
     mode: 'word'                       # 'character'/'word'/'subword'
     vocab_file: '/om4/group/mcdermott/user/imgriff/projects/End-to-end-ASR-Pytorch/tests/sample_data/gigaspeech_words-10k.vocab'

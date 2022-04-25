@@ -59,8 +59,10 @@ class VGGExtractor(nn.Module):
         feature, feat_len = self.view_input(feature, feat_len)
         # Foward
         feature = self.extractor(feature)
+
         # BSx128xT/4xD/4 -> BSxT/4x128xD/4
         feature = feature.transpose(1, 2)
+
         #  BS x T/4 x 128 x D/4 -> BS x T/4 x 32D
         feature = feature.contiguous().view(feature.shape[0], feature.shape[1], self.out_dim)
         return feature, feat_len

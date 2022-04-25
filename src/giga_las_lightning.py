@@ -17,6 +17,7 @@ from pytorch_lightning import LightningModule
 from corpus.gigaspeech import GigaDataset
 from src.text import load_text_encoder
 from src.asr import ASR
+from src.audio import create_transform
 from src.optim import Optimizer
 from src.util import cal_er
 from src.decode import BeamDecoder
@@ -24,12 +25,12 @@ from src.decode import BeamDecoder
 
 # from utils import GAIN, piecewise_linear_log, spectrogram_transform
 
-mel_spec_transform = torchaudio.compliance.kaldi.fbank
+# mel_spec_transform = torchaudio.compliance.kaldi.fbank
 
 
-def spectrogram_transform(wav):
-    return mel_spec_transform(wav, num_mel_bins=40, sample_frequency=16000,channel=-1,
-                       frame_length=25, frame_shift=10)
+# def spectrogram_transform(wav):
+#     return mel_spec_transform(wav, num_mel_bins=40, sample_frequency=16000,channel=-1,
+#                        frame_length=25, frame_shift=10)
 
 
 Batch = namedtuple("Batch", ["features", "feature_lengths", "targets", "target_lengths"])
@@ -178,21 +179,20 @@ class LASModule(LightningModule):
         super().__init__()
         # Make config sent to init
         self.config = config
-        self.feat_dim = self.config['data']['audio']['n_mels']
-
         self.gigaspeech_path = self.config['data']['corpus']['path']
+
+        # set training batch size params
+        self.ascending = self.config['hparas']['curriculum'] > 0
+        self.bucketing = self.config['data']['corpus']['bucketing']
+        # mel spec and model param
+        self.feat_dim = self.config['data']['audio']['feat_dim']
 
         self.tokenizer = load_text_encoder(self.config['data']['text']['mode'],
                                         self.config['data']['text']['vocab_file'])
         self.vocab_size = self.tokenizer.vocab_size
         self.blank_idx = 0
 
-        self.train_data_pipeline = torch.nn.Sequential(
-            CMVN(dim=1) # input is channel, time, n_mel
-        )
-        self.valid_data_pipeline = torch.nn.Sequential(
-            CMVN(dim=1) # input is channel, time, n_mel
-        )
+        self.data_pipeline, _ = create_transform(config['data']['audio'])
 
         init_adadelta = self.config['hparas']['optimizer'] == 'Adadelta'
 
@@ -239,8 +239,9 @@ class LASModule(LightningModule):
 #         self.opt.zero_grad()
         return self._tf_rate(step)
 
-            
     def _extract_labels(self, samples: List):
+        if self.bucketing and len(samples) == 1:
+            samples = samples[0]
         targets = [self.tokenizer.encode(sample[2].upper()) for sample in samples]
         lengths = torch.tensor([len(elem) for elem in targets]).to(dtype=torch.int32)
         targets = torch.nn.utils.rnn.pad_sequence(
@@ -248,29 +249,21 @@ class LASModule(LightningModule):
             batch_first=True).type(torch.LongTensor)
         return targets, lengths
 
-    def _train_extract_features(self, samples: List):
-        mel_features = [spectrogram_transform(sample[1]) for sample in samples]
+    def _extract_features(self, samples: List):
+        if self.bucketing and len(samples) == 1:
+            samples = samples[0]
+        mel_features = [self.data_pipeline(sample[1]) for sample in samples]
         features = torch.nn.utils.rnn.pad_sequence(mel_features, batch_first=True)
-        features = self.train_data_pipeline(features)
-        lengths = torch.tensor([elem.shape[0] for elem in mel_features], dtype=torch.int32)
-        return features, lengths
-
-    def _valid_extract_features(self, samples: List):
-        mel_features = [spectrogram_transform(sample[1]) for sample in samples]
-        features = torch.nn.utils.rnn.pad_sequence(mel_features, batch_first=True)
-        features = self.valid_data_pipeline(features)
         lengths = torch.tensor([elem.shape[0] for elem in mel_features], dtype=torch.int32)
         return features, lengths
 
     def _train_collate_fn(self, samples: List):
-        features, feature_lengths = self._train_extract_features(samples)
+        features, feature_lengths = self._extract_features(samples)
         targets, target_lengths = self._extract_labels(samples)
         return Batch(features, feature_lengths, targets, target_lengths)
 
     def _valid_collate_fn(self, samples: List):
-        features, feature_lengths = self._valid_extract_features(samples)
-        targets, target_lengths = self._extract_labels(samples)
-        return Batch(features, feature_lengths, targets, target_lengths)
+        return self._train_collate_fn(samples)
 
     def _test_collate_fn(self, samples: List):
         return self._valid_collate_fn(samples), samples
@@ -339,42 +332,38 @@ class LASModule(LightningModule):
         return self._step(batch, batch_idx, "test")
 
     def train_dataloader(self):
-        dataset = torch.utils.data.ConcatDataset(
-                [CustomDataset(
-                    GigaDataset(self.gigaspeech_path, 
+        tr_loader_bs = 1 if self.bucketing and (not self.ascending) else self.config['data']['corpus']['batch_size']
+        bucket_size = self.config['data']['corpus']['batch_size'] if self.bucketing and (not self.ascending) else 1  # Ascending without bucketing
+
+        dataset = GigaDataset(self.gigaspeech_path, 
                                 'XL_munged',
                                 None, # No tokenizer - do in collate
-                                1, # Batching handled by Trainer
-                                False), # Sort in ascending order 
-                    50) # Max words per batch 
-                ]
-        )
+                                bucket_size, 
+                                self.ascending) 
+
         dataloader = torch.utils.data.DataLoader(
             dataset,
-            batch_size=None,
+            batch_size=tr_loader_bs,
             collate_fn=self._train_collate_fn,
-            num_workers=self.config['data']['n_jobs'], 
-            shuffle=True,
+            num_workers=self.config['n_jobs'], 
+            shuffle=False,
             pin_memory=True
         )
         return dataloader
 
     def val_dataloader(self):
-        dataset = torch.utils.data.ConcatDataset(
-                [CustomDataset(
-                    GigaDataset(self.gigaspeech_path, 
+        # no bucketing in validation
+        dataset = GigaDataset(self.gigaspeech_path, 
                                 'DEV_munged',
                                 None, # No tokenizer - do in collate
                                 1, # Batching handled by Trainer
-                                True), # Sort in ascending order 
-                    50) # Max words per batch 
-                ]
-        )
+                                True) # Sort in ascending order 
+
         dataloader = torch.utils.data.DataLoader(
             dataset,
-            batch_size=None,
+            batch_size=self.config['data']['corpus']['batch_size'],
             collate_fn=self._valid_collate_fn,
-            num_workers=self.config['data']['n_jobs'],
+            num_workers=self.config['n_jobs'],
         )
         return dataloader
 

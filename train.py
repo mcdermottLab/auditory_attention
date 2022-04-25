@@ -15,7 +15,7 @@ from pytorch_lightning.plugins import DDPPlugin
 def run_train(args):
     config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
     
-    config['data']['n_jobs'] = args.n_jobs
+    config['n_jobs'] = args.n_jobs
     
     checkpoint_dir = args.exp_dir / "checkpoints"
     checkpoint = ModelCheckpoint(
@@ -45,10 +45,9 @@ def run_train(args):
         num_nodes=args.num_nodes,
         gpus=args.gpus,
         accelerator="gpu",
-        limit_train_batches=0.1, 
         strategy=DDPPlugin(find_unused_parameters=False),
         val_check_interval=config['hparas']['valid_step'],
-        gradient_clip_val=10.0,
+#         gradient_clip_val=100.0,
         profiler="simple",
         callbacks=callbacks,
     )
