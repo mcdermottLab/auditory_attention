@@ -30,7 +30,7 @@ hparas:                                   # Experiment hyper-parameters
   optimizer: 'Adadelta'
   lr: 1.0
   eps: 0.00000001                         # 1e-8
-  lr_scheduler: 'warmup'                   # 'fixed'/'warmup'
+  lr_scheduler: 'plateau'                   # 'fixed'/'warmup'
   curriculum: 0
 
 model_name: 'LAS'

@@ -4,7 +4,7 @@
 #SBATCH --error=outLogs/notebook%j.err
 #SBATCH --mem=12Gb
 #SBATCH --time=12:00:00
-#SBATCH --partition=mcdermott
+#SBATCH --partition=normal
 
 
 module add openmind/miniconda

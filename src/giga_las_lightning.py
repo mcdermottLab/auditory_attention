@@ -216,6 +216,9 @@ class LASModule(LightningModule):
                 min((step+1)*warmup_step**-1.5, (step+1)**-0.5)
             self.optimizer = opt(model_paras, lr=1.0)
             self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, update_rule) 
+        elif opt_cfg['lr_scheduler'] == 'plateau':
+            self.optimizer = opt(model_paras,lr=opt_cfg['lr'], eps=opt_cfg['eps'])
+            self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,'min', patience=1)
         else:
             self.lr_scheduler = None
             self.optimizer = opt(model_paras,lr=opt_cfg['lr'], eps=opt_cfg['eps'])       
