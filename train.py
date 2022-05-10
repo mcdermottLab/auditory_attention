@@ -57,6 +57,9 @@ def run_train(args):
     elif config['model_name'] == 'LAS':
         from src.giga_las_lightning import LASModule
         model = LASModule(config)      
+    elif config['model_name'] == 'wav2vec':
+        from src.wav2vec_lightning import wav2vecModule
+        model = wav2vecModule(config)
     trainer.fit(model)
 
 

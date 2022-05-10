@@ -1,0 +1,30 @@
+data:
+  corpus:
+    name: 'GigaSpeech'                   # Specify corpus
+    path: '/om2/data/public/GigaSpeech/' # Path to raw GigaSpeech dataset
+    train_split: ['XL_munged']                  # Name of data splits to be used as training set
+    dev_split: ['DEV_munged']                   # Name of data splits to be used as validation set
+    bucketing: True                      # Enable/Disable bucketing
+    batch_size: 16
+  text:
+    mode: 'word'                       # 'character'/'word'/'subword'
+    vocab_file: 'tests/sample_data/gigaspeech_words-10k.vocab'
+
+hparas:                                   # Experiment hyper-parameters
+  lr: 1e-4
+  eps: 0.00000001                         # 1e-8
+  epochs: 120
+  valid_step: 5000
+  lr_scheduler: 'fixed'                   # 'fixed'/'warmup'
+
+model_name: 'wav2vec'
+  
+wav2vec_path: '/om4/group/mcdermott/user/imgriff/projects/End-to-end-ASR-Pytorch/ckpt/wav2vec1_pretrained/wav2vec_large.pt'
+  
+model:                                    # Model architecture
+  layer_type: 'Linear'
+  layer_params:
+    in_features: 512
+    out_features: 10000                   # Match Vocab size
+
+  
