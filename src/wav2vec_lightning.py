@@ -111,6 +111,15 @@ def post_process_hypos(
     return nbest_batch
 
 
+class FunctionalModule(torch.nn.Module):
+    def __init__(self, functional):
+        super().__init__()
+        self.functional = functional
+
+    def forward(self, input):
+        return self.functional(input)
+
+
 class wav2vecModule(LightningModule):
     def __init__(
         self,
@@ -130,16 +139,17 @@ class wav2vecModule(LightningModule):
                                         self.config['data']['text']['vocab_file'])
         self.vocab_size = self.tokenizer.vocab_size
         self.blank_idx = 0
-
+        self.config['model']['layer_params']['out_features'] = self.vocab_size 
         # self.data_pipeline, _ = create_transform(config['data']['audio'])
 
 
         # init wav2vec 
         self.wav2vec, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([self.config['wav2vec_path']])
+        self.wav2vec = self.wav2vec[0]   
 
         # init RNN 
-        self.decoder = getattr(torch.nn, self.config['model']['layer_type'].upper())(**self.config['model']['layer_params'])
-
+        self.decoder = getattr(torch.nn, self.config['model']['layer_type'])(**self.config['model']['layer_params'])
+        self.decoder = FunctionalModule(self.decoder) 
         # Losses
         # Note: zero_infinity=False is unstable?
         self.ctc_loss = torch.nn.CTCLoss(blank=0, zero_infinity=False)
@@ -176,10 +186,11 @@ class wav2vecModule(LightningModule):
         return targets, lengths
 
     def _extract_features(self, samples: List):
-        wavs = [sample[1] for sample in samples]
+        wavs = [sample[1].transpose(0,1) for sample in samples] 
         features = torch.nn.utils.rnn.pad_sequence(wavs, batch_first=True)
         lengths = torch.tensor([elem.shape[0] for elem in wavs], dtype=torch.int32)
-        return features, lengths
+        
+        return features.squeeze(), lengths
 
     def _train_collate_fn(self, samples: List):
         features, feature_lengths = self._extract_features(samples)
@@ -196,12 +207,14 @@ class wav2vecModule(LightningModule):
         if batch is None:
             return None
         total_loss = 0
-
+        
         z = self.wav2vec.feature_extractor(batch.features)
         c = self.wav2vec.feature_aggregator(z)
-        encoded_len = z.size(2)
-
+       
+        c = c.transpose(1,2)   
         ctc_output = self.decoder(c)
+ 
+        encoded_len = torch.div(batch.feature_lengths, 160.26, rounding_mode='floor').to(torch.long)
 
         total_loss = self.ctc_loss(ctc_output.transpose(
                             0, 1), batch.targets,
@@ -216,15 +229,15 @@ class wav2vecModule(LightningModule):
 
     def configure_optimizers(self):
         return (
-            [self.optimizer],
-            [
-                {
-                    "scheduler": self.lr_scheduler,
-                    "monitor": "WER/val_att",
-                    "interval": "epoch",
-                }
+            [self.optimizer]#,
+           # [
+        #        {
+         #           "scheduler": self.lr_scheduler,
+          #          "monitor": "WER/val_att",
+           #         "interval": "epoch",
+            #    }
                
-            ],
+           # ],
         )
 
     def forward(self, batch: Batch):

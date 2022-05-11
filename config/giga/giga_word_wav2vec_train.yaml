@@ -4,18 +4,20 @@ data:
     path: '/om2/data/public/GigaSpeech/' # Path to raw GigaSpeech dataset
     train_split: ['XL_munged']                  # Name of data splits to be used as training set
     dev_split: ['DEV_munged']                   # Name of data splits to be used as validation set
-    bucketing: True                      # Enable/Disable bucketing
+    bucketing: False                      # Enable/Disable bucketing
     batch_size: 16
   text:
     mode: 'word'                       # 'character'/'word'/'subword'
     vocab_file: 'tests/sample_data/gigaspeech_words-10k.vocab'
 
-hparas:                                   # Experiment hyper-parameters
-  lr: 1e-4
+hparas:
+  optimizer: 'Adam'                                   # Experiment hyper-parameters
+  lr: 0.0001
   eps: 0.00000001                         # 1e-8
   epochs: 120
   valid_step: 5000
   lr_scheduler: 'fixed'                   # 'fixed'/'warmup'
+  curriculum: 0
 
 model_name: 'wav2vec'
   
