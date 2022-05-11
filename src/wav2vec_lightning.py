@@ -111,13 +111,22 @@ def post_process_hypos(
     return nbest_batch
 
 
-class FunctionalModule(torch.nn.Module):
-    def __init__(self, functional):
+class wav2vecModel(torch.nn.Module):
+    def __init__(self, config):
         super().__init__()
-        self.functional = functional
+        wav2vec, _, _ = fairseq.checkpoint_utils.load_model_ensemble_and_task([config['wav2vec_path']])
+        self.wav2vec = wav2vec[0]  
+        self.decoder = getattr(torch.nn, self.config['model']['layer_type'])(**self.config['model']['layer_params'])
 
-    def forward(self, input):
-        return self.functional(input)
+    def forward(self, input, input_lens):
+        input = self.wav2vec.feature_extractor(input)
+        input = self.wav2vec.feature_aggregator(input)
+    
+        input = input.transpose(1,2) # BxDxT -> BxTxD   
+        input = self.decoder(input)
+ 
+        encoded_len = torch.div(input_lens, 160.26, rounding_mode='floor').to(torch.long)
+        return input, encoded_len
 
 
 class wav2vecModule(LightningModule):
@@ -144,12 +153,8 @@ class wav2vecModule(LightningModule):
 
 
         # init wav2vec 
-        self.wav2vec, cfg, task = fairseq.checkpoint_utils.load_model_ensemble_and_task([self.config['wav2vec_path']])
-        self.wav2vec = self.wav2vec[0]   
+        self.model = wav2vecModel(config)
 
-        # init RNN 
-        self.decoder = getattr(torch.nn, self.config['model']['layer_type'])(**self.config['model']['layer_params'])
-        self.decoder = FunctionalModule(self.decoder) 
         # Losses
         # Note: zero_infinity=False is unstable?
         self.ctc_loss = torch.nn.CTCLoss(blank=0, zero_infinity=False)
@@ -208,14 +213,10 @@ class wav2vecModule(LightningModule):
             return None
         total_loss = 0
         
-        z = self.wav2vec.feature_extractor(batch.features)
-        c = self.wav2vec.feature_aggregator(z)
-       
-        c = c.transpose(1,2)   
-        ctc_output = self.decoder(c)
- 
-        encoded_len = torch.div(batch.feature_lengths, 160.26, rounding_mode='floor').to(torch.long)
+        ctc_output, encoded_len = self.model(batch.features,
+                                             batch.feature_lengths)
 
+        # transpose is BxTxD -> TxBxD 
         total_loss = self.ctc_loss(ctc_output.transpose(
                             0, 1), batch.targets,
                             encoded_len, batch.target_lengths)
