@@ -5,22 +5,22 @@ data:
     train_split: ['XL_munged']                  # Name of data splits to be used as training set
     dev_split: ['DEV_munged']                   # Name of data splits to be used as validation set
     bucketing: False                      # Enable/Disable bucketing
-    batch_size: 16
+    batch_size: 4
   text:
     mode: 'word'                       # 'character'/'word'/'subword'
     vocab_file: 'tests/sample_data/gigaspeech_words-10k.vocab'
 
 hparas:
   optimizer: 'Adam'                                   # Experiment hyper-parameters
-  lr: 0.0001
+  lr: 0.00001
   eps: 0.00000001                         # 1e-8
   epochs: 120
   valid_step: 5000
   lr_scheduler: 'fixed'                   # 'fixed'/'warmup'
   curriculum: 0
-
+  accum_grad_batches: 4
 model_name: 'wav2vec'
-  
+val_metric: 'val_ctc' 
 wav2vec_path: '/om4/group/mcdermott/user/imgriff/projects/End-to-end-ASR-Pytorch/ckpt/wav2vec1_pretrained/wav2vec_large.pt'
   
 model:                                    # Model architecture

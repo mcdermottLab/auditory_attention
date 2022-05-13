@@ -5,7 +5,7 @@
 #SBATCH --mem=128Gb
 #SBATCH --cpus-per-task=32
 #SBATCH --time=120:00:00
-#SBATCH --partition=mcdermott
+#SBATCH --partition=normal
 #SBATCH --gres=gpu:GEFORCEGTX1080TI:4
 
 module add openmind/miniconda

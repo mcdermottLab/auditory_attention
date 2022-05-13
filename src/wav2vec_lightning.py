@@ -116,16 +116,17 @@ class wav2vecModel(torch.nn.Module):
         super().__init__()
         wav2vec, _, _ = fairseq.checkpoint_utils.load_model_ensemble_and_task([config['wav2vec_path']])
         self.wav2vec = wav2vec[0]  
-        self.decoder = getattr(torch.nn, self.config['model']['layer_type'])(**self.config['model']['layer_params'])
+        self.decoder = getattr(torch.nn, config['model']['layer_type'])(**config['model']['layer_params'])
 
     def forward(self, input, input_lens):
         input = self.wav2vec.feature_extractor(input)
         input = self.wav2vec.feature_aggregator(input)
-    
+       
         input = input.transpose(1,2) # BxDxT -> BxTxD   
         input = self.decoder(input)
- 
-        encoded_len = torch.div(input_lens, 160.26, rounding_mode='floor').to(torch.long)
+        encoded_len = input_lens // 160 - 2 # 160 is wav2vec downsample rate - 10ms output stride 
+#        encoded_len = torch.div(input_lens, 160.26, rounding_mode='floor').to(torch.long)
+        
         return input, encoded_len
 
 
@@ -150,11 +151,19 @@ class wav2vecModule(LightningModule):
         self.blank_idx = 0
         self.config['model']['layer_params']['out_features'] = self.vocab_size 
         # self.data_pipeline, _ = create_transform(config['data']['audio'])
-
+        
 
         # init wav2vec 
         self.model = wav2vecModel(config)
-
+        
+        # freeze wav2vec params
+        for para in self.model.wav2vec.parameters():
+            para.requires_grad = False
+        
+        # get trainable params
+        
+        trainable_params = [{'params': self.model.decoder.parameters()}] 
+        
         # Losses
         # Note: zero_infinity=False is unstable?
         self.ctc_loss = torch.nn.CTCLoss(blank=0, zero_infinity=False)
@@ -162,21 +171,22 @@ class wav2vecModule(LightningModule):
         # Optimizer
         opt_cfg = self.config['hparas']
         opt = getattr(torch.optim, opt_cfg['optimizer'])
-        model_paras = [{'params': self.decoder.parameters()}]
         
         if opt_cfg['lr_scheduler'] == 'warmup':
             warmup_step = 4000.0
             init_lr = opt_cfg['lr']
             update_rule= lambda step: init_lr * warmup_step ** 0.5 * \
                 min((step+1)*warmup_step**-1.5, (step+1)**-0.5)
-            self.optimizer = opt(model_paras, lr=1.0)
-            self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, update_rule) 
+            self.optimizer = opt(trainable_params, lr=1.0)
+            self.lr_scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, update_rule)
+            
         elif opt_cfg['lr_scheduler'] == 'plateau':
-            self.optimizer = opt(model_paras,lr=opt_cfg['lr'], eps=opt_cfg['eps'])
+            self.optimizer = opt(trainable_params, lr=opt_cfg['lr'], eps=opt_cfg['eps'])
             self.lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,'min', patience=1)
+            
         else:
             self.lr_scheduler = None
-            self.optimizer = opt(model_paras,lr=opt_cfg['lr'], eps=opt_cfg['eps'])       
+            self.optimizer = opt(trainable_params, lr=opt_cfg['lr'], eps=opt_cfg['eps'])       
             
         self.step = 0 
 
@@ -194,8 +204,8 @@ class wav2vecModule(LightningModule):
         wavs = [sample[1].transpose(0,1) for sample in samples] 
         features = torch.nn.utils.rnn.pad_sequence(wavs, batch_first=True)
         lengths = torch.tensor([elem.shape[0] for elem in wavs], dtype=torch.int32)
-        
-        return features.squeeze(), lengths
+        features = features.view(features.shape[0], features.shape[1]) 
+        return features, lengths
 
     def _train_collate_fn(self, samples: List):
         features, feature_lengths = self._extract_features(samples)

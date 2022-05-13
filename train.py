@@ -20,7 +20,7 @@ def run_train(args):
     checkpoint_dir = args.exp_dir / "checkpoints"
     checkpoint = ModelCheckpoint(
         checkpoint_dir,
-        monitor="WER/val_att",
+        monitor=f"WER/{config['val_metric']}",
         mode="min",
         save_top_k=1,
         save_weights_only=True,
@@ -41,21 +41,27 @@ def run_train(args):
     trainer = Trainer(
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
-        log_every_n_steps = 10,
+       # log_every_n_steps = 10,
+        #limit_train_batches=10,
         num_nodes=args.num_nodes,
         gpus=args.gpus,
         accelerator="gpu",
+        #limit_val_batches=0.1, 
         strategy=DDPPlugin(find_unused_parameters=False),
         val_check_interval=config['hparas']['valid_step'],
 #         gradient_clip_val=100.0,
         profiler="simple",
         callbacks=callbacks,
+        accumulate_grad_batches=config['hparas']['accum_grad_batches']
     )
     if config['model_name'] == 'RNNT':
         from src.giga_rnnt_lightning import RNNTModule
         model = RNNTModule(config)
     elif config['model_name'] == 'LAS':
-        from src.giga_las_lightning import LASModule
+        if config['data']['corpus']['name'] == 'Librispeech':
+            from src.libri_las_lightning import LASModule
+        elif config['data']['corpus']['name'] == 'GigaSpeech':
+            from src.giga_las_lightning import LASModule
         model = LASModule(config)      
     elif config['model_name'] == 'wav2vec':
         from src.wav2vec_lightning import wav2vecModule
