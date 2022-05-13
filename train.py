@@ -66,6 +66,10 @@ def run_train(args):
     elif config['model_name'] == 'wav2vec':
         from src.wav2vec_lightning import wav2vecModule
         model = wav2vecModule(config)
+    elif config['model_name'] == 'CochCNN':
+        from src.coch_word_rec_lightning import CochWordRecModule
+        model = CochWordRecModule(config)
+
     trainer.fit(model)
 
 

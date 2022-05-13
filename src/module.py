@@ -2,6 +2,153 @@ import torch
 import numpy as np
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from src.layers import conv2d_same, pool2d_same
+from src.custom_modules import HannPooling2d
+
+
+class CNN2DExtractor(nn.Module):
+    ''' CNN wrapper, includes relu and layer-norm if applied'''
+
+    def __init__(self, input_channels, out_channels, kernel, stride, padding, pool_stride, pool_size):
+        super(CNN2DExtractor, self).__init__()
+        # Setup
+        self.out_channels = out_channels
+        self.stride = stride
+        self.pool_size = pool_size
+        self.pool_stride = pool_stride
+        self.temp_downsample = self.get_downsample_factor()
+        self.frequency_dim = 40
+
+        n_layers = len(out_channels)
+
+        self.cnn = nn.Sequential()
+        self.output_height = self.frequency_dim # initialization for output feature dim calculation
+        self.output_len = int(8000 * 10) # init samples are 10 seconds at 8kHz - softcode eventually
+    
+        for l in range(n_layers):
+            nIn = 1 if l == 0 else out_channels[l - 1]
+            nOut = out_channels[l]
+            # LayerNorm
+            self.cnn.add_module('layernorm{0}'.format(l), nn.LayerNorm([nIn, self.output_height, self.output_len]))  
+            # Convolution
+            self.cnn.add_module('conv{0}'.format(l),
+                           conv2d_same.create_conv2d_pad(nIn, nOut, kernel_size=kernel[l], stride=stride[l], padding=padding[l]))
+            # Activation 
+            self.cnn.add_module('relu{0}'.format(l), nn.ReLU(True))
+            # Pooling 
+            pool_padding = [pad//2 if pad != 1 else 1 for pad in pool_size[l]]
+            self.cnn.add_module('pooling{0}'.format(l),
+                      HannPooling2d(stride=pool_stride[l], pool_size=pool_size[l], padding=pool_padding))
+
+            # Compute output shapes using conv formula [(Height - Filter + 2Pad)/ Stride]+1
+            # self.output_height = int((np.floor(self.output_height - kernel[l][0] + 2 * padding[l]) / stride[l]) + 1)
+            self.output_height = int((np.floor(self.output_height - pool_size[l][0]) / pool_stride[l][0]) + 1)
+            self.output_len = int((np.floor(self.output_len - pool_size[l][1]) / pool_stride[l][1]) + 1)
+
+        self.output_size = self.output_height * nOut
+        
+
+    def get_downsample_factor(self):
+        return int(np.prod([k_s * p_s[1] for k_s, p_s in zip(self.stride, self.pool_stride)]))
+
+    def view_input(self, feature, feat_len):
+        # downsample time
+        feat_len = feat_len//self.temp_downsample 
+        # crop sequence s.t. t%4==0 
+        #if feature.shape[-1] % self.temp_downsample != 0:
+         #   feature = feature[:,:,:, :-(feature.shape[-1] % self.temp_downsample)].contiguous()
+        bs, ch, ds, ts = feature.shape
+        # stack feature according to result of check_dim
+        # feature = feature.view(bs, ts, self.in_channel, self.freq_dim)
+        # feature = feature.transpose(1, 2)
+        
+        return feature, feat_len
+
+    def forward(self, feature, feat_len):
+        # Calculate new feature length after temporal downsampling 
+        feature, feat_len = self.view_input(feature, feat_len) 
+        # Foward
+        feature = self.cnn(feature)
+
+        # BSxout_channelxD/temp_dsxT/temp_ds -> BSxT/temp_dsxout_channelxD/temp_ds
+        feature = feature.transpose(1, 3) 
+
+        #  BS x T/temp_ds x out_channel x D/temp_ds -> BS x T/temp_ds x out_channel/temp_ds*D
+        feature = feature.contiguous().view(feature.shape[0], feature.shape[1], self.output_height)
+       
+        return feature, feat_len
+
+
+class CNN2DClassifier(CNN2DExtractor):
+    def __init__(self, num_classes, frequency_dim, input_channels, out_channels, kernel, stride, padding, pool_stride, pool_size):
+                # Setup
+        self.out_channels = out_channels
+        self.stride = stride
+        self.pool_size = pool_size
+        self.pool_stride = pool_stride
+        self.temp_downsample = self.get_downsample_factor()
+    
+        self.cnn = nn.Sequential()
+        self.output_height = frequency_dim # initialization for output feature dim calculation
+        self.output_len = int(8000 * 2) # init samples fixed - 2 seconds at 8kHz - softcode eventually
+    
+        n_layers = len(out_channels)
+
+        # Add convolutional layers 
+        for l in range(n_layers):
+            nIn = input_channels if l == 0 else out_channels[l - 1]
+            nOut = out_channels[l]
+            # LayerNorm
+            self.cnn.add_module('layernorm{0}'.format(l), nn.LayerNorm([nIn, self.output_height, self.output_len]))  
+            # Convolution
+            self.cnn.add_module('conv{0}'.format(l),
+                           conv2d_same.create_conv2d_pad(nIn, nOut, kernel_size=kernel[l], stride=stride[l], padding=padding[l]))
+            # Activation 
+            self.cnn.add_module('relu{0}'.format(l), nn.ReLU(inplace = True))
+            # Pooling 
+            pool_padding = [pad//2 if pad != 1 else 1 for pad in pool_size[l]]
+            self.cnn.add_module('pooling{0}'.format(l),
+                      HannPooling2d(stride=pool_stride[l], pool_size=pool_size[l], padding=pool_padding))
+
+            # Compute output shapes using conv formula [(Height - Filter + 2Pad)/ Stride]+1
+            # conv layers:
+            if padding[l] == 'same':
+                self.output_height = int((self.output_height / stride[l]) + 1)
+                self.output_len = int((self.output_len / stride[l]) + 1)
+            else:
+                self.output_height = int((np.ceil(self.output_height - kernel[l][0] + 2 * padding[l]) / stride[l]) + 1)
+                self.output_len = int((np.ceil(self.output_len -  kernel[l][1] + 2 * padding[l]) / stride[l]) + 1)
+            # pooling layers
+            self.output_height = int((np.ceil(self.output_height - pool_size[l][0]) / pool_stride[l][0]) + 1)
+            self.output_len = int((np.ceil(self.output_len - pool_size[l][1]) / pool_stride[l][1]) + 1)
+
+        self.output_size = self.output_height * nOut * self.output_len
+        
+        self.avgpool =  pool2d_same.create_pool2d('avg', kernel_size = [2,5] , stride = [2,2], padding = 'same')
+
+        self.fc =  nn.Linear(self.output_zie, 4094)
+        self.relufc = nn.ReLu(inplace = True)
+        self.dropout = nn.Dropout()
+        self.logits = nn.Linear(4094, num_classes)
+
+    def get_downsample_factor(self):
+        # Get total temporal downsampling factor. Convolutional kernel stride is an int.
+        # pool stride is a 2 element list where the 2nd element is the stride in time
+        return int(np.prod([k_s * p_s[1] for k_s, p_s in zip(self.stride, self.pool_stride)]))
+
+    def forward(self, feature):
+        batch_size = feature.size(0)
+        # forward through cnn layers
+        feature = self.cnn(feature)
+        feature = self.avgpool(feature)
+        # BS x C x H X W -> B x C*H*W
+        feature = feature.view(batch_size, -1) 
+        feature = self.fc(feature)
+        feature = self.relufc(feature)
+        feature = self.dropout(feature)
+        logits = self.logits(feature)
+
+        return logits
 
 
 class VGGExtractor(nn.Module):
@@ -66,6 +213,7 @@ class VGGExtractor(nn.Module):
         #  BS x T/4 x 128 x D/4 -> BS x T/4 x 32D
         feature = feature.contiguous().view(feature.shape[0], feature.shape[1], self.out_dim)
         return feature, feat_len
+
 
 class CNNExtractor(nn.Module):
     ''' A simple 2-layer CNN extractor for acoustic feature down-sampling'''
