@@ -79,10 +79,11 @@ class CNN2DExtractor(nn.Module):
         return feature, feat_len
 
 
-class CNN2DClassifier(CNN2DExtractor):
-    def __init__(self, num_classes, frequency_dim, input_channels, out_channels, kernel, stride, padding, pool_stride, pool_size):
-                # Setup
-        self.out_channels = out_channels
+class CNN2DClassifier(nn.Module):
+    def __init__(self, num_classes, frequency_dim, input_channels, cnn_channels, kernel, stride, padding, pool_stride, pool_size):
+        super(CNN2DClassifier, self).__init__()
+        # Setup
+        self.cnn_channels = cnn_channels
         self.stride = stride
         self.pool_size = pool_size
         self.pool_stride = pool_stride
@@ -92,12 +93,12 @@ class CNN2DClassifier(CNN2DExtractor):
         self.output_height = frequency_dim # initialization for output feature dim calculation
         self.output_len = int(8000 * 2) # init samples fixed - 2 seconds at 8kHz - softcode eventually
     
-        n_layers = len(out_channels)
+        n_layers = len(cnn_channels)
 
         # Add convolutional layers 
         for l in range(n_layers):
-            nIn = input_channels if l == 0 else out_channels[l - 1]
-            nOut = out_channels[l]
+            nIn = input_channels if l == 0 else cnn_channels[l - 1]
+            nOut = cnn_channels[l]
             # LayerNorm
             self.cnn.add_module('layernorm{0}'.format(l), nn.LayerNorm([nIn, self.output_height, self.output_len]))  
             # Convolution
@@ -106,28 +107,31 @@ class CNN2DClassifier(CNN2DExtractor):
             # Activation 
             self.cnn.add_module('relu{0}'.format(l), nn.ReLU(inplace = True))
             # Pooling 
-            pool_padding = [pad//2 if pad != 1 else 1 for pad in pool_size[l]]
+            pool_padding = [pad//2  if pad > 1 else 0 for pad in pool_size[l]]
             self.cnn.add_module('pooling{0}'.format(l),
                       HannPooling2d(stride=pool_stride[l], pool_size=pool_size[l], padding=pool_padding))
 
             # Compute output shapes using conv formula [(Height - Filter + 2Pad)/ Stride]+1
             # conv layers:
-            if padding[l] == 'same':
-                self.output_height = int((self.output_height / stride[l]) + 1)
-                self.output_len = int((self.output_len / stride[l]) + 1)
-            else:
-                self.output_height = int((np.ceil(self.output_height - kernel[l][0] + 2 * padding[l]) / stride[l]) + 1)
-                self.output_len = int((np.ceil(self.output_len -  kernel[l][1] + 2 * padding[l]) / stride[l]) + 1)
-            # pooling layers
-            self.output_height = int((np.ceil(self.output_height - pool_size[l][0]) / pool_stride[l][0]) + 1)
-            self.output_len = int((np.ceil(self.output_len - pool_size[l][1]) / pool_stride[l][1]) + 1)
+#             if padding[l] == 'same':
+#                 self.output_height = int((self.output_height / stride[l]) + 1)
+#                 self.output_len = int((self.output_len / stride[l]) + 1)
+#             else:
+#                 self.output_height = int((np.floor(self.output_height - kernel[l][0] + 2 * padding[l]) / stride[l]) + 1)
+#                 self.output_len = int((np.floor(self.output_len -  kernel[l][1] + 2 * padding[l]) / stride[l]) + 1)
+#             # pooling layers
+            self.output_height = int((np.floor(self.output_height - pool_size[l][0] + 2 * pool_padding[0]) / pool_stride[l][0]) + 1)
+            self.output_len = int((np.floor(self.output_len - pool_size[l][1] + 2 * pool_padding[1]) / pool_stride[l][1]) + 1)
 
+        self.avgpool =  pool2d_same.create_pool2d('avg', kernel_size = [2,5] , stride = [2,2], padding = 'same')
+        
+        self.output_height = int((np.floor(self.output_height - 2) / 2) + 1)
+        self.output_len = int((np.floor(self.output_len - 5 + 2*2) / 2) + 1) # avepool adds padding of 2
+        
         self.output_size = self.output_height * nOut * self.output_len
         
-        self.avgpool =  pool2d_same.create_pool2d('avg', kernel_size = [2,5] , stride = [2,2], padding = 'same')
-
-        self.fc =  nn.Linear(self.output_zie, 4094)
-        self.relufc = nn.ReLu(inplace = True)
+        self.fc =  nn.Linear(self.output_size, 4094)
+        self.relufc = nn.ReLU(inplace = True)
         self.dropout = nn.Dropout()
         self.logits = nn.Linear(4094, num_classes)
 

@@ -9,6 +9,11 @@ import torch.nn.functional as F
 
 # Calculate symmetric padding for a convolution
 def get_padding(kernel_size: int, stride: int = 1, dilation: int = 1, **_) -> int:
+    if isinstance(kernel_size, list):
+        h_pad = ((stride - 1) + dilation * (kernel_size[0] - 1)) // 2
+        w_pad = ((stride - 1) + dilation * (kernel_size[1] - 1)) // 2
+        return [h_pad, w_pad]
+
     padding = ((stride - 1) + dilation * (kernel_size - 1)) // 2
     return padding
 
@@ -20,6 +25,8 @@ def get_same_padding(x: int, k: int, s: int, d: int):
 
 # Can SAME padding for given args be done statically?
 def is_static_pad(kernel_size: int, stride: int = 1, dilation: int = 1, **_):
+    if isinstance(kernel_size, list):
+        return stride == 1 and (dilation * (kernel_size[0] - 1)) % 2 == 0 and (dilation * (kernel_size[1] - 1)) % 2 == 0
     return stride == 1 and (dilation * (kernel_size - 1)) % 2 == 0
 
 

@@ -20,6 +20,8 @@ data:
   text:
     mode: 'word'                       # 'character'/'word'/'subword'
     vocab_file: '/om4/group/mcdermott/user/imgriff/projects/End-to-end-ASR-Pytorch/tests/sample_data/gigaspeech_words-10k.vocab'
+    
+val_metric: 'WER/val_att'
 
 hparas:                                   # Experiment hyper-parameters
   valid_step: 5000

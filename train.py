@@ -17,10 +17,12 @@ def run_train(args):
     
     config['n_jobs'] = args.n_jobs
     
+    config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
+    
     checkpoint_dir = args.exp_dir / "checkpoints"
     checkpoint = ModelCheckpoint(
         checkpoint_dir,
-        monitor=f"WER/{config['val_metric']}",
+        monitor=f"{config['val_metric']}",
         mode="min",
         save_top_k=1,
         save_weights_only=True,
@@ -51,9 +53,7 @@ def run_train(args):
         val_check_interval=config['hparas']['valid_step'],
 #         gradient_clip_val=100.0,
         profiler="simple",
-        callbacks=callbacks,
-        accumulate_grad_batches=config['hparas']['accum_grad_batches']
-    )
+        callbacks=callbacks)
     if config['model_name'] == 'RNNT':
         from src.giga_rnnt_lightning import RNNTModule
         model = RNNTModule(config)

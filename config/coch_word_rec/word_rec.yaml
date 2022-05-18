@@ -1,25 +1,25 @@
-rep_on_gpu: True
 
 data:
   num_words: 794                       # quarter semitone bins over 4 octaves [-2 : +2]
   corpus:
+    with_noise: True
     root: '/om4/group/mcdermott/projects/ibmHearingAid/assets/data/datasets/JSIN_v3.00/nStim_20000/2000ms/rms_0.1/noiseSNR_-10_10/stimSR_20000/reverb_none/noise_all/JSIN_all_v3/subsets' # Path to raw GigaSpeech dataset
   audio:                                  # Attributes of audio feature
     rep_type:  'cochlea_filt'
     rep_kwargs:
-      sr: 16000
+      sr: 20000
       env_sr: 8000
+      n_channels: 40
+      low_lim: 40
       use_pad: True
-      coch_filter_path: '/om4/group/mcdermott/user/imgriff/projects/cocktail_party/deepspeech/cochlear_filter_impulse_response_40_channels_16k_taps_10ms_hann_win.mat'
-      coch_filter_kwargs:
-        n_channels: 40
-        low_lim: 40
-        high_lim: 8000
+      rep_on_gpu: False 
       env_extraction_type: 'Half-wave Rectification'
-      downsampling_type: 'SincWithKaiserWindow'
+      downsampling_type: 'TorchTransformsResample'
       downsampling_kwargs:
-        window_size: 1001
-        
+        lowpass_filter_width: 64
+        rolloff: 0.9475937167399596
+        resampling_method: "kaiser_window"
+        beta: 14.769656459379492
     compression_type: 'coch_p3'
     compression_kwargs:
       scale: 1
@@ -27,9 +27,11 @@ data:
       clip_value: 5
       power: 0.3
   loader:
-    batch_size: 1
-    num_workers: 20
+    batch_size: 32                         # Gets divided by num gpus
+#     num_workers: 20
 
+val_metric: 'ACC/val_acc'
+model_name: 'CochCNN'
 hparas:                                   # Experiment hyper-parameters
   valid_step: 60
   epochs: 6
@@ -41,7 +43,7 @@ hparas:                                   # Experiment hyper-parameters
   
   
 model:                                    # Model architecture
-  cnn_dim: [32, 64, 128, 256, 512, 512, 512]                       
+  cnn_channels: [32, 64, 128, 256, 512, 512, 512]                       
   kernel:  [[2, 34], [2, 14], [5, 5], [5, 5], [6, 6], [5, 5], [6, 6]]
   stride: [1,1,1,1,1,1,1]
   padding: ['same','same','same','same','same','same','same'] # same padding for all

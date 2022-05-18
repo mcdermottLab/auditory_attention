@@ -10,6 +10,8 @@ data:
     mode: 'word'                       # 'character'/'word'/'subword'
     vocab_file: 'tests/sample_data/gigaspeech_words-10k.vocab'
 
+val_metric: 'WER/val_ctc'
+
 hparas:
   optimizer: 'Adam'                                   # Experiment hyper-parameters
   lr: 0.00001

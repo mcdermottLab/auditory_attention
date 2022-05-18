@@ -156,7 +156,7 @@ class AudioInputRepresentation(ch.nn.Module):
                                                                     compression_type,
                                                                     compression_kwargs)
 
-    def forward(self, x, output_lens): 
+    def forward(self, x, output_lens=None): 
         # print(self.full_rep)
         x, _ = self.full_rep(x, None)
         return x

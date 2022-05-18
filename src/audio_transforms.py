@@ -11,9 +11,12 @@ from chcochleagram import compression
 from chcochleagram import cochleagram
 from chcochleagram import *
 from .time_domain_cochleagram import TimeDomainCochleagram
+import torchaudio.transforms as T
 
 
-downsampling_reps = {'SincWithKaiserWindow': chcochleagram.downsampling.SincWithKaiserWindow}
+
+downsampling_reps = {'SincWithKaiserWindow': chcochleagram.downsampling.SincWithKaiserWindow,
+                     'TorchTransformsResample': T.Resample}
 
 def ch_demean(x, dim=0):
     '''
@@ -287,30 +290,32 @@ class AudioToCochlearRep(torch.nn.Module):
 
         # Args used for multiple of the cochleagram operations
         self.sr = self.cgram_kwargs['sr']
-        self.filter_path = self.cgram_kwargs['coch_filter_path']
+        self.env_sr = self.cgram_kwargs['env_sr']
         self.use_pad = self.cgram_kwargs['use_pad']
         # Define cochlear filters
-        self.coch_filter_kwargs = self.cgram_kwargs['coch_filter_kwargs']
-        self.coch_filter_kwargs = {'coch_filter_path':self.filter_path,
-                                   'use_pad':self.use_pad,
-                                   'filter_kwargs':self.coch_filter_kwargs}
+        self.coch_filter_kwargs = {'sr':self.sr,
+                                   'env_sr': self.env_sr,
+                                   'n_channels': cgram_kwargs['n_channels'],
+                                   'low_lim': cgram_kwargs['low_lim']
+                                   }
         # Define an envelope extraction operation in Forward
         # Define a downsampling operation
         if isinstance(self.cgram_kwargs['downsampling_type'], str):
             self.downsampling = downsampling_reps[self.cgram_kwargs['downsampling_type']]
         else:
             self.downsampling = self.cgram_kwargs['downsampling_type']
-        self.env_sr = self.cgram_kwargs['env_sr']
         self.downsampling_kwargs = self.cgram_kwargs['downsampling_kwargs']
         self.downsampling_op = self.downsampling(self.sr,
                                                  self.env_sr,
-                                                 **self.downsampling_kwargs)
+                                                 **self.downsampling_kwargs,
+                                                 dtype=torch.float32)
         # Compression is applied as a separate transform to be consistent with Spectrograms
         # Define cochleagram
         self.Cochleagram = TimeDomainCochleagram(self.coch_filter_kwargs,
                                                 self.downsampling_op,
                                                 use_pad=self.use_pad,
-                                                compression=None)
+                                                compression=None,
+                                                on_gpu=cgram_kwargs['rep_on_gpu'])
 
 
     def forward(self, foreground_wav, background_wav):

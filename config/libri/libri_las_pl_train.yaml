@@ -1,36 +1,40 @@
 data:
-  corpus:
-    name: 'GigaSpeech'                   # Specify corpus
-    path: '/om2/data/public/GigaSpeech/' # Path to raw GigaSpeech dataset
-    train_split: ['XL_munged']                  # Name of data splits to be used as training set
-    dev_split: ['DEV_munged']                   # Name of data splits to be used as validation set
-    bucketing: False                      # Enable/Disable bucketing
-   
+  corpus:                                 
+    name: 'Librispeech'                   # Specify corpus
+    path: '/om/data/public/librispeech/librispeech_data/librispeech_data/'  # Path to raw LibriSpeech dataset
+    train_split: ['train-clean-100','train-clean-360'] # Name of data splits to be used as training set
+    dev_split: ['dev-clean']              # Name of data splits to be used as validation set
+    bucketing: False                       # Enable/Disable bucketing 
+    batch_size: 16
   audio:                                  # Attributes of audio feature
-    n_mels:  40
-    sample_rate: 16000
-    n_fft: 400                            # 25ms
-    hop_length: 160                       # 10ms
-    f_min: 20                             # 20Hz lower cuttoff
+    feat_type: 'fbank'
+    feat_dim:  40
+    frame_length: 25                      # ms
+    frame_shift: 10                       # ms
+    dither: 0                             # random dither audio, 0: no dither
+    apply_cmvn: True
+    delta_order: 0                        # 0: do nothing, 1: add delta, 2: add delta and accelerate
+    delta_window_size: 0
+    is_wav: True
+    resample: False
   text:
     mode: 'word'                       # 'character'/'word'/'subword'
     vocab_file: '/om4/group/mcdermott/user/imgriff/projects/End-to-end-ASR-Pytorch/tests/sample_data/gigaspeech_words-10k.vocab'
 
 hparas:                                   # Experiment hyper-parameters
-  valid_step: 10000
+  valid_step: 5000
   epochs: 120
-  tf_start: 0.9
-  tf_end: 0.9
-  tf_step: 70000
-  optimizer: 'Adam'
-  lr: 0.001
+  tf_start: 1.0
+  tf_end: 1.0
+  tf_step: 500000
+  optimizer: 'Adadelta'
+  lr: 1.0
   eps: 0.00000001                         # 1e-8
   lr_scheduler: 'fixed'                   # 'fixed'/'warmup'
   curriculum: 0
+  accum_grad_batches: 1
 
 val_metric: 'WER/val_att'
-
-
 model_name: 'LAS'
 model:                                    # Model architecture
   ctc_weight: 0.0                         # Weight for CTC loss
@@ -57,4 +61,4 @@ model:                                    # Model architecture
     module: 'LSTM'                        # 'LSTM'/'GRU'/'Transformer'
     dim: 512
     layer: 1
-    dropout: 0.2
+    dropout: 0
