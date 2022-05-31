@@ -150,9 +150,9 @@ class CNN2DClassifier(nn.Module):
         feature = self.fc(feature)
         feature = self.relufc(feature)
         feature = self.dropout(feature)
-        logits = self.logits(feature)
+        feature = self.logits(feature) # now logits
 
-        return logits
+        return feature
 
 
 class VGGExtractor(nn.Module):

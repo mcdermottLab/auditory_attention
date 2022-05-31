@@ -40,7 +40,9 @@ def run_train(args):
         checkpoint,
         train_checkpoint,
     ]
+
     trainer = Trainer(
+        precision=16 if args.mixed_precision else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
        # log_every_n_steps = 10,
@@ -54,6 +56,8 @@ def run_train(args):
 #         gradient_clip_val=100.0,
         profiler="simple",
         callbacks=callbacks)
+
+
     if config['model_name'] == 'RNNT':
         from src.giga_rnnt_lightning import RNNTModule
         model = RNNTModule(config)
@@ -93,6 +97,12 @@ def cli_main():
         default=1,
         type=int,
         help="Number of nodes to use for training. (Default: 1)",
+    )
+    parser.add_argument(
+        "--mixed_precision",
+        default=False,
+        action='store_true',
+        help="Use 16 bit precision in training. (Default: False)",
     )
     parser.add_argument(
         "--gpus",
