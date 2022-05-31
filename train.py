@@ -23,7 +23,7 @@ def run_train(args):
     checkpoint = ModelCheckpoint(
         checkpoint_dir,
         monitor=f"{config['val_metric']}",
-        mode="min",
+        mode="max" if 'ACC' in config['val_metric'] else "min",
         save_top_k=1,
         save_weights_only=True,
         verbose=True,

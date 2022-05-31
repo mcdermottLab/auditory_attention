@@ -74,6 +74,7 @@ class ComputeSubbands(torch.nn.Module):
         self.n_taps = coch_filters.shape[1]
         if use_pad:
             pad_factor = self.n_taps - 1 # need odd number for total len
+            print(f"{pad_factor=}")
             coch_filters = torch.nn.functional.pad(coch_filters, ((pad_factor,0)), mode='constant', value=0)
         self.n_channels = coch_filters.shape[0]
         coch_filters = coch_filters.unsqueeze(1)
@@ -85,7 +86,9 @@ class ComputeSubbands(torch.nn.Module):
             x = x.view(x_shape[0]*x_shape[-2], 1, -1)
         else: # Handle the case where there is no batch dimension
             x = x.view(x_shape[0], 1, -1)
+        print(x.shape)
         x = torch.nn.functional.conv1d(x, self.coch_filters, padding='same')
+        print(x.shape)
         x = x.view(x_shape[0], 1, self.n_channels, -1)
         return x
 

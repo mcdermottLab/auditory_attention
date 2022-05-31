@@ -335,10 +335,15 @@ class LASModule(LightningModule):
         )
 
     def forward(self, batch: Batch):
-        decoder = BeamDecoder(self.model.to(self.device), None, **self.config['decode'] )
-        hypotheses = decoder(batch.features.to(self.device), batch.feature_lengths.to(self.device))
-        return post_process_hypos(hypotheses, self.tokenizer)[0][0]
+#         decoder = BeamDecoder(self.model.to(self.device), None, **self.config['decode'] )
+        ctc_output, encode_len, att_output, att_align, dec_state = self.model(batch.features.to(self.device), batch.feature_lengths.to(self.device),
+                               max(batch.target_lengths),
+                               tf_rate=0,
+                               teacher=None, 
+                               get_dec_state=False)
+#         return post_process_hypos(hypotheses, self.tokenizer)[0][0]
 
+        return ctc_output, encode_len, att_output, att_align, dec_state
     def training_step(self, batch: Batch, batch_idx):
         self.step += 1
         return self._step(batch, batch_idx, "train")

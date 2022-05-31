@@ -106,7 +106,7 @@ class CochWordRecModule(LightningModule):
         return Batch(features, targets)
 
     def _test_collate_fn(self, samples: List):
-        return self._valid_collate_fn(samples), samples
+        return self._valid_collate_fn(samples)
 
 
     def _step(self, batch, batch_idx, step_type):
