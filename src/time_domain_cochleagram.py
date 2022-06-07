@@ -43,7 +43,7 @@ class TimeDomainCochleagram(torch.nn.Module):
                 ir = torch.hstack([torch.ones(1,1), torch.zeros(1,filter_params['sr']-1)])
                 kernel = ERB_filter_bank(ir, self.erb_coefs)
                 # window kernel
-                kernel =  backend_hann2d(kernel.numpy().squeeze(), window_size, filter_params['sr'])
+                kernel = backend_hann2d(kernel.numpy().squeeze(), window_size, filter_params['sr'])
                 kernel = torch.from_numpy(kernel).float()
                 kernel = torch.fliplr(kernel) # needed for conv layer to perform conv not auto. cor. 
                 self.compute_rep = ComputeSubbands(kernel, use_pad)
@@ -69,13 +69,11 @@ class ComputeSubbands(torch.nn.Module):
     Convolves input with impulse response of filters in cochlear filter
     bank.
     """
-    def __init__(self, coch_filters, use_pad):
+    def __init__(self, coch_filters, use_pad=None):
         super(ComputeSubbands, self).__init__()
+        self.use_pad = use_pad
         self.n_taps = coch_filters.shape[1]
-        if use_pad:
-            pad_factor = self.n_taps - 1 # need odd number for total len
-            print(f"{pad_factor=}")
-            coch_filters = torch.nn.functional.pad(coch_filters, ((pad_factor,0)), mode='constant', value=0)
+        self.pad_factor = self.n_taps - 1 # need odd number for total len
         self.n_channels = coch_filters.shape[0]
         coch_filters = coch_filters.unsqueeze(1)
         self.register_buffer("coch_filters", coch_filters)
@@ -86,12 +84,11 @@ class ComputeSubbands(torch.nn.Module):
             x = x.view(x_shape[0]*x_shape[-2], 1, -1)
         else: # Handle the case where there is no batch dimension
             x = x.view(x_shape[0], 1, -1)
-        print(x.shape)
-        x = torch.nn.functional.conv1d(x, self.coch_filters, padding='same')
-        print(x.shape)
+        # Pad time bins  of input 
+        x = torch.nn.functional.pad(x, ((self.pad_factor,0)), mode='constant', value=0)
+        x = torch.nn.functional.conv1d(x, self.coch_filters, padding='valid')
         x = x.view(x_shape[0], 1, self.n_channels, -1)
         return x
-
     
     
 def ERB_filter_bank(x: torch.Tensor, fcoefs: torch.Tensor) -> torch.Tensor:

@@ -2,7 +2,6 @@
 data:
   num_words: 794                       # quarter semitone bins over 4 octaves [-2 : +2]
   corpus:
-    with_noise: True
     root: '/om4/group/mcdermott/projects/ibmHearingAid/assets/data/datasets/JSIN_v3.00/nStim_20000/2000ms/rms_0.1/noiseSNR_-10_10/stimSR_20000/reverb_none/noise_all/JSIN_all_v3/subsets' # Path to raw GigaSpeech dataset
   audio:                                  # Attributes of audio feature
     rep_type:  'cochlea_filt'
@@ -40,7 +39,7 @@ hparas:                                   # Experiment hyper-parameters
   eps: 0.00000001                         # 1e-8
   lr_scheduler: 'fixed'                   # 'fixed'/'warmup'
   curriculum: 0
-  
+  gradient_clip_val: 100 
   
 model:                                    # Model architecture
   cnn_channels: [32, 64, 128, 256, 512, 512, 512]                       

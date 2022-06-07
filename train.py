@@ -14,12 +14,16 @@ from pytorch_lightning.plugins import DDPPlugin
 
 def run_train(args):
     config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
-    
+      
     config['n_jobs'] = args.n_jobs
     
     config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
     
     checkpoint_dir = args.exp_dir / "checkpoints"
+    if args.ckpt_path != '':
+        ckpt_path = args.exp_dir / args.ckpt_path
+    else:
+        ckpt_path = None
     checkpoint = ModelCheckpoint(
         checkpoint_dir,
         monitor=f"{config['val_metric']}",
@@ -40,20 +44,20 @@ def run_train(args):
         checkpoint,
         train_checkpoint,
     ]
-
+   
     trainer = Trainer(
         precision=16 if args.mixed_precision else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
        # log_every_n_steps = 10,
-        #limit_train_batches=10,
+       
         num_nodes=args.num_nodes,
         gpus=args.gpus,
         accelerator="gpu",
-        #limit_val_batches=0.1, 
+        resume_from_checkpoint = ckpt_path,  
         strategy=DDPPlugin(find_unused_parameters=False),
         val_check_interval=config['hparas']['valid_step'],
-#         gradient_clip_val=100.0,
+        gradient_clip_val=config['hparas']['gradient_clip_val'],
         profiler="simple",
         callbacks=callbacks)
 
@@ -85,6 +89,12 @@ def cli_main():
         default=pathlib.Path("./exp"),
         type=pathlib.Path,
         help="Directory to save checkpoints and logs to. (Default: './exp')",
+    )
+    parser.add_argument(
+        "--ckpt_path",
+        default='',
+        type=str,
+        help="Resume training from this checkpoint."
     )
     # parser.add_argument(
     #     "--global_stats_path",

@@ -12,9 +12,12 @@ from corpus.jsinV3DataLoader_precombined import jsinV3_precombined
 from src.util import cal_er
 import src.audio_transforms as at
 import src.custom_modules as cm 
+import psutil
 
 
-Batch = namedtuple("Batch", ["features", "targets"])
+# def get_memory_usage():
+#     mem = psutil.virtual_memory()
+#     return mem.used / 1024 ** 3
 
 
 class CochWordRecModule(LightningModule):
@@ -81,44 +84,47 @@ class CochWordRecModule(LightningModule):
             self.optimizer = opt(model_paras,lr=opt_cfg['lr'], eps=opt_cfg['eps'])       
             
 
-    def _extract_labels(self, samples: List):
-        targets = torch.tensor([elem[-1] for elem in samples]).type(torch.LongTensor)
-        return targets
+#     def _extract_labels(self, samples: List):
+#         targets = torch.tensor([elem[-1] for elem in samples]).type(torch.LongTensor)
+#         return targets
 
-    def _train_extract_features(self, samples: List):
-        features = [self.audio_transforms(*sample[:-1])[0] for sample in samples]
-        features = torch.nn.utils.rnn.pad_sequence(features, batch_first=True)
-        return features
+#     def _train_extract_features(self, samples: List):
+#         features = [self.audio_transforms(*sample[:-1])[0] for sample in samples]
+#         features = torch.nn.utils.rnn.pad_sequence(features, batch_first=True)
+#         return features
 
-    def _valid_extract_features(self, samples: List):
-        features = [self.audio_transforms(*sample[:-1])[0] for sample in samples]
-        features = torch.nn.utils.rnn.pad_sequence(features, batch_first=True)
-        return features
+#     def _valid_extract_features(self, samples: List):
+#         features = [self.audio_transforms(*sample[:-1])[0] for sample in samples]
+#         features = torch.nn.utils.rnn.pad_sequence(features, batch_first=True)
+#         return features
 
-    def _train_collate_fn(self, samples: List):
-        features = self._train_extract_features(samples)
-        targets = self._extract_labels(samples)
-        return Batch(features, targets)
+#     def _train_collate_fn(self, samples: List):
+#         features = self._train_extract_features(samples)
+#         targets = self._extract_labels(samples)
+#         return Batch(features, targets)
 
-    def _valid_collate_fn(self, samples: List):
-        features = self._valid_extract_features(samples)
-        targets = self._extract_labels(samples)
-        return Batch(features, targets)
+#     def _valid_collate_fn(self, samples: List):
+#         features = self._valid_extract_features(samples)
+#         targets = self._extract_labels(samples)
+#         return Batch(features, targets)
 
-    def _test_collate_fn(self, samples: List):
-        return self._valid_collate_fn(samples)
+#     def _test_collate_fn(self, samples: List):
+#         return self._valid_collate_fn(samples)
 
 
     def _step(self, batch, batch_idx, step_type):
         if batch is None:
             return None
+        features, labels = batch
         # self() is self.forward()
-        outputs = self(batch) 
+        outputs = self(features) 
         
-        loss = self.loss_fn(outputs, batch.targets)
+        loss = self.loss_fn(outputs, labels)
         # calc accuracy
-        self.accuracy[step_type](outputs, batch.targets)
+        self.accuracy[step_type](outputs, labels)
         # log loss and acc
+#         if batch_idx % 100 == 0:
+#             print(get_memory_usage())
         self.log(f"Losses/{step_type}_loss", loss, on_step=True, on_epoch=True)        
         self.log(f"ACC/{step_type}_acc", self.accuracy[step_type], on_step=True, on_epoch=True)
         return loss
@@ -126,12 +132,12 @@ class CochWordRecModule(LightningModule):
     def configure_optimizers(self):
         return [self.optimizer]
         
-    def forward(self, batch: Batch):
-        outputs = self.model(batch.features)
-        # Outputs here are top 1 predictions
+    def forward(self, x: torch.Tensor):
+        outputs = self.model(x)
+        # Outputs here are logits
         return outputs
 
-    def training_step(self, batch: Batch, batch_idx):
+    def training_step(self, batch, batch_idx):
         return self._step(batch, batch_idx, "train")
 
     def validation_step(self, batch, batch_idx):
@@ -141,27 +147,25 @@ class CochWordRecModule(LightningModule):
         return self._step(batch, batch_idx, "test")
 
     def train_dataloader(self):
-        dataset = jsinV3_precombined(**self.corpora_config, train=True)
+        dataset = jsinV3_precombined(**self.corpora_config, train=True, transform=self.audio_transforms)
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=self.loader_config['batch_size'],
-            num_workers=self.config['n_jobs'], 
-            collate_fn=self._train_collate_fn,
+            num_workers=self.config['n_jobs'],
             pin_memory=True
         )
         return dataloader
 
     def val_dataloader(self):
-        dataset = jsinV3_precombined(**self.corpora_config, train=False)
+        dataset = jsinV3_precombined(**self.corpora_config, train=False, transform=self.audio_transforms)
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=self.loader_config['batch_size'],
-            num_workers=self.config['n_jobs'],
-            collate_fn=self._valid_collate_fn,
+            num_workers=self.config['n_jobs']
         )
         return dataloader
 
     def test_dataloader(self):
-        dataset = jsinV3_precombined(**self.corpora_config, train=False)
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, collate_fn=self._test_collate_fn)
+        dataset = jsinV3_precombined(**self.corpora_config, train=False, transform=self.audio_transforms) 
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=1)
         return dataloader

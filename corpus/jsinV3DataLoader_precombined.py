@@ -1,7 +1,9 @@
 import h5py
 import torch
 import glob
-# from . import audio_transforms
+import sys
+# sys.path.append('/om4/group/mcdermott/user/imgriff/projects/End-to-end-ASR-Pytorch')
+# import src.audio_transforms as audio_transforms
 import pickle
 import numpy as np
 
@@ -23,6 +25,7 @@ class jsinV3_precombined_all_signals(torch.utils.data.ConcatDataset):
             self.all_hdf5_files = glob.glob(root + '/train_*/' + self.hdf5_glob)
         else:
             self.all_hdf5_files = glob.glob(root + '/valid_*/' + self.hdf5_glob)[0:1] # Just get one set of them
+            print(self.all_hdf5_files)
 
         self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys) for h5_file in self.all_hdf5_files]
 
@@ -44,18 +47,19 @@ class jsinV3_precombined(torch.utils.data.ConcatDataset):
     hdf5_glob = 'JSIN_all__run_*.h5'
     target_keys = ['signal/word_int']
 
-    def __init__(self, root, with_noise, train=True):
+    def __init__(self, root, train=True, download=False, transform=None):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the 
         specified root directory. 
         """
-        
+        del download
+
         if train:
             self.all_hdf5_files = glob.glob(root + '/train_*/' + self.hdf5_glob)
         else:
             self.all_hdf5_files = glob.glob(root + '/valid_*/' + self.hdf5_glob)[0:1] # Just get one set of them
 
-        self.all_hdf5_datasets = [H5Dataset(h5_file, with_noise, self.target_keys) for h5_file in self.all_hdf5_files]
+        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
 
@@ -69,7 +73,7 @@ class jsinV3_precombined(torch.utils.data.ConcatDataset):
 
 
 class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path, with_noise, target_keys):
+    def __init__(self, path, transform, target_keys):
         """
         Builds a pytorch hdf5 dataset
         Args:
@@ -77,7 +81,7 @@ class H5Dataset(torch.utils.data.Dataset):
         """
         self.file_path = path
         self.dataset = None
-        self.with_noise = with_noise
+        self.transform = transform
         self.target_keys = target_keys
         # TODO: implement chunking the hdf5 file so that we can shuffle the data
         # TODO: implement shuffling the audioset and the speech separately
@@ -104,6 +108,10 @@ class H5Dataset(torch.utils.data.Dataset):
         signal = self.dataset['sources']['signal']['signal'][index]
         noise = self.dataset['sources']['noise']['signal'][index]
 
+        # Transforms will take in the signal and the noise source for this dataset
+        # If no transform, just return the speech with no background
+        if self.transform is not None:
+            signal, noise = self.transform(signal, noise)
         if len(self.target_keys) == 1:
             target_paths = self.target_keys[0].split('/')
             target = self.dataset['sources'][target_paths[0]][target_paths[1]][index]
@@ -117,10 +125,7 @@ class H5Dataset(torch.utils.data.Dataset):
                 target[target_key] = self.dataset['sources'][target_paths[0]][target_paths[1]][index]
                 if target_key == 'noise/labels_binary_via_int':
                     target[target_key] = target[target_key].astype(np.float32)
-        
-        if self.with_noise:
-            return signal, noise, target
-        
+
         return signal, target
 
     def __len__(self):
