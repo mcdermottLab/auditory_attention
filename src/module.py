@@ -145,7 +145,7 @@ class CNN2DClassifier(nn.Module):
         # forward through cnn layers
         feature = self.cnn(feature)
         feature = self.avgpool(feature)
-        # BS x C x H X W -> B x C*H*W
+        # B x C x H X W -> B x C*H*W
         feature = feature.view(batch_size, -1) 
         feature = self.fc(feature)
         feature = self.relufc(feature)

@@ -26,10 +26,25 @@ class _AttentionalCueBlock(nn.Module):
         mixture = torch.mul(mixture,cue)
         return mixture
 
+class _SimpleAttentionalCueBlock(nn.Module):
+    def __init__(self, frequency_dim, cnn_channels):
+        super(_SimpleAttentionalCueBlock, self).__init__()
+        self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) 
+
+    def forward(self, cue, mixture):
+        ## Process cue 
+        cue = self.time_average(cue)
+        # activate 
+        cue = torch.sigmoid(cue) # may want to try softmax 
+        # Apply to mixture (element mult)
+        mixture = torch.mul(mixture, cue)
+        return mixture
 
 class AuditoryCNN(nn.Module):
     def __init__(self, num_classes=1000):
         super(AuditoryCNN, self).__init__()
+
+        self.attn_block_in = _SimpleAttentionalCueBlock(40, 1)
 
         self.conv0 = nn.Sequential(
                     nn.LayerNorm([1, 40, 16000]),
@@ -37,7 +52,7 @@ class AuditoryCNN(nn.Module):
                     nn.ReLU(inplace = True),
                     HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
         )
-        self.attn_block0 = _AttentionalCueBlock(20, 32)
+        self.attn_block0 = _SimpleAttentionalCueBlock(20, 32)
 
         self.conv1 = nn.Sequential(
             nn.LayerNorm([32, 20, 4000]),
@@ -45,7 +60,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
         )
-        self.attn_block2 = _AttentionalCueBlock(10, 64)
+        self.attn_block2 = _SimpleAttentionalCueBlock(10, 64)
 
         self.conv2 = nn.Sequential(
             nn.LayerNorm([64, 10, 1000]),
@@ -53,7 +68,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 4], pool_size = [1, 13], padding = [0, 6])
         )
-        self.attn_block2 = _AttentionalCueBlock(10, 256)
+        self.attn_block2 = _SimpleAttentionalCueBlock(10, 256)
 
         self.con3 =  nn.Sequential(
             nn.LayerNorm([256, 10, 250]),
@@ -61,7 +76,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 4], pool_size = [1, 13], padding = [0, 6])
         )
-        self.attn_block3 = _AttentionalCueBlock(10, 512)
+        self.attn_block3 = _SimpleAttentionalCueBlock(10, 512)
 
         self.conv4 = nn.Sequential(
             nn.LayerNorm([512, 10, 63]),
@@ -69,7 +84,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 1], pool_size = [1, 1], padding = [0, 0])
         )
-        self.attn_block4 = _AttentionalCueBlock(10, 512)
+        self.attn_block4 = _SimpleAttentionalCueBlock(10, 512)
 
         self.conv5 = nn.Sequential(
             nn.LayerNorm([512, 10, 63]),
@@ -77,7 +92,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 1], pool_size = [1, 1], padding = [0, 0])
         )
-        self.attn_block5 = _AttentionalCueBlock(10, 512)
+        self.attn_block5 = _SimpleAttentionalCueBlock(10, 512)
 
         self.conv6 = nn.Sequential(
             nn.LayerNorm([512, 10, 63]),
@@ -85,7 +100,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [2, 4], pool_size = [6, 13], padding = [3, 6])
         )
-        self.attn_block6 = _AttentionalCueBlock(5, 512)
+        self.attn_block6 = _SimpleAttentionalCueBlock(5, 512)
 
         self.fullyconnected = nn.Linear(512*5*16, 4096)
         self.relufc = nn.ReLU(inplace = True)
@@ -105,6 +120,8 @@ class AuditoryCNN(nn.Module):
         
         ## Combine cue and mixture using attention
         if mixture:
+            # attn from coch
+            mixture = self.attn_block_in(cue, mixture)
             # conv 0 
             mix0 = self.conv0(mixture)
             attn0 = self.attn_block0(cue0, mix0)
