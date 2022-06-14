@@ -60,7 +60,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
         )
-        self.attn_block2 = _SimpleAttentionalCueBlock(10, 64)
+        self.attn_block1 = _SimpleAttentionalCueBlock(10, 64)
 
         self.conv2 = nn.Sequential(
             nn.LayerNorm([64, 10, 1000]),
@@ -109,7 +109,7 @@ class AuditoryCNN(nn.Module):
         
 
     def forward(self, cue, mixture=None):
-        # pass cue through cnn
+        # pass cue through cnn & store reps
         cue0 = self.conv0(cue)
         cue1 = self.conv1(cue0)
         cue2 = self.conv2(cue1)
@@ -120,38 +120,31 @@ class AuditoryCNN(nn.Module):
         
         ## Combine cue and mixture using attention
         if mixture:
-            # attn from coch
-            mixture = self.attn_block_in(cue, mixture)
+            # attn for cochlear model
+            attn = self.attn_block_in(cue, mixture)
             # conv 0 
-            mix0 = self.conv0(mixture)
-            attn0 = self.attn_block0(cue0, mix0)
+            attn = self.conv0(attn)
+            attn = self.attn_block0(cue0, attn)
             # conv 1
-            mix1 = self.conv1(mix0)
-            attn1 = self.conv1(attn0)
-            # add attention as residual connection  
-            attn1 += self.attn_block1(cue1, mix1)
+            attn = self.conv1(attn)
+            attn = self.attn_block1(cue1, attn)
             #conv 2
-            mix2 = self.conv2(mix1)
-            attn2 = self.conv2(attn1)
-            attn2 += self.attn_block2(cue2, mix2)
+            attn = self.conv2(attn)
+            attn = self.attn_block2(cue2, attn)
             #conv 3
-            mix3 = self.conv3(mix2)
-            attn3 = self.conv3(attn2)
-            attn3 += self.attn_block3(cue3, mix3)
+            attn = self.conv3(attn)
+            attn = self.attn_block3(cue3, attn)
             #conv4
-            mix4 = self.conv4(mix3)
-            attn4 = self.conv4(attn3)
-            attn4 += self.attn_block4(cue4, mix4)
+            attn = self.conv4(attn)
+            attn = self.attn_block4(cue4, attn)
             #conv5
-            mix5 = self.conv5(mix4)
-            attn5 = self.conv5(attn4)
-            attn5 += self.attn_block5(cue5, mix5)
+            attn = self.conv5(attn)
+            attn = self.attn_block5(cue5, attn)
             #conv6
-            mix6 = self.conv6(mix5)
-            attn6 = self.conv6(attn5)
-            attn6 += self.attn_block6(cue6, mix6)
+            attn = self.conv6(attn)
+            attn = self.attn_block6(cue6, attn)
 
-            out = attn6
+            out = attn
         else:
             out = cue6
         
