@@ -20,7 +20,18 @@ import src.custom_modules as cm
 #     return mem.used / 1024 ** 3
 
 
-class CochWordRecModule(LightningModule):
+class AttnBiasConstraint(object):
+    def __init__(self, min_val=0, max_val=1):
+        self.min = min_val
+        self.max = max_val
+        
+    def __call__(self, module):
+        if hasattr(module,'bias'):
+            b = module.bias.data
+            module.bias.data = b.clamp(self.min, self.max)
+            
+
+class AttentionalTrackingModule(LightningModule):
     def __init__(
         self,
         config: dict,
@@ -42,7 +53,6 @@ class CochWordRecModule(LightningModule):
         self.data_config = self.config['data']
 
         self.model = AuditoryCNN(self.data_config['num_words']) # vocab size
-
         if self.config['data']['audio']['rep_kwargs']['rep_on_gpu']:
             self.model = cm.SequentialAttacker(
                 cm.AudioInputRepresentation(**self.audio_config),
@@ -57,7 +67,7 @@ class CochWordRecModule(LightningModule):
         # Losses
         self.loss_fn = torch.nn.CrossEntropyLoss()
 
-                # Set up metrics
+        # Set up metrics
         self.train_acc = torchmetrics.Accuracy()
         self.valid_acc = torchmetrics.Accuracy()
         self.test_acc = torchmetrics.Accuracy()
@@ -68,6 +78,10 @@ class CochWordRecModule(LightningModule):
         opt_cfg = self.config['hparas']
         opt = getattr(torch.optim, opt_cfg['optimizer'])
         model_paras = [{'params': self.model.parameters()}]
+        
+        self.attn_modules = [mod for name, mod in self.model._modules.items() if 'attn' in name]
+        
+        self.bias_constraint = AttnBiasConstraint(min_val=0, max_val=1)
         
         if opt_cfg['lr_scheduler'] == 'warmup':
             warmup_step = 4000.0
@@ -95,6 +109,10 @@ class CochWordRecModule(LightningModule):
         self.log(f"Losses/{step_type}_loss", loss, on_step=True, on_epoch=True)        
         self.log(f"ACC/{step_type}_acc", self.accuracy[step_type], on_step=True, on_epoch=True)
         return loss
+    
+    def on_before_zero_grad(self, *args, **kwargs):
+        for module in self.attn_modules:
+            module.apply(self.bias_constraint)
 
     def configure_optimizers(self):
         return [self.optimizer]

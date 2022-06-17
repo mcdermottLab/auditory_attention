@@ -24,6 +24,10 @@ def run_train(args):
         ckpt_path = args.exp_dir / args.ckpt_path
     else:
         ckpt_path = None
+        
+    if args.dgx002_path:
+        config['data']['corpus']['root'] = '/mnt/local-scratch/JSIN_v3.00'
+        
     checkpoint = ModelCheckpoint(
         checkpoint_dir,
         monitor=f"{config['val_metric']}",
@@ -46,11 +50,10 @@ def run_train(args):
     ]
    
     trainer = Trainer(
-        precision=16 if args.mixed_precision else 32,
+        precision= 16 if args.mixed_precision else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
        # log_every_n_steps = 10,
-       
         num_nodes=args.num_nodes,
         gpus=args.gpus,
         accelerator="gpu",
@@ -59,6 +62,7 @@ def run_train(args):
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=config['hparas']['gradient_clip_val'],
         profiler="simple",
+        detect_anomaly=True,
         callbacks=callbacks)
 
 
@@ -77,6 +81,9 @@ def run_train(args):
     elif config['model_name'] == 'CochCNN':
         from src.coch_word_rec_lightning import CochWordRecModule
         model = CochWordRecModule(config)
+    elif config['model_name'] == 'AttnCNN':
+        from src.attn_tracking_lightning import AttentionalTrackingModule
+        model = AttentionalTrackingModule(config)
 
     trainer.fit(model)
 
@@ -113,6 +120,12 @@ def cli_main():
         default=False,
         action='store_true',
         help="Use 16 bit precision in training. (Default: False)",
+    )
+    parser.add_argument(
+        "--dgx002_path",
+        default=False,
+        action='store_true',
+        help="use dgx002 jsin dataset",
     )
     parser.add_argument(
         "--gpus",

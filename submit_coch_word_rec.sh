@@ -13,7 +13,7 @@ module add openmind/miniconda
 module add openmind/cudnn/9.1-7.0.5
 module add openmind/cuda/9.1
 
-source activate /om4/group/mcdermott/user/imgriff/conda_envs_files/torchaudio_11
+source activate /om2/user/imgriff/conda_envs/torchaudio_11
 
 python3 train.py --config config/coch_word_rec/word_rec_rep_on_gpu_bs_64.yaml --gpus 4 --n_jobs 8 --mixed_precision \
                  --exp_dir ./word_rec/jsin_precombined_gammatone_40_channels_20kHz_on_gpu_1e-4lr_6_7_2022 \

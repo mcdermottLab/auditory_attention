@@ -17,7 +17,7 @@ module add openmind/cuda/9.1
 
 export CONDA_ENVS_PATH=~/my-envs:/om4/group/mcdermott/user/imgriff/conda_envs_files
 
-source activate /om4/group/mcdermott/user/imgriff/conda_envs_files/pytorch_ASR
+source activate /om2/user/imgriff/conda_envs/torchaudio_11
 
 
 

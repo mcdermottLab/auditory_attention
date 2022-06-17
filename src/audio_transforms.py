@@ -546,6 +546,8 @@ class CombineWithRandomDBSNR(torch.nn.Module):
             background_wav (torch.Tensor): the waveform that will be used as
                 the background audio sample
         """
+        if background_wav is None:
+            return foreground_wav, None
         rand_db_snr = random.uniform(self.low_snr, self.high_snr)
         rms_ratio = np.power(10.0, rand_db_snr / 20.0)
         # Demean signal and noise before computing rms

@@ -98,6 +98,7 @@ class H5Dataset(torch.utils.data.Dataset):
         # If no transform, just return the speech with no background
         if self.transform is not None:
             signal, _ = self.transform(foreground, background)
+            cue, _ = self.transform(cue, None)
         if len(self.target_keys) == 1:
             target_paths = self.target_keys[0].split('/')
             target = self.dataset['sources'][target_paths[0]][target_paths[1]][index]

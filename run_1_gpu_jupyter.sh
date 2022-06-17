@@ -5,18 +5,18 @@
 #SBATCH --mem=24Gb
 #SBATCH --cpus-per-task=10
 #SBATCH --time=3:00:00
-#SBATCH --partition=normal
-#SBATCH --gres=gpu:GEFORCERTX2080:1
+#SBATCH --partition=mcdermott
+#SBATCH --gres=gpu:1
 
 
-module add openmind/miniconda/2020-01-29-py3.7
-module add openmind/cudnn/9.1-7.0.5
-module add openmind/cuda/9.1
+module add openmind/miniconda
+module add openmind/cudnn/11.5-v8.3.3.40
+module add openmind/cuda/11.3
 
 
-export CONDA_ENVS_PATH=~/my-envs:/om4/group/mcdermott/user/imgriff/conda_envs_files
+export CONDA_ENVS_PATH=~/my-envs:/om2/user/imgriff/conda_envs
 
-source activate /om4/group/mcdermott/user/imgriff/conda_envs_files/torchaudio_11
+source activate /om2/user/imgriff/conda_envs/torchaudio_11
 
 
 

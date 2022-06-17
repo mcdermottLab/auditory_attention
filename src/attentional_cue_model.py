@@ -30,12 +30,25 @@ class _SimpleAttentionalCueBlock(nn.Module):
     def __init__(self, frequency_dim, cnn_channels):
         super(_SimpleAttentionalCueBlock, self).__init__()
         self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) 
+        self.bias = nn.Parameter(torch.zeros(1)) # init gain scaling to zero
+        self.slope = nn.Parameter(torch.ones(1))
+        self.threshold = nn.Parameter(torch.zeros(1))
+        self.reset_parameters() 
+
+    def reset_parameters(self):
+        nn.init.constant_(self.bias, 0)
+        nn.init.constant_(self.slope, 1)
+        nn.init.constant_(self.threshold, 0)
 
     def forward(self, cue, mixture):
         ## Process cue 
         cue = self.time_average(cue)
-        # activate 
-        cue = torch.sigmoid(cue) # may want to try softmax 
+        # apply threshold shift
+        cue = cue - self.threshold
+        # apply slope
+        cue = cue * self.slope
+        # apply sigmoid & bias
+        cue = self.bias + (1-self.bias) * torch.sigmoid(cue)
         # Apply to mixture (element mult)
         mixture = torch.mul(mixture, cue)
         return mixture
@@ -70,7 +83,7 @@ class AuditoryCNN(nn.Module):
         )
         self.attn_block2 = _SimpleAttentionalCueBlock(10, 256)
 
-        self.con3 =  nn.Sequential(
+        self.conv3 =  nn.Sequential(
             nn.LayerNorm([256, 10, 250]),
             conv2d_same.create_conv2d_pad(256, 512, kernel_size = [5, 5], stride = [1,1], padding = 'same'),
             nn.ReLU(inplace = True),
@@ -100,9 +113,9 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [2, 4], pool_size = [6, 13], padding = [3, 6])
         )
-        self.attn_block6 = _SimpleAttentionalCueBlock(5, 512)
+        self.attn_block6 = _SimpleAttentionalCueBlock(6, 512)
 
-        self.fullyconnected = nn.Linear(512*5*16, 4096)
+        self.fullyconnected = nn.Linear(512*6*16, 4096)
         self.relufc = nn.ReLU(inplace = True)
         self.dropout = nn.Dropout()
         self.classification = nn.Linear(4096, num_classes)
@@ -119,7 +132,7 @@ class AuditoryCNN(nn.Module):
         cue6 = self.conv6(cue5)
         
         ## Combine cue and mixture using attention
-        if mixture:
+        if mixture is not None:
             # attn for cochlear model
             attn = self.attn_block_in(cue, mixture)
             # conv 0 
@@ -147,8 +160,8 @@ class AuditoryCNN(nn.Module):
             out = attn
         else:
             out = cue6
-        
-        out = out.view(out.size(0), 512*5*16) # B x FC size
+
+        out = out.view(out.size(0), 512*6*16) # B x FC size
         out = self.fullyconnected(out)        
         out = self.relufc(out)
         out = self.dropout(out)        
