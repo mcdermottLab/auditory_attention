@@ -61,8 +61,8 @@ def run_train(args):
         strategy=DDPPlugin(find_unused_parameters=False),
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=config['hparas']['gradient_clip_val'],
-        profiler="simple",
-        detect_anomaly=True,
+        #profiler="simple",
+        #detect_anomaly=True,
         callbacks=callbacks)
 
 
