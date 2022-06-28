@@ -16,7 +16,7 @@ module add openmind/cuda/11.3
 
 export CONDA_ENVS_PATH=~/my-envs:/om2/user/imgriff/conda_envs
 
-source activate /om2/user/imgriff/conda_envs/torchaudio_11
+source activate /om4/group/mcdermott/user/imgriff/conda_envs_files/torch_11_cuda_11
 
 
 
