@@ -4,6 +4,7 @@
 import pathlib
 from argparse import ArgumentParser
 import yaml
+import json
 
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -13,7 +14,15 @@ from pytorch_lightning.plugins import DDPPlugin
 
 
 def run_train(args):
-    config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
+    if (args.config.endswith(".json")):
+        with open(args.config, 'r') as file:
+            config = json.load(file)
+    elif (args.config.endswith(".yaml")):
+        config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
+    else:
+        print("config file type not supported")
+        print(args.config)
+        return
       
     config['n_jobs'] = args.n_jobs
     
@@ -28,14 +37,30 @@ def run_train(args):
     if args.dgx002_path:
         config['data']['corpus']['root'] = '/mnt/local-scratch/JSIN_v3.00'
         
-    checkpoint = ModelCheckpoint(
-        checkpoint_dir,
-        monitor=f"{config['val_metric']}",
-        mode="max" if 'ACC' in config['val_metric'] else "min",
-        save_top_k=1,
-        save_weights_only=True,
-        verbose=True,
-    )
+    callbacks = []
+    
+    if isinstance(config['val_metric'], dict):
+        for name, value in config['val_metric'].items():
+            callbacks.append(ModelCheckpoint(
+                checkpoint_dir,
+                filename="{epoch}-{step}-best_"+name,
+                monitor=value,
+                mode="max",
+                save_top_k=1,
+                save_weights_only=True,
+                verbose=True,
+            ))
+    
+    else:
+        callbacks.append(ModelCheckpoint(
+            checkpoint_dir,
+            monitor=f"{config['val_metric']}",
+            mode="max" if 'ACC' in config['val_metric'] else "min",
+            save_top_k=1,
+            save_weights_only=True,
+            verbose=True,
+        ))
+        
     train_checkpoint = ModelCheckpoint(
         checkpoint_dir,
         monitor="Losses/train_loss",
@@ -44,16 +69,16 @@ def run_train(args):
         save_weights_only=True,
         verbose=True,
     )
-    callbacks = [
-        checkpoint,
-        train_checkpoint,
-    ]
+    
+    callbacks.append(train_checkpoint)
    
     trainer = Trainer(
-        precision= 16 if args.mixed_precision else 32,
+        precision=16 if args.mixed_precision else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
+        limit_train_batches=0.2,
        # log_every_n_steps = 10,
+        detect_anomaly=False,
         num_nodes=args.num_nodes,
         gpus=args.gpus,
         accelerator="gpu",
@@ -61,8 +86,7 @@ def run_train(args):
         strategy=DDPPlugin(find_unused_parameters=False),
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=config['hparas']['gradient_clip_val'],
-        #profiler="simple",
-        #detect_anomaly=True,
+        profiler=None,
         callbacks=callbacks)
 
 
@@ -81,6 +105,12 @@ def run_train(args):
     elif config['model_name'] == 'CochCNN':
         from src.coch_word_rec_lightning import CochWordRecModule
         model = CochWordRecModule(config)
+    elif config['model_name'] == 'CochMultiCNN':
+        from src.coch_multitask_lightning import CochMultiTaskModule
+        model = CochMultiTaskModule(config)
+    elif config['model_name'] == 'AttnTrackingControl':
+        from src.attentional_tracking_control_lightning import AttnTrackingControlModule
+        model = AttnTrackingControlModule(config)
     elif config['model_name'] == 'AttnCNN':
         from src.attn_tracking_lightning import AttentionalTrackingModule
         model = AttentionalTrackingModule(config)

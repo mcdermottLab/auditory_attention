@@ -45,7 +45,7 @@ class AttentionalTrackingModule(LightningModule):
 
         self.audio_transforms = at.AudioCompose([
             at.AudioToTensor(),
-            at.CombineWithRandomDBSNR(low_snr=-10, high_snr=10),
+            at.CombineWithRandomDBSNR(low_snr=0, high_snr=6),
             at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
             at.UnsqueezeAudio(dim=0),
         ])
@@ -106,8 +106,8 @@ class AttentionalTrackingModule(LightningModule):
         # calc accuracy
         self.accuracy[step_type](outputs, labels)
 
-        self.log(f"Losses/{step_type}_loss", loss.detach(), on_step=True, on_epoch=False)        
-        self.log(f"ACC/{step_type}_acc", self.accuracy[step_type], on_step=False, on_epoch=True)
+        self.log(f"Losses/{step_type}_loss", loss, on_step=True, on_epoch=True)        
+        self.log(f"ACC/{step_type}_acc", self.accuracy[step_type], on_step=True, on_epoch=True)
         return loss
     
     def on_before_zero_grad(self, *args, **kwargs):

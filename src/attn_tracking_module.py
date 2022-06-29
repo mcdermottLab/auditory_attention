@@ -23,7 +23,7 @@ import psutil
 # high = [5, 10]
 
 
-class AttnTrackingControlModule(LightningModule):
+class AttnTrackingCompareModule(LightningModule):
     def __init__(
         self,
         config: dict,
