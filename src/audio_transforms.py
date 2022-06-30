@@ -489,6 +489,13 @@ class RMSNormalizeForegroundAndBackground(torch.nn.Module):
     """
     def __init__(self, rms_level=0.1):
         super(RMSNormalizeForegroundAndBackground, self).__init__()
+        
+        if isinstance(rms_level, (list, tuple)):
+            #we only want an upper and lower bound if its a list
+            assert len(rms_level) == 2
+            #pull a random rms_level in the specified range
+            rms_level = random.uniform(rms_level[0], rms_level[1])
+            
         self.rms_level=rms_level
 
     def forward(self, foreground_wav, background_wav):

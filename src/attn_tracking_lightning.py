@@ -9,6 +9,7 @@ import torchaudio.functional as F
 from pytorch_lightning import LightningModule
 from src.attentional_cue_model import AuditoryCNN
 from corpus.jsinV3AttnTracking import jsinV3_attn_tracking
+from corpus.jsinV3AttnTrackingValidation import jsinV3_attn_tracking_validation
 from src.util import cal_er
 import src.audio_transforms as at
 import src.custom_modules as cm 
@@ -45,8 +46,8 @@ class AttentionalTrackingModule(LightningModule):
 
         self.audio_transforms = at.AudioCompose([
             at.AudioToTensor(),
-            at.CombineWithRandomDBSNR(low_snr=0, high_snr=6),
             at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
+            at.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
             at.UnsqueezeAudio(dim=0),
         ])
 
@@ -70,7 +71,8 @@ class AttentionalTrackingModule(LightningModule):
         # Set up metrics
         self.train_acc = torchmetrics.Accuracy()
         self.valid_acc = torchmetrics.Accuracy()
-        self.test_acc = torchmetrics.Accuracy()
+        self.test_acc = torch.nn.ModuleDict({"fg": torchmetrics.Accuracy(),
+                                             "bg": torchmetrics.Accuracy()})
         self.accuracy = {'train': self.train_acc,
                          'val': self.valid_acc,
                          'test': self.test_acc}
@@ -129,7 +131,24 @@ class AttentionalTrackingModule(LightningModule):
         return self._step(batch, batch_idx, "val")
 
     def test_step(self, batch, batch_idx):
-        return self._step(batch, batch_idx, "test")
+        signal, fg_cue, bg_cue, fg_labels, bg_labels = batch
+        
+        # self() is self.forward()  
+        fg_outputs = self(fg_cue, signal) 
+        fg_loss = self.loss_fn(fg_outputs, fg_labels)
+        # calc foreground talker word accuracy
+        self.accuracy["test"]["fg"](fg_outputs, fg_labels)
+        self.log(f"ACC/test_fg_acc", self.accuracy["test"]["fg"], on_step=True, on_epoch=True)
+        
+        
+        # self() is self.forward()  
+        bg_outputs = self(bg_cue, signal)
+        bg_loss = self.loss_fn(bg_outputs, bg_labels)
+        # calc background talker word accuracy
+        self.accuracy["test"]["bg"](bg_outputs, bg_labels)
+        self.log(f"ACC/test_bg_acc", self.accuracy["test"]["bg"], on_step=True, on_epoch=True)
+        
+        return fg_loss + bg_loss
 
     def train_dataloader(self):
         dataset = jsinV3_attn_tracking(**self.corpora_config, train=True, transform=self.audio_transforms)
@@ -151,6 +170,6 @@ class AttentionalTrackingModule(LightningModule):
         return dataloader
 
     def test_dataloader(self):
-        dataset = jsinV3_attn_tracking(**self.corpora_config, train=False, transform=self.audio_transforms) 
+        dataset = jsinV3_attn_tracking_validation(**self.corpora_config, train=False, transform=self.audio_transforms) 
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=1)
         return dataloader
