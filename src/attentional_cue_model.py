@@ -4,28 +4,6 @@ import torch.nn as nn
 from src.layers import conv2d_same
 from src.custom_modules import HannPooling2d
 
-
-
-class _AttentionalCueBlock(nn.Module):
-    def __init__(self, frequency_dim, cnn_channels):
-        super(_AttentionalCueBlock, self).__init__()
-
-        self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) 
-        self.cue_nn = nn.Linear(cnn_channels, cnn_channels) # includes bias
-
-    def forward(self, cue, mixture):
-        ## Process cue 
-        cue = self.time_average(cue)
-        # B x C x F x T ->  B x C x F x 1
-        cue = cue.contiguous().squeeze() # remove single time dim
-        # apply cue nn and activation 
-        cue = torch.sigmoid(self.cue_nn(cue)) 
-        # re-add time dim for multiplication 
-        cue = cue.unsqueeze(-1) 
-        # Apply to mixture (element mult)
-        mixture = torch.mul(mixture,cue)
-        return mixture
-
 class _SimpleAttentionalCueBlock(nn.Module):
     def __init__(self, frequency_dim, cnn_channels):
         super(_SimpleAttentionalCueBlock, self).__init__()
@@ -57,6 +35,7 @@ class AuditoryCNN(nn.Module):
     def __init__(self, num_classes=1000):
         super(AuditoryCNN, self).__init__()
 
+        self.norm_coch_rep = nn.LayerNorm([1, 40, 16000])
         self.attn_block_in = _SimpleAttentionalCueBlock(40, 1)
 
         self.conv0 = nn.Sequential(
@@ -123,7 +102,8 @@ class AuditoryCNN(nn.Module):
 
     def forward(self, cue, mixture=None):
         # pass cue through cnn & store reps
-        cue0 = self.conv0(cue)
+        cue = self.norm_coch_rep(cue)
+        cue0 = self.conv0(cue) # has layer norm as 1st layer - may be a problem? 
         cue1 = self.conv1(cue0)
         cue2 = self.conv2(cue1)
         cue3 = self.conv3(cue2)
@@ -133,6 +113,7 @@ class AuditoryCNN(nn.Module):
         
         ## Combine cue and mixture using attention
         if mixture is not None:
+            mixture = self.norm_coch_rep(mixture)
             # attn for cochlear model
             attn = self.attn_block_in(cue, mixture)
             # conv 0 

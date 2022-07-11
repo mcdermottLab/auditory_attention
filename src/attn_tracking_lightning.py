@@ -29,7 +29,15 @@ class AttnBiasConstraint(object):
         if hasattr(module,'bias'):
             b = module.bias.data
             module.bias.data = b.clamp(self.min, self.max)
-            
+
+class AttnSlopeConstraint(object):
+    def __init__(self, min_val=0):
+        self.min = min_val
+
+    def __call__(self, module):
+        if hasattr(module,'slope'):
+            s = module.slope.data
+            module.slope.data = s.clamp(self.min) # no max -> max = inf   
 
 class AttentionalTrackingModule(LightningModule):
     def __init__(
@@ -82,6 +90,10 @@ class AttentionalTrackingModule(LightningModule):
         self.attn_modules = [mod for name, mod in self.model._modules.items() if 'attn' in name]
         
         self.bias_constraint = AttnBiasConstraint(min_val=0, max_val=1)
+        self.constrain_slope = self.config['attn_constraints'].get('slope', False) # False if not in config
+
+        if self.constrain_slope:
+            self.slope_constraint = AttnSlopeConstraint(min_val=0)
         
         if opt_cfg['lr_scheduler'] == 'warmup':
             warmup_step = 4000.0
@@ -113,6 +125,8 @@ class AttentionalTrackingModule(LightningModule):
     def on_before_zero_grad(self, *args, **kwargs):
         for module in self.attn_modules:
             module.apply(self.bias_constraint)
+            if self.constrain_slope:
+                module.apply(self.slope_constraint)
 
     def configure_optimizers(self):
         return [self.optimizer]
