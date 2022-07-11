@@ -15,7 +15,7 @@ class jsinV3_attn_tracking_validation(torch.utils.data.ConcatDataset):
     hdf5_glob = 'JSIN_all__run_*.h5'
     target_keys = ['signal/word_int']
 
-    def __init__(self, root, train=True, download=False, transform=None):
+    def __init__(self, root, train=True, download=False, transform=None, demo=False):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the 
         specified root directory. 
@@ -27,7 +27,7 @@ class jsinV3_attn_tracking_validation(torch.utils.data.ConcatDataset):
         else:
             self.all_hdf5_files = glob.glob(root + '/valid_*/' + self.hdf5_glob)[0:1] # Just get one set of them
 
-        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys) for h5_file in self.all_hdf5_files]
+        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys, demo) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
 
@@ -41,7 +41,7 @@ class jsinV3_attn_tracking_validation(torch.utils.data.ConcatDataset):
 
 
 class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path, transform, target_keys):
+    def __init__(self, path, transform, target_keys, demo):
         """
         Builds a pytorch hdf5 dataset
         Args:
@@ -51,6 +51,7 @@ class H5Dataset(torch.utils.data.Dataset):
         self.dataset = None
         self.transform = transform
         self.target_keys = target_keys
+        self.demo = demo
         # TODO: implement chunking the hdf5 file so that we can shuffle the data
         # TODO: implement shuffling the audioset and the speech separately
         # self.chunk_size = hdf5_chunk_size
@@ -128,7 +129,8 @@ class H5Dataset(torch.utils.data.Dataset):
                 if target_key == 'noise/labels_binary_via_int':
                     fg_target[target_key] = fg_target[target_key].astype(np.float32)
                     bg_target[target_key] = bg_target[target_key].astype(np.float32)
-
+        if self.demo:
+            return foreground, background, signal, fg_cue, bg_cue, fg_target, bg_target
         return signal, fg_cue, bg_cue, fg_target, bg_target
 
     def __len__(self):
