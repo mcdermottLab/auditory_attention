@@ -35,7 +35,7 @@ class AuditoryCNN(nn.Module):
     def __init__(self, num_classes=1000):
         super(AuditoryCNN, self).__init__()
 
-        self.norm_coch_rep = nn.LayerNorm([1, 40, 16000])
+#         self.norm_coch_rep = nn.LayerNorm([1, 40, 16000])
         self.attn_block_in = _SimpleAttentionalCueBlock(40, 1)
 
         self.conv0 = nn.Sequential(
@@ -102,7 +102,7 @@ class AuditoryCNN(nn.Module):
 
     def forward(self, cue, mixture=None):
         # pass cue through cnn & store reps
-        cue = self.norm_coch_rep(cue)
+#         cue = self.norm_coch_rep(cue)
         cue0 = self.conv0(cue) # has layer norm as 1st layer - may be a problem? 
         cue1 = self.conv1(cue0)
         cue2 = self.conv2(cue1)
@@ -113,7 +113,7 @@ class AuditoryCNN(nn.Module):
         
         ## Combine cue and mixture using attention
         if mixture is not None:
-            mixture = self.norm_coch_rep(mixture)
+#             mixture = self.norm_coch_rep(mixture)
             # attn for cochlear model
             attn = self.attn_block_in(cue, mixture)
             # conv 0 

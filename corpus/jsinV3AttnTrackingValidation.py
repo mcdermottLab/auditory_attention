@@ -15,7 +15,7 @@ class jsinV3_attn_tracking_validation(torch.utils.data.ConcatDataset):
     hdf5_glob = 'JSIN_all__run_*.h5'
     target_keys = ['signal/word_int']
 
-    def __init__(self, root, train=True, download=False, transform=None, demo=False):
+    def __init__(self, root, train=True, download=False, transform=None, demo=False, noise_bg=False):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the 
         specified root directory. 
@@ -27,7 +27,7 @@ class jsinV3_attn_tracking_validation(torch.utils.data.ConcatDataset):
         else:
             self.all_hdf5_files = glob.glob(root + '/valid_*/' + self.hdf5_glob)[0:1] # Just get one set of them
 
-        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys, demo) for h5_file in self.all_hdf5_files]
+        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys, demo, noise_bg) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
 
@@ -41,7 +41,7 @@ class jsinV3_attn_tracking_validation(torch.utils.data.ConcatDataset):
 
 
 class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path, transform, target_keys, demo):
+    def __init__(self, path, transform, target_keys, demo, noise_bg):
         """
         Builds a pytorch hdf5 dataset
         Args:
@@ -52,6 +52,7 @@ class H5Dataset(torch.utils.data.Dataset):
         self.transform = transform
         self.target_keys = target_keys
         self.demo = demo
+        self.noise_bg = noise_bg
         # TODO: implement chunking the hdf5 file so that we can shuffle the data
         # TODO: implement shuffling the audioset and the speech separately
         # self.chunk_size = hdf5_chunk_size
@@ -90,19 +91,26 @@ class H5Dataset(torch.utils.data.Dataset):
         fg_cue = signals[cue_ix]
 
         # get background
-        background_ixs = np.where(speakers[:] != talker)[0]
-        background_ix = np.random.choice(background_ixs)
-        assert speakers[background_ix] != talker, "Background talker same as target talker!"
-        background = signals[background_ix]
-        background_talker = speakers[background_ix]
-        
-        # get background cue
-        cue_ixs = np.where(speakers[:] == background_talker)[0]
-        cue_ixs = cue_ixs[cue_ixs != background_ix] # don't include target excerpt
-        cue_ix = np.random.choice(cue_ixs)
-        assert speakers[cue_ix] == background_talker, "Cue selected from different talker!"
-        assert cue_ix != background_ix, "Cue excerpt cannot be the same as background!"
-        bg_cue = signals[cue_ix]  
+        if self.noise_bg:
+            background = self.dataset['sources']['noise']['signal'][index]
+            bg_cue = None
+            background_ix = 0 # dummy code background - we're not using it 
+            
+        else:
+            
+            background_ixs = np.where(speakers[:] != talker)[0]
+            background_ix = np.random.choice(background_ixs)
+            assert speakers[background_ix] != talker, "Background talker same as target talker!"
+            background = signals[background_ix]
+            background_talker = speakers[background_ix]
+
+            # get background cue
+            cue_ixs = np.where(speakers[:] == background_talker)[0]
+            cue_ixs = cue_ixs[cue_ixs != background_ix] # don't include target excerpt
+            cue_ix = np.random.choice(cue_ixs)
+            assert speakers[cue_ix] == background_talker, "Cue selected from different talker!"
+            assert cue_ix != background_ix, "Cue excerpt cannot be the same as background!"
+            bg_cue = signals[cue_ix]  
 
         # Transforms will take in the signal and the noise source for this dataset
         # If no transform, just return the speech with no background
@@ -129,8 +137,13 @@ class H5Dataset(torch.utils.data.Dataset):
                 if target_key == 'noise/labels_binary_via_int':
                     fg_target[target_key] = fg_target[target_key].astype(np.float32)
                     bg_target[target_key] = bg_target[target_key].astype(np.float32)
+        
         if self.demo:
+            if self.noise_bg:
+                return foreground, background, signal, fg_cue, fg_target # no bg cue or target
             return foreground, background, signal, fg_cue, bg_cue, fg_target, bg_target
+        if self.noise_bg:
+                return signal, fg_cue, fg_target # no bg cue or target
         return signal, fg_cue, bg_cue, fg_target, bg_target
 
     def __len__(self):
