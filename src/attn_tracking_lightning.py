@@ -7,7 +7,8 @@ import torchmetrics
 import numpy as np 
 import torchaudio.functional as F
 from pytorch_lightning import LightningModule
-from src.attentional_cue_model import AuditoryCNN
+#from src.attentional_cue_model import AuditoryCNN
+#from src.constrained_attentional_cue_model import  AuditoryCNN
 from corpus.jsinV3AttnTracking import jsinV3_attn_tracking
 from corpus.jsinV3AttnTrackingValidation import jsinV3_attn_tracking_validation
 from src.util import cal_er
@@ -50,10 +51,18 @@ class AttentionalTrackingModule(LightningModule):
             at.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
             at.UnsqueezeAudio(dim=0),
         ])
-
+        
         self.data_config = self.config['data']
+        
+        if self.config['model_name'] == 'AttnCNN':
+            from src.attentional_cue_model import AuditoryCNN
+            self.model = AuditoryCNN(self.data_config['num_words']) # vocab size
+        elif self.config['model_name'] == "AttnCNNConstrained":
+            from src.constrained_attentional_cue_model import AuditoryCNN
+            self.model = AuditoryCNN(self.data_config['num_words'])
+            
 
-        self.model = AuditoryCNN(self.data_config['num_words']) # vocab size
+        
         if self.config['data']['audio']['rep_kwargs']['rep_on_gpu']:
             self.model = cm.SequentialAttacker(
                 cm.AudioInputRepresentation(**self.audio_config),
@@ -73,9 +82,13 @@ class AttentionalTrackingModule(LightningModule):
         self.valid_acc = torchmetrics.Accuracy()
         self.test_acc = torch.nn.ModuleDict({"fg": torchmetrics.Accuracy(),
                                              "bg": torchmetrics.Accuracy()})
+        self.test_confusion = torch.nn.ModuleDict({"fg": torchmetrics.Accuracy(),
+                                             "bg": torchmetrics.Accuracy()})
         self.accuracy = {'train': self.train_acc,
                          'val': self.valid_acc,
-                         'test': self.test_acc}
+                         'test': self.test_acc,
+                         'test_confusion': self.test_confusion
+                        }
         # Optimizer
         opt_cfg = self.config['hparas']
         opt = getattr(torch.optim, opt_cfg['optimizer'])
@@ -138,7 +151,10 @@ class AttentionalTrackingModule(LightningModule):
         fg_loss = self.loss_fn(fg_outputs, fg_labels)
         # calc foreground talker word accuracy
         self.accuracy["test"]["fg"](fg_outputs, fg_labels)
-        self.log(f"ACC/test_fg_acc", self.accuracy["test"]["fg"], on_step=True, on_epoch=True)
+        self.log(f"ACC/test_fg_acc", self.accuracy["test"]["fg"], on_step=True, on_epoch=False)
+        
+        self.accuracy['test_confusion']['fg'](fg_outputs, bg_labels)
+        self.log("fg_confusion", self.accuracy['test_confusion']['fg'], on_step=True, on_epoch=False)
         
         
         # self() is self.forward()  
@@ -146,7 +162,10 @@ class AttentionalTrackingModule(LightningModule):
         bg_loss = self.loss_fn(bg_outputs, bg_labels)
         # calc background talker word accuracy
         self.accuracy["test"]["bg"](bg_outputs, bg_labels)
-        self.log(f"ACC/test_bg_acc", self.accuracy["test"]["bg"], on_step=True, on_epoch=True)
+        self.log(f"ACC/test_bg_acc", self.accuracy["test"]["bg"], on_step=True, on_epoch=False)
+               
+        self.accuracy['test_confusion']['bg'](bg_outputs, fg_labels)
+        self.log("bg_confusion", self.accuracy['test_confusion']['bg'], on_step=True, on_epoch=False)
         
         return fg_loss + bg_loss
 

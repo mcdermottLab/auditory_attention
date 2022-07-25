@@ -49,7 +49,17 @@ class H5Dataset(torch.utils.data.Dataset):
         """
         self.file_path = path
         self.dataset = None
-        self.transform = transform
+        
+        ##if transforms is a list, separate it into a cue transform
+        ## and a general audio mixture transform
+        if isinstance(transform, list):
+            assert(len(transform) == 2)
+            self.transform = transform[0]
+            self.cue_transform = transform[-1]
+        else:
+            self.transform = transform
+            self.cue_transform = transform
+            
         self.target_keys = target_keys
         # TODO: implement chunking the hdf5 file so that we can shuffle the data
         # TODO: implement shuffling the audioset and the speech separately
@@ -105,10 +115,10 @@ class H5Dataset(torch.utils.data.Dataset):
 
         # Transforms will take in the signal and the noise source for this dataset
         # If no transform, just return the speech with no background
-        if self.transform is not None:
+        if self.transform is not None and self.cue_transform is not None:
             signal, _ = self.transform(foreground, background)
-            fg_cue, _ = self.transform(fg_cue, None)
-            bg_cue, _ = self.transform(bg_cue, None)
+            fg_cue, _ = self.cue_transform(fg_cue, None)
+            bg_cue, _ = self.cue_transform(bg_cue, None)
             
         if len(self.target_keys) == 1:
             target_paths = self.target_keys[0].split('/')

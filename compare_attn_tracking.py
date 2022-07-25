@@ -9,7 +9,8 @@ from pytorch_lightning import Trainer, seed_everything
 # from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger
 from src.attn_tracking_lightning import AttentionalTrackingModule
-from src.attn_tracking_control_lightning import AttnTrackingControlModule
+from src.attentional_tracking_control_lightning import AttnTrackingControlModule
+from src.attn_rove_rms_lightning import AttnRoveRMSModule
 
 # eval_conditions = {
 #    0:"Test_Harmonic_Exponential",
@@ -60,6 +61,8 @@ def run_eval(args):
         model = AttnTrackingControlModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
     elif model_name == 'AttnCNN':
         model = AttentionalTrackingModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)  
+    elif model_name == "AttnRoveRMSCNN":
+        model = AttnRoveRMSModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
     # evaluate model  
     trainer.test(model)
 

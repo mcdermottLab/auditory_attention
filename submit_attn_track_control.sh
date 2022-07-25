@@ -6,7 +6,7 @@
 #SBATCH -N 1
 #SBATCH --cpus-per-task=32
 #SBATCH --time=72:00:00
-#SBATCH --partition=mcdermott
+#SBATCH --partition=normal
 #SBATCH --gres=gpu:QUADRORTX6000:4
 
 module add openmind/miniconda

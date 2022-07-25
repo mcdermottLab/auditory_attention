@@ -5,6 +5,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from src.layers import conv2d_same, pool2d_same
 from src.custom_modules import HannPooling2d
 
+calc_same_pad = lambda x: (x-1)/2 if not(x % 2) else int((x-1)/2)
 
 class CNN2DExtractor(nn.Module):
     ''' CNN wrapper, includes relu and layer-norm if applied'''
@@ -78,7 +79,6 @@ class CNN2DExtractor(nn.Module):
        
         return feature, feat_len
 
-
 class CNN2DClassifier(nn.Module):
     def __init__(self, num_classes, frequency_dim, input_channels, cnn_channels, kernel, stride, padding, pool_stride, pool_size):
         super(CNN2DClassifier, self).__init__()
@@ -87,11 +87,11 @@ class CNN2DClassifier(nn.Module):
         self.stride = stride
         self.pool_size = pool_size
         self.pool_stride = pool_stride
-        self.temp_downsample = self.get_downsample_factor()
     
         self.cnn = nn.Sequential()
         self.output_height = frequency_dim # initialization for output feature dim calculation
         self.output_len = int(8000 * 2) # init samples fixed - 2 seconds at 8kHz - softcode eventually
+        self.temp_downsample = self.get_downsample_factor()
     
         n_layers = len(cnn_channels)
 
@@ -106,53 +106,77 @@ class CNN2DClassifier(nn.Module):
                            conv2d_same.create_conv2d_pad(nIn, nOut, kernel_size=kernel[l], stride=stride[l], padding=padding[l]))
             # Activation 
             self.cnn.add_module('relu{0}'.format(l), nn.ReLU(inplace = True))
+            
+            #here goes code 
+            #START THE INSERT
+            
+            conv_kernel_padding_height = 0 if (padding[l] == "valid") else calc_same_pad(kernel[l][0])
+            conv_kernel_padding_width = 0 if (padding[l] == "valid") else calc_same_pad(kernel[l][1])
+            conv_padding = [conv_kernel_padding_height, conv_kernel_padding_width]
+
+
+            # pooling layers
+            pool_kernel_padding_height = 0 if (padding[l] == "valid") else calc_same_pad(pool_size[l][0])
+            pool_kernel_padding_width = 0 if (padding[l] == "valid") else calc_same_pad(pool_size[l][1])
+            pool_padding = [pool_kernel_padding_height, pool_kernel_padding_width]
+            
+            #END THE INSERT
+            
             # Pooling 
-            pool_padding = [pad//2  if pad > 1 else 0 for pad in pool_size[l]]
-            self.cnn.add_module('pooling{0}'.format(l),
-                      HannPooling2d(stride=pool_stride[l], pool_size=pool_size[l], padding=pool_padding))
+            if (l == n_layers-1):
+                self.cnn.add_module('pooling{0}'.format(l),
+                      pool2d_same.create_pool2d('avg', kernel_size = pool_size[l] , stride = pool_stride[l], padding = 'same'))
+                #change 'same' to conv_padding?
+            else:
+                #pool_padding = [int((pad-1)/2)  if pad > 1 else 0 for pad in pool_size[l]]
+                self.cnn.add_module('pooling{0}'.format(l),
+                          HannPooling2d(stride=pool_stride[l], pool_size=pool_size[l], padding=pool_padding))
 
             # Compute output shapes using conv formula [(Height - Filter + 2Pad)/ Stride]+1
             # conv layers:
-#             if padding[l] == 'same':
-#                 self.output_height = int((self.output_height / stride[l]) + 1)
-#                 self.output_len = int((self.output_len / stride[l]) + 1)
-#             else:
-#                 self.output_height = int((np.floor(self.output_height - kernel[l][0] + 2 * padding[l]) / stride[l]) + 1)
-#                 self.output_len = int((np.floor(self.output_len -  kernel[l][1] + 2 * padding[l]) / stride[l]) + 1)
-#             # pooling layers
-            self.output_height = int((np.floor(self.output_height - pool_size[l][0] + 2 * pool_padding[0]) / pool_stride[l][0]) + 1)
-            self.output_len = int((np.floor(self.output_len - pool_size[l][1] + 2 * pool_padding[1]) / pool_stride[l][1]) + 1)
-
-        self.avgpool =  pool2d_same.create_pool2d('avg', kernel_size = [2,5] , stride = [2,2], padding = 'same')
-        
-        self.output_height = int((np.floor(self.output_height - 2) / 2) + 1)
-        self.output_len = int((np.floor(self.output_len - 5 + 2*2) / 2) + 1) # avepool adds padding of 2
+            self.output_height = int(np.floor(((self.output_height - kernel[l][0]) + (2 * conv_padding[0]) ) / stride[l]) + 1)
+            self.output_len = int(np.floor(((self.output_len -  kernel[l][1]) + (2 * conv_padding[1]) ) / stride[l]) + 1)
+            #print(l, kernel[l], [self.output_height, self.output_len])
+            # pooling layers
+            self.output_height = int(np.floor(((self.output_height - pool_size[l][0]) + (2 * pool_padding[0]) ) / pool_stride[l][0]) + 1)
+            self.output_len = int(np.floor(((self.output_len - pool_size[l][1]) + (2 * pool_padding[1]) ) / pool_stride[l][1]) + 1)
+            #print(l, pool_size[l], pool_stride[l], [self.output_height, self.output_len])
         
         self.output_size = self.output_height * nOut * self.output_len
         
         self.fc =  nn.Linear(self.output_size, 4094)
         self.relufc = nn.ReLU(inplace = True)
         self.dropout = nn.Dropout()
-        self.logits = nn.Linear(4094, num_classes)
+
+        if isinstance(num_classes, dict): # Make multiple fully conected layers
+            all_fc_layers = {}
+            for task in num_classes.keys():
+                all_fc_layers[task] = nn.Linear(4094, num_classes[task]) 
+            self.logits = nn.ModuleDict(all_fc_layers)
+        else:
+            self.logits = nn.Linear(4094, num_classes)
 
     def get_downsample_factor(self):
-        # Get total temporal downsampling factor. Convolutional kernel stride is an int.
-        # pool stride is a 2 element list where the 2nd element is the stride in time
-        return int(np.prod([k_s * p_s[1] for k_s, p_s in zip(self.stride, self.pool_stride)]))
+        return int(8000 * 2) / self.output_len # softcode initial size eventually
 
     def forward(self, feature):
         batch_size = feature.size(0)
         # forward through cnn layers
         feature = self.cnn(feature)
-        feature = self.avgpool(feature)
-        # B x C x H X W -> B x C*H*W
+        #feature = self.avgpool(feature)
+        # BS x C x H X W -> B x C*H*W
         feature = feature.view(batch_size, -1) 
         feature = self.fc(feature)
         feature = self.relufc(feature)
         feature = self.dropout(feature)
-        feature = self.logits(feature) # now logits
-
-        return feature
+        if isinstance(self.logits, nn.ModuleDict): 
+            final = {}
+            for task, fc_l in self.logits.items():
+                final[task] = fc_l(feature)
+            return final 
+        else:
+            feature = self.logits(feature) # now logits
+            return feature
 
 
 class VGGExtractor(nn.Module):

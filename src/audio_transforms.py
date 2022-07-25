@@ -5,7 +5,7 @@ import numpy as np
 import sys
 from scipy.io import loadmat
 import scipy.signal as sps
-sys.path.append('/om/user/imgriff/python-packages/chcochleagram')
+sys.path.append('/om2/user/imgriff/python-packages/chcochleagram')
 import chcochleagram
 from chcochleagram import compression
 from chcochleagram import cochleagram
@@ -553,6 +553,8 @@ class CombineWithRandomDBSNR(torch.nn.Module):
             background_wav (torch.Tensor): the waveform that will be used as
                 the background audio sample
         """
+        if self.low_snr == "clean" or self.high_snr == "clean":
+            return foreground_wav, None
         if background_wav is None:
             return foreground_wav, None
         rand_db_snr = random.uniform(self.low_snr, self.high_snr)
