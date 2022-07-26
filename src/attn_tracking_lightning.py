@@ -7,7 +7,6 @@ import torchmetrics
 import numpy as np 
 import torchaudio.functional as F
 from pytorch_lightning import LightningModule
-from src.attentional_cue_model import AuditoryCNN
 from corpus.jsinV3AttnTracking import jsinV3_attn_tracking
 from src.util import cal_er
 import src.audio_transforms as at
@@ -59,6 +58,11 @@ class AttentionalTrackingModule(LightningModule):
         ])
 
         self.data_config = self.config['data']
+        if 'attn_constraints' in self.config.keys():
+            from src.attentional_cue_model_ln_first import AuditoryCNN
+        else:
+            from src.attentional_cue_model import AuditoryCNN
+
 
         self.model = AuditoryCNN(self.data_config['num_words']) # vocab size
         if self.config['data']['audio']['rep_kwargs']['rep_on_gpu']:
@@ -90,7 +94,10 @@ class AttentionalTrackingModule(LightningModule):
         self.attn_modules = [mod for name, mod in self.model._modules.items() if 'attn' in name]
         
         self.bias_constraint = AttnBiasConstraint(min_val=0, max_val=1)
-        self.constrain_slope = self.config['attn_constraints'].get('slope', False) # False if not in config
+        if 'attn_constraints' in self.config.keys():
+            self.constrain_slope = self.config['attn_constraints'].get('slope', False) # False if not in config
+        else:
+            self.constrain_slope = False
 
         if self.constrain_slope:
             self.slope_constraint = AttnSlopeConstraint(min_val=0)
