@@ -54,7 +54,7 @@ class AttentionalTrackingModule(LightningModule):
         
         self.data_config = self.config['data']
         
-        if self.config['model_name'] == 'AttnCNN':
+        if self.config['model_name'] == 'AttnCNN' or self.config['model_name'] == "AttnCNNPosSlope":
             from src.attentional_cue_model import AuditoryCNN
             self.model = AuditoryCNN(self.data_config['num_words']) # vocab size
         elif self.config['model_name'] == "AttnCNNConstrained":
