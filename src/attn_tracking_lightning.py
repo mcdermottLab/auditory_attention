@@ -52,6 +52,11 @@ class AttentionalTrackingModule(LightningModule):
             at.UnsqueezeAudio(dim=0),
         ])
         
+        self.bg_talker_transforms = at.AudioCompose([
+            at.AudioToTensor(),
+            at.RMSNormalizeForegroundAndBackground(rms_level=0.1)
+        ])
+        
         self.data_config = self.config['data']
         
         if self.config['model_name'] == 'AttnCNN' or self.config['model_name'] == "AttnCNNPosSlope":
@@ -144,7 +149,10 @@ class AttentionalTrackingModule(LightningModule):
         return self._step(batch, batch_idx, "val")
 
     def test_step(self, batch, batch_idx):
-        signal, fg_cue, bg_cue, fg_labels, bg_labels = batch
+        if self.config['bg_noise_flag'] or int(self.config['num_bg_talkers']) > 0:
+            signal, fg_cue, fg_labels = batch
+        else:
+            signal, fg_cue, bg_cue, fg_labels, bg_labels = batch
         
         # self() is self.forward()  
         fg_outputs = self(fg_cue, signal) 
@@ -153,21 +161,21 @@ class AttentionalTrackingModule(LightningModule):
         self.accuracy["test"]["fg"](fg_outputs, fg_labels)
         self.log(f"ACC/test_fg_acc", self.accuracy["test"]["fg"], on_step=True, on_epoch=False)
         
-        self.accuracy['test_confusion']['fg'](fg_outputs, bg_labels)
-        self.log("fg_confusion", self.accuracy['test_confusion']['fg'], on_step=True, on_epoch=False)
+#         self.accuracy['test_confusion']['fg'](fg_outputs, bg_labels)
+#         self.log("fg_confusion", self.accuracy['test_confusion']['fg'], on_step=True, on_epoch=False)
         
         
-        # self() is self.forward()  
-        bg_outputs = self(bg_cue, signal)
-        bg_loss = self.loss_fn(bg_outputs, bg_labels)
-        # calc background talker word accuracy
-        self.accuracy["test"]["bg"](bg_outputs, bg_labels)
-        self.log(f"ACC/test_bg_acc", self.accuracy["test"]["bg"], on_step=True, on_epoch=False)
+#         # self() is self.forward()  
+#         bg_outputs = self(bg_cue, signal)
+#         bg_loss = self.loss_fn(bg_outputs, bg_labels)
+#         # calc background talker word accuracy
+#         self.accuracy["test"]["bg"](bg_outputs, bg_labels)
+#         self.log(f"ACC/test_bg_acc", self.accuracy["test"]["bg"], on_step=True, on_epoch=False)
                
-        self.accuracy['test_confusion']['bg'](bg_outputs, fg_labels)
-        self.log("bg_confusion", self.accuracy['test_confusion']['bg'], on_step=True, on_epoch=False)
+#         self.accuracy['test_confusion']['bg'](bg_outputs, fg_labels)
+#         self.log("bg_confusion", self.accuracy['test_confusion']['bg'], on_step=True, on_epoch=False)
         
-        return fg_loss + bg_loss
+        return fg_loss
 
     def train_dataloader(self):
         dataset = jsinV3_attn_tracking(**self.corpora_config, train=True, transform=self.audio_transforms)
@@ -189,6 +197,11 @@ class AttentionalTrackingModule(LightningModule):
         return dataloader
 
     def test_dataloader(self):
-        dataset = jsinV3_attn_tracking_validation(**self.corpora_config, train=False, transform=self.audio_transforms) 
+        if self.config['bg_noise_flag']:
+            dataset = jsinV3_attn_tracking_validation(**self.corpora_config, train=False, transform=self.audio_transforms, noise_bg=True) 
+        elif int(self.config['num_bg_talkers']) > 0:
+            dataset = jsinV3_attn_tracking_multi_talker_background(**self.corpora_config, train=False, transform=[self.audio_transforms, self.bg_talker_transforms], n_talkers=int(self.config['num_bg_talkers']))
+        else:
+            dataset = jsinV3_attn_tracking_validation(**self.corpora_config, train=False, transform=self.audio_transforms) 
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=1)
         return dataloader
