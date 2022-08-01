@@ -58,7 +58,9 @@ class AttentionalTrackingModule(LightningModule):
         ])
 
         self.data_config = self.config['data']
-        if 'attn_constraints' in self.config.keys():
+        ln_first = self.config.get('layernorm_first', False) 
+        if ln_first:
+            print('ln_first')
             from src.attentional_cue_model_ln_first import AuditoryCNN
         else:
             from src.attentional_cue_model import AuditoryCNN

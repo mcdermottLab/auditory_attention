@@ -7,10 +7,10 @@ from src.custom_modules import HannPooling2d
 class _SimpleAttentionalCueBlock(nn.Module):
     def __init__(self, frequency_dim, cnn_channels):
         super(_SimpleAttentionalCueBlock, self).__init__()
-        self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) 
+        self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) # outsize is N, C, FreqDim, 1
         self.bias = nn.Parameter(torch.zeros(1)) # init gain scaling to zero
-        self.slope = nn.Parameter(torch.ones(1))
-        self.threshold = nn.Parameter(torch.zeros(1))
+        self.slope = nn.Parameter(torch.ones(1)) # init slope to one
+        self.threshold = nn.Parameter(torch.zeros(1)) # init threshold to zero
         self.reset_parameters() 
 
     def reset_parameters(self):
