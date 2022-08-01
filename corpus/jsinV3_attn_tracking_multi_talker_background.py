@@ -93,9 +93,12 @@ class H5Dataset(torch.utils.data.Dataset):
 
         # get background
         background_ixs = np.where(speakers[:] != talker)[0]
-        background_ix = np.random.choice(background_ixs, size=self.n_talkers)
+        background_ix = np.random.choice(background_ixs, size=self.n_talkers, replace=False)
         background_ix = np.sort(background_ix)
         assert index not in background_ix, "Background talker same as target talker!"
+            
+        #print(background_ix)
+        assert (np.diff(background_ix) > 0).all(), "Background indices not ascending"
         background = signals[background_ix, :].squeeze()
 #         print(background.shape)
 #         print(foreground.shape)

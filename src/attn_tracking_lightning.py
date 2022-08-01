@@ -11,6 +11,7 @@ from pytorch_lightning import LightningModule
 #from src.constrained_attentional_cue_model import  AuditoryCNN
 from corpus.jsinV3AttnTracking import jsinV3_attn_tracking
 from corpus.jsinV3AttnTrackingValidation import jsinV3_attn_tracking_validation
+from corpus.jsinV3_attn_tracking_multi_talker_background import jsinV3_attn_tracking_multi_talker_background
 from src.util import cal_er
 import src.audio_transforms as at
 import src.custom_modules as cm 
@@ -62,7 +63,7 @@ class AttentionalTrackingModule(LightningModule):
         if self.config['model_name'] == 'AttnCNN' or self.config['model_name'] == "AttnCNNPosSlope":
             from src.attentional_cue_model import AuditoryCNN
             self.model = AuditoryCNN(self.data_config['num_words']) # vocab size
-        elif self.config['model_name'] == "AttnCNNConstrained":
+        elif self.config['model_name'] == "AttnCNNConstrained" or self.config['model_name'] == "AttnCNNOnlyNorm":
             from src.constrained_attentional_cue_model import AuditoryCNN
             self.model = AuditoryCNN(self.data_config['num_words'])
             
