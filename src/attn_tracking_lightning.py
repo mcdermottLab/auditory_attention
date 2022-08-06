@@ -49,7 +49,8 @@ class AttentionalTrackingModule(LightningModule):
         self.audio_config = config['data']['audio']
         self.corpora_config = config['data']['corpus']
         self.loader_config = config['data']['loader']
-
+        self.data_config = self.config['data']
+        self.noise_only = self.data_config.get('noise_only', False) # audioset noise instead of background talker 
         self.audio_transforms = at.AudioCompose([
             at.AudioToTensor(),
             at.CombineWithRandomDBSNR(low_snr=-10, high_snr=10),
@@ -57,7 +58,7 @@ class AttentionalTrackingModule(LightningModule):
             at.UnsqueezeAudio(dim=0),
         ])
 
-        self.data_config = self.config['data']
+        # Init Model
         ln_first = self.config.get('layernorm_first', False) 
         if ln_first:
             print('ln_first')
@@ -65,8 +66,9 @@ class AttentionalTrackingModule(LightningModule):
         else:
             from src.attentional_cue_model import AuditoryCNN
 
-
         self.model = AuditoryCNN(self.data_config['num_words']) # vocab size
+
+        # Add input rep to model or audio transforms
         if self.config['data']['audio']['rep_kwargs']['rep_on_gpu']:
             self.model = cm.SequentialAttacker(
                 cm.AudioInputRepresentation(**self.audio_config),
@@ -93,8 +95,8 @@ class AttentionalTrackingModule(LightningModule):
         opt = getattr(torch.optim, opt_cfg['optimizer'])
         model_paras = [{'params': self.model.parameters()}]
         
+        # Constraints
         self.attn_modules = [mod for name, mod in self.model._modules.items() if 'attn' in name]
-        
         self.bias_constraint = AttnBiasConstraint(min_val=0, max_val=1)
         if 'attn_constraints' in self.config.keys():
             self.constrain_slope = self.config['attn_constraints'].get('slope', False) # False if not in config
@@ -104,6 +106,7 @@ class AttentionalTrackingModule(LightningModule):
         if self.constrain_slope:
             self.slope_constraint = AttnSlopeConstraint(min_val=0)
         
+        # Learning rate scheduler 
         if opt_cfg['lr_scheduler'] == 'warmup':
             warmup_step = 4000.0
             init_lr = opt_cfg['lr']
@@ -155,7 +158,10 @@ class AttentionalTrackingModule(LightningModule):
         return self._step(batch, batch_idx, "test")
 
     def train_dataloader(self):
-        dataset = jsinV3_attn_tracking(**self.corpora_config, train=True, transform=self.audio_transforms)
+        dataset = jsinV3_attn_tracking(**self.corpora_config,
+                                       train=True,
+                                       noise_only=self.noise_only,
+                                       transform=self.audio_transforms)
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=self.loader_config['batch_size'],
@@ -165,7 +171,10 @@ class AttentionalTrackingModule(LightningModule):
         return dataloader
 
     def val_dataloader(self):
-        dataset = jsinV3_attn_tracking(**self.corpora_config, train=False, transform=self.audio_transforms)
+        dataset = jsinV3_attn_tracking(**self.corpora_config,
+                                       train=False,
+                                       noise_only=self.noise_only,
+                                       transform=self.audio_transforms)
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=self.loader_config['batch_size'],
@@ -174,6 +183,9 @@ class AttentionalTrackingModule(LightningModule):
         return dataloader
 
     def test_dataloader(self):
-        dataset = jsinV3_attn_tracking(**self.corpora_config, train=False, transform=self.audio_transforms) 
+        dataset = jsinV3_attn_tracking(**self.corpora_config,
+                                       train=False,
+                                       noise_only=self.noise_only,
+                                       transform=self.audio_transforms)
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=1)
         return dataloader

@@ -15,7 +15,7 @@ class jsinV3_attn_tracking(torch.utils.data.ConcatDataset):
     hdf5_glob = 'JSIN_all__run_*.h5'
     target_keys = ['signal/word_int']
 
-    def __init__(self, root, train=True, download=False, transform=None):
+    def __init__(self, root, train=True, download=False, transform=None, noise_only=False):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the 
         specified root directory. 
@@ -27,7 +27,7 @@ class jsinV3_attn_tracking(torch.utils.data.ConcatDataset):
         else:
             self.all_hdf5_files = glob.glob(root + '/valid_*/' + self.hdf5_glob)[0:1] # Just get one set of them
 
-        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys) for h5_file in self.all_hdf5_files]
+        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, noise_only, self.target_keys) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
 
@@ -41,7 +41,7 @@ class jsinV3_attn_tracking(torch.utils.data.ConcatDataset):
 
 
 class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path, transform, target_keys):
+    def __init__(self, path, transform, noise_only, target_keys):
         """
         Builds a pytorch hdf5 dataset
         Args:
@@ -50,6 +50,7 @@ class H5Dataset(torch.utils.data.Dataset):
         self.file_path = path
         self.dataset = None
         self.transform = transform
+        self.noise_only = noise_only
         self.target_keys = target_keys
         # TODO: implement chunking the hdf5 file so that we can shuffle the data
         # TODO: implement shuffling the audioset and the speech separately
@@ -89,10 +90,15 @@ class H5Dataset(torch.utils.data.Dataset):
         cue = signals[cue_ix]
 
         # get background
-        background_ixs = np.where(speakers[:] != talker_ix)[0]
-        background_ix = np.random.choice(background_ixs)
-        assert speakers[background_ix] != talker_ix, "Background talker same as target talker!"
-        background = signals[background_ix]
+        if self.noise_only:
+            # use pre-paired audioset noise as background
+            background = self.dataset['sources']['noise']['signal'][index]
+        else:
+            # use competing talker as background
+            background_ixs = np.where(speakers[:] != talker_ix)[0]
+            background_ix = np.random.choice(background_ixs)
+            assert speakers[background_ix] != talker_ix, "Background talker same as target talker!"
+            background = signals[background_ix]
 
         # Transforms will take in the signal and the noise source for this dataset
         # If no transform, just return the speech with no background
