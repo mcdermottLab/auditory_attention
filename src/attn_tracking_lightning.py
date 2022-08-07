@@ -51,6 +51,8 @@ class AttentionalTrackingModule(LightningModule):
         self.loader_config = config['data']['loader']
         self.data_config = self.config['data']
         self.noise_only = self.data_config.get('noise_only', False) # audioset noise instead of background talker 
+        if self.noise_only:
+            print("Running with AudioSet Background")
         self.audio_transforms = at.AudioCompose([
             at.AudioToTensor(),
             at.CombineWithRandomDBSNR(low_snr=-10, high_snr=10),

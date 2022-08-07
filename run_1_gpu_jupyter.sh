@@ -2,9 +2,9 @@
 #SBATCH --job-name=jupyter_notebook
 #SBATCH --output=outLogs/notebook%j.out
 #SBATCH --error=outLogs/notebook%j.err
-#SBATCH --mem=32Gb
+#SBATCH --mem=64Gb
 #SBATCH --cpus-per-task=10
-#SBATCH --time=2:00:00
+#SBATCH --time=4:00:00
 #SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:1
 
@@ -16,7 +16,7 @@ module add openmind/cuda/11.3
 
 export CONDA_ENVS_PATH=~/my-envs:/om2/user/imgriff/conda_envs
 
-source activate /om4/group/mcdermott/user/imgriff/conda_envs_files/torch_11_cuda_11
+source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11
 
 
 
