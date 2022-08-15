@@ -54,7 +54,7 @@ def run_eval(args):
     config['model_name'] = model_name
     config['noise_kwargs']['high_snr'] = snr  
     config['noise_kwargs']['low_snr'] = snr
-    config['bg_noise_flag'] = True
+    config['audioset_bg'] = True
     
     if snr == 'clean':
         log_name = f"{model_name}_{snr}"
