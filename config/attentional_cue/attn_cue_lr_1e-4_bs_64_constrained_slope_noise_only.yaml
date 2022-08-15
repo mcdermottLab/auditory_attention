@@ -30,6 +30,10 @@ data:
     batch_size: 64                         # Gets divided by num gpus
 #     num_workers: 20
 
+noise_kwargs: # parameters for background signal levels 
+  low_snr: -10
+  high_snr: 10
+
 val_metric: 'ACC/val_acc'
 model_name: 'AttnCNN'
 layernorm_first: True

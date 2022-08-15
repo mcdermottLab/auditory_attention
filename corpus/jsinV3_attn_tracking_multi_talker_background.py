@@ -49,7 +49,8 @@ class H5Dataset(torch.utils.data.Dataset):
         """
         self.file_path = path
         self.dataset = None
-        self.transform = transform
+        self.transform = transform[0]
+        self.bg_transform = transform[1]
         self.target_keys = target_keys
         self.n_talkers = n_talkers
         self.demo = demo
@@ -92,18 +93,23 @@ class H5Dataset(torch.utils.data.Dataset):
 
         # get background
         background_ixs = np.where(speakers[:] != talker)[0]
-        background_ix = np.random.choice(background_ixs, size=self.n_talkers)
+        background_ix = np.random.choice(background_ixs, size=self.n_talkers, replace=False)
         background_ix = np.sort(background_ix)
         assert index not in background_ix, "Background talker same as target talker!"
-        background = signals[background_ix]
             
+        #print(background_ix)
+        assert (np.diff(background_ix) > 0).all(), "Background indices not ascending"
+        background = signals[background_ix, :].squeeze()
+#         print(background.shape)
+#         print(foreground.shape)
         # Transforms will take in the signal and the noise source for this dataset
         # If no transform, just return the speech with no background
         if self.transform is not None:
             if self.n_talkers > 1:
                 # hack to use  transforms to RMS normalize all background samples - to numpy for mixtures
-                background = [self.transform(bg, None)[0].squeeze().numpy() for bg in background]
+                background = [self.bg_transform(bg, None)[0].squeeze().numpy() for bg in background]
                 background = np.sum(background, axis=0)
+            #print(background.shape)
             signal, _ = self.transform(foreground, background)
             fg_cue, _ = self.transform(fg_cue, None)
             

@@ -1,14 +1,13 @@
 
-from collections import namedtuple
-from typing import List, Tuple, Optional
+# from collections import namedtuple
+# from typing import List, Tuple, Optional
 import torch
-import torchaudio
 import torchmetrics
-import numpy as np 
-import torchaudio.functional as F
 from pytorch_lightning import LightningModule
 from corpus.jsinV3AttnTracking import jsinV3_attn_tracking
-from src.util import cal_er
+from corpus.jsinV3AttnTrackingValidation import jsinV3_attn_tracking_validation
+from corpus.jsinV3_attn_tracking_multi_talker_background import jsinV3_attn_tracking_multi_talker_background
+
 import src.audio_transforms as at
 import src.custom_modules as cm 
 # import psutil
@@ -50,15 +49,25 @@ class AttentionalTrackingModule(LightningModule):
         self.corpora_config = config['data']['corpus']
         self.loader_config = config['data']['loader']
         self.data_config = self.config['data']
-        self.noise_only = self.data_config.get('noise_only', False) # audioset noise instead of background talker 
-        if self.noise_only:
+        # noise params for dataset 
+        self.noise_only = self.data_config.get('noise_only', False) # audioset noise instead of background talker for training
+        self.audioset_bg_test =  self.config.get('audioset_bg', False)
+        self.n_test_distractors = self.config.get('n_distractors', False) # int or False  
+
+
+        if self.noise_only or self.audioset_bg_test:
             print("Running with AudioSet Background")
         self.audio_transforms = at.AudioCompose([
             at.AudioToTensor(),
-            at.CombineWithRandomDBSNR(low_snr=-10, high_snr=10),
+            at.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
             at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
             at.UnsqueezeAudio(dim=0),
         ])
+        if self.n_test_distractors:
+            self.bg_talker_transforms = at.AudioCompose([
+                at.AudioToTensor(),
+                at.RMSNormalizeForegroundAndBackground(rms_level=0.1)
+            ])
 
         # Init Model
         ln_first = self.config.get('layernorm_first', False) 
@@ -89,9 +98,14 @@ class AttentionalTrackingModule(LightningModule):
         self.train_acc = torchmetrics.Accuracy()
         self.valid_acc = torchmetrics.Accuracy()
         self.test_acc = torchmetrics.Accuracy()
+        self.test_confusion = torchmetrics.Accuracy()
+        # self.test_confusion = torch.nn.ModuleDict({"fg": torchmetrics.Accuracy(),
+        #                                      "bg": torchmetrics.Accuracy()})
         self.accuracy = {'train': self.train_acc,
                          'val': self.valid_acc,
-                         'test': self.test_acc}
+                         'test': self.test_acc,
+                         'test_confusion': self.test_confusion
+                        }
         # Optimizer
         opt_cfg = self.config['hparas']
         opt = getattr(torch.optim, opt_cfg['optimizer'])
@@ -157,7 +171,25 @@ class AttentionalTrackingModule(LightningModule):
         return self._step(batch, batch_idx, "val")
 
     def test_step(self, batch, batch_idx):
-        return self._step(batch, batch_idx, "test")
+        if  self.audioset_bg_test or self.n_test_distractors:
+            signal, fg_cue, fg_labels = batch
+        else:
+            signal, fg_cue, bg_cue, fg_labels, bg_labels = batch
+        
+        # self() is self.forward()  
+        fg_outputs = self(fg_cue, signal) 
+        fg_loss = self.loss_fn(fg_outputs, fg_labels)
+        # calc foreground talker word accuracy
+        self.accuracy["test"](fg_outputs, fg_labels)
+        self.log(f"ACC/test_fg_acc", self.accuracy["test"], on_step=True, on_epoch=False)
+        
+        if not self.audioset_bg_test or not self.n_test_distractors:
+            # log test confusion on tasks that have it 
+            self.accuracy['test_confusion'](fg_outputs, bg_labels)
+            self.log("test_confusion", self.accuracy['test_confusion'], on_step=True, on_epoch=False)
+
+        return fg_loss
+
 
     def train_dataloader(self):
         dataset = jsinV3_attn_tracking(**self.corpora_config,
@@ -185,9 +217,9 @@ class AttentionalTrackingModule(LightningModule):
         return dataloader
 
     def test_dataloader(self):
-        dataset = jsinV3_attn_tracking(**self.corpora_config,
-                                       train=False,
-                                       noise_only=self.noise_only,
-                                       transform=self.audio_transforms)
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=1)
+        if self.n_test_distractors: 
+            dataset = jsinV3_attn_tracking_multi_talker_background(**self.corpora_config, train=False, transform=[self.audio_transforms, self.bg_talker_transforms], n_talkers=int(self.n_test_distractors))
+        else:
+            dataset = jsinV3_attn_tracking_validation(**self.corpora_config, train=False, transform=self.audio_transforms, noise_bg=self.audioset_bg_test) 
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=self.config['n_jobs'])
         return dataloader
