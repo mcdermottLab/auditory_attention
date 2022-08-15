@@ -13,30 +13,39 @@ from src.attn_tracking_lightning import AttentionalTrackingModule
 from src.attentional_tracking_control_lightning import AttnTrackingControlModule
 from src.attn_rove_rms_lightning import AttnRoveRMSModule
 
-eval_cond_path = '/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cnn_n_talker_conds.pkl'
-
-with open(eval_cond_path, 'rb') as f:
-    eval_conditions = pickle.load(f)
 
 seed_everything(1)
 
 def run_eval(args):
+    
+    
+    with open(args.eval_cond_file, 'rb') as f:
+        eval_conditions = pickle.load(f)
+        
     model_name, snr, num_bg_talkers = eval_conditions[args.array_id]
     
     if "AttnCNN" in model_name:
         config_name = "config/attentional_cue/attn_cue_high_snr_lr_1e-4_bs_64.yaml"
         if model_name == "AttnCNN":
             checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_bs_64_lr_1e-4/checkpoints/epoch=1-step=120790.ckpt"
+            
         elif model_name == "AttnCNNConstrained":
             checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_pos_slope_bs_64_lr_1e-4/checkpoints/epoch=0-step=65000-v1.ckpt"
+            
         elif model_name == "AttnCNNPosSlope":
             checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_pos_slope_bs_64_lr_1e-4/checkpoints/epoch=1-step=95791.ckpt"
+            
         elif model_name == "AttnCNNOnlyNorm":
             checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_bs_64_lr_1e-4/checkpoints/epoch=1-step=135791.ckpt"
             
     elif model_name == "AttnTrackingControl":
         config_name = "config/attentional_cue/attn_tracking_control_high_snr.yaml"
         checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/multi_talker_control/jsin_precombined_gammatone_40_channels_20kHz_on_gpu_1e-4lr/checkpoints/epoch=5-step=741324.ckpt"
+        
+    elif model_name == "AudiosetBackground":
+        config_name = "config/attn_cue_lr_1e-4_bs_64_constrained_slope_noise_only.yaml"
+        checkpoint_path = "/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_audset_bg_fully_constrained_bs_64_lr_1e-4/checkpoints/epoch=1-step=140791.ckpt"
+        
     
     config = yaml.load(open(config_name, 'r'), Loader=yaml.FullLoader)
     
@@ -81,14 +90,14 @@ def run_eval(args):
         accelerator="gpu" if args.gpus > 0 else 'cpu',
         logger=logger
     )
-
+    
     # load model checkpoint 
     if model_name == 'AttnTrackingControl':
-        model = AttnTrackingControlModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
-    elif model_name == 'AttnCNN' or model_name == "AttnCNNPosSlope" or model_name == "AttnCNNConstrained" or model_name == "AttnCNNOnlyNorm":
-        model = AttentionalTrackingModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)  
+        model = AttnTrackingControlModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)    
     elif model_name == "AttnRoveRMSCNN":
         model = AttnRoveRMSModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
+    else:
+        model = AttentionalTrackingModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)  
     # evaluate model  
     trainer.test(model)
 
@@ -99,6 +108,12 @@ def cli_main():
     parser.add_argument(
         "--exp_dir",
         default=pathlib.Path("./exp"),
+        type=pathlib.Path,
+        help="Directory to save checkpoints and logs to. (Default: './exp')",
+    )
+    parser.add_argument(
+        "--eval_cond_file",
+        default=pathlib.Path("/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/attn_cnn_n_talker_conds.pkl"),
         type=pathlib.Path,
         help="Directory to save checkpoints and logs to. (Default: './exp')",
     )

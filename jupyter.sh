@@ -13,7 +13,7 @@ module add openmind/miniconda
 
 export CONDA_ENVS_PATH=~/my-envs:/om2/user/imgriff/conda_envs
 
-source activate /om2/user/imgriff/conda_envs/torchaudio_11
+source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11
 
 
 
