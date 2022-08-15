@@ -221,5 +221,5 @@ class AttentionalTrackingModule(LightningModule):
             dataset = jsinV3_attn_tracking_multi_talker_background(**self.corpora_config, train=False, transform=[self.audio_transforms, self.bg_talker_transforms], n_talkers=int(self.n_test_distractors))
         else:
             dataset = jsinV3_attn_tracking_validation(**self.corpora_config, train=False, transform=self.audio_transforms, noise_bg=self.audioset_bg_test) 
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=self.config['n_jobs'])
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=self.loader_config['num_workers'])
         return dataloader

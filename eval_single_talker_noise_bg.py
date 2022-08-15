@@ -42,7 +42,7 @@ def run_eval(args):
         checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/multi_talker_control/jsin_precombined_gammatone_40_channels_20kHz_on_gpu_1e-4lr/checkpoints/epoch=5-step=741324.ckpt"
         
     elif model_name == "AudiosetBackground":
-        config_name = "config/attn_cue_lr_1e-4_bs_64_constrained_slope_noise_only.yaml"
+        config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64_constrained_slope_noise_only.yaml"
         checkpoint_path = "/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_audset_bg_fully_constrained_bs_64_lr_1e-4/checkpoints/epoch=1-step=140791.ckpt"
         
     config = yaml.load(open(config_name, 'r'), Loader=yaml.FullLoader)

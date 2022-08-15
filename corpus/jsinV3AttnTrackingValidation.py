@@ -117,7 +117,8 @@ class H5Dataset(torch.utils.data.Dataset):
         if self.transform is not None:
             signal, _ = self.transform(foreground, background)
             fg_cue, _ = self.transform(fg_cue, None)
-            bg_cue, _ = self.transform(bg_cue, None)
+            if not self.noise_bg:
+                bg_cue, _ = self.transform(bg_cue, None)
             
         if len(self.target_keys) == 1:
             target_paths = self.target_keys[0].split('/')
