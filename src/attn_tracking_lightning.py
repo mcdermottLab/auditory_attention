@@ -4,7 +4,6 @@
 import torch
 import torchmetrics
 from pytorch_lightning import LightningModule
-from corpus.jsinV3AttnTracking import jsinV3_attn_tracking
 from corpus.jsinV3AttnTrackingValidation import jsinV3_attn_tracking_validation
 from corpus.jsinV3_attn_tracking_multi_talker_background import jsinV3_attn_tracking_multi_talker_background
 
@@ -49,20 +48,34 @@ class AttentionalTrackingModule(LightningModule):
         self.corpora_config = config['data']['corpus']
         self.loader_config = config['data']['loader']
         self.data_config = self.config['data']
-        # noise params for dataset 
+
+        # set training dataset
+        self.multi_distractor = self.data_config.get('mulit_distractor', False) # audioset noise instead of background talker for training
+        if self.multi_distractor:
+            from corpus.jsinV3_attn_multi_talker_w_audioset import jsinV3_attn_multi_talker_w_audioset
+            self.train_val_dataset = jsinV3_attn_multi_talker_w_audioset
+            self.bg_combine_transforms = at.AudioCompose([
+                            at.AudioToTensor(),
+                            at.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
+                            at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
+                            at.UnsqueezeAudio(dim=0),
+                        ])
+        else:
+            from corpus.jsinV3AttnTracking import jsinV3_attn_tracking
+            self.train_val_dataset = jsinV3_attn_tracking
+
+        # set evaluation background noise params
         self.noise_only = self.data_config.get('noise_only', False) # audioset noise instead of background talker for training
         self.audioset_bg_test =  self.config.get('audioset_bg', False)
         self.n_test_distractors = self.config.get('n_distractors', False) # int or False  
 
-
-        if self.noise_only or self.audioset_bg_test:
-            print("Running with AudioSet Background")
         self.audio_transforms = at.AudioCompose([
             at.AudioToTensor(),
             at.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
             at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
             at.UnsqueezeAudio(dim=0),
         ])
+
         if self.n_test_distractors:
             self.bg_talker_transforms = at.AudioCompose([
                 at.AudioToTensor(),
@@ -90,6 +103,9 @@ class AttentionalTrackingModule(LightningModule):
                 self.audio_transforms,
                 at.AudioToAudioRepresentation(**self.audio_config)
             ])
+        if self.multi_distractor:
+            # list of transforms for making cochleagrams of mixtures and combining background sources 
+            self.audio_transforms = [self.audio_transforms, self.bg_combine_transforms]
 
         # Losses
         self.loss_fn = torch.nn.CrossEntropyLoss()
@@ -192,7 +208,7 @@ class AttentionalTrackingModule(LightningModule):
 
 
     def train_dataloader(self):
-        dataset = jsinV3_attn_tracking(**self.corpora_config,
+        dataset = self.train_val_dataset(**self.corpora_config,
                                        train=True,
                                        noise_only=self.noise_only,
                                        transform=self.audio_transforms)
@@ -205,7 +221,7 @@ class AttentionalTrackingModule(LightningModule):
         return dataloader
 
     def val_dataloader(self):
-        dataset = jsinV3_attn_tracking(**self.corpora_config,
+        dataset = self.train_val_dataset(**self.corpora_config,
                                        train=False,
                                        noise_only=self.noise_only,
                                        transform=self.audio_transforms)
