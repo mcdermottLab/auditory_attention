@@ -183,7 +183,7 @@ class AttentionalTrackingModule(LightningModule):
         self.accuracy["test"](fg_outputs, fg_labels)
         self.log(f"ACC/test_fg_acc", self.accuracy["test"], on_step=True, on_epoch=False)
         
-        if not self.audioset_bg_test or not self.n_test_distractors:
+        if not self.audioset_bg_test and not self.n_test_distractors:
             # log test confusion on tasks that have it 
             self.accuracy['test_confusion'](fg_outputs, bg_labels)
             self.log("test_confusion", self.accuracy['test_confusion'], on_step=True, on_epoch=False)
