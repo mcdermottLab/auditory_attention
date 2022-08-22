@@ -5,6 +5,7 @@
 #SBATCH --mem=256Gb
 #SBATCH -N 1
 ##SBATCH -w dgx002
+#SBATCH -x node113
 #SBATCH --cpus-per-task=80
 #SBATCH --time=72:00:00
 #SBATCH --partition=mcdermott

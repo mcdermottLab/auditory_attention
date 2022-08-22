@@ -15,12 +15,13 @@ class jsinV3_attn_tracking_multi_talker_background(torch.utils.data.ConcatDatase
     hdf5_glob = 'JSIN_all__run_*.h5'
     target_keys = ['signal/word_int']
 
-    def __init__(self, root, train=True, download=False, transform=None, n_talkers=1, demo=False):
+    def __init__(self, root, train=True, download=False, transform=None, n_talkers=1, noise_only=None, demo=False):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the 
         specified root directory. 
         """
         del download
+        del noise_only
 
         if train:
             self.all_hdf5_files = glob.glob(root + '/train_*/' + self.hdf5_glob)
@@ -53,6 +54,7 @@ class H5Dataset(torch.utils.data.Dataset):
         self.bg_transform = transform[1]
         self.target_keys = target_keys
         self.n_talkers = n_talkers
+        print(self.n_talkers)
         self.demo = demo
         # TODO: implement chunking the hdf5 file so that we can shuffle the data
         # TODO: implement shuffling the audioset and the speech separately

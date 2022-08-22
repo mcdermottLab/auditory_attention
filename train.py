@@ -111,7 +111,7 @@ def run_train(args):
     elif config['model_name'] == 'AttnTrackingControl':
         from src.attentional_tracking_control_lightning import AttnTrackingControlModule
         model = AttnTrackingControlModule(config)
-    elif config['model_name'] == 'AttnCNN':
+    elif config['model_name'] == 'AttnCNN' or 'AttnCNN' in config['model_name']:
         from src.attn_tracking_lightning import AttentionalTrackingModule
         model = AttentionalTrackingModule(config)
 

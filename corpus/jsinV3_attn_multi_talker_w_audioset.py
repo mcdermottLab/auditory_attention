@@ -16,12 +16,14 @@ class jsinV3_attn_multi_talker_w_audioset(torch.utils.data.ConcatDataset):
     hdf5_glob = 'JSIN_all__run_*.h5'
     target_keys = ['signal/word_int']
 
-    def __init__(self, root, train=True, download=False, transform=None, n_talkers=1, with_audioset=False, demo=False):
+    def __init__(self, root, train=True, download=False, transform=None,
+                 n_talkers=1, noise_only=None, with_audioset=False, demo=False):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the 
         specified root directory. 
         """
         del download
+        del noise_only
 
         if train:
             self.all_hdf5_files = glob.glob(root + '/train_*/' + self.hdf5_glob)
@@ -55,6 +57,7 @@ class H5Dataset(torch.utils.data.Dataset):
 
         self.target_keys = target_keys
         self.n_talkers = n_talkers
+
         if isinstance(n_talkers, (list, tuple)):
             self.get_bg_talker_ixs = self.get_random_n_talker_ixs
         else:
@@ -69,12 +72,16 @@ class H5Dataset(torch.utils.data.Dataset):
             self.dataset_len = len(file['sources']['signal']['signal'])
 
     def get_talker_ixs(self, background_ixs):
+        '''Randomly choose fixed number of talkers'''
         talker_ixs = np.random.choice(background_ixs, size=self.n_talkers, replace=False)
         talker_ixs = np.sort(talker_ixs)
         return talker_ixs
 
     def get_random_n_talker_ixs(self, background_ixs):
-        n_talkers = np.random.choice(self.n_talkers) # choose random number of talkers to include
+        '''Randomly choose number of talkers from provided upper and lower bounds.
+        Add one to high as upper bound of np.random.randint is not inclusive
+        '''
+        n_talkers = np.random.randint(low=self.n_talkers[0], high=self.n_talkers[1]+1) 
         talker_ixs = np.random.choice(background_ixs, size=n_talkers, replace=False)
         talker_ixs = np.sort(talker_ixs)
         return talker_ixs 
@@ -118,8 +125,7 @@ class H5Dataset(torch.utils.data.Dataset):
         talker_ixs = self.get_bg_talker_ixs(background_ixs)
         assert index not in talker_ixs, "Background talker same as target talker!"
         assert (np.diff(talker_ixs) > 0).all(), "Background indices not ascending"
-        background_talkers = signals[talker_ixs, :].squeeze()
-
+        background_talkers = signals[talker_ixs, :]
         # Transforms will take in the signal and the noise source for this dataset
         # mix talkers at random SNRs:
         for ix, talker in enumerate(background_talkers):
