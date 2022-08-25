@@ -76,7 +76,7 @@ def run_train(args):
         precision=16 if args.mixed_precision else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
-        limit_train_batches=0.2,
+    
        # log_every_n_steps = 10,
         detect_anomaly=False,
         num_nodes=args.num_nodes,
