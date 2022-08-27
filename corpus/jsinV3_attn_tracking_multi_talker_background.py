@@ -15,7 +15,7 @@ class jsinV3_attn_tracking_multi_talker_background(torch.utils.data.ConcatDatase
     hdf5_glob = 'JSIN_all__run_*.h5'
     target_keys = ['signal/word_int']
 
-    def __init__(self, root, train=True, download=False, transform=None, n_talkers=1, noise_only=None, demo=False):
+    def __init__(self, root, model='train', download=False, transform=None, n_talkers=1, noise_only=None, demo=False):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the 
         specified root directory. 
@@ -23,10 +23,12 @@ class jsinV3_attn_tracking_multi_talker_background(torch.utils.data.ConcatDatase
         del download
         del noise_only
 
-        if train:
+        if mode == 'train':
             self.all_hdf5_files = glob.glob(root + '/train_*/' + self.hdf5_glob)
-        else:
+        elif mode == 'val':
             self.all_hdf5_files = glob.glob(root + '/valid_*/' + self.hdf5_glob)[0:1] # Just get one set of them
+        elif mode == 'test':
+            self.all_hdf5_files = glob.glob(root + '/valid_*/' + self.hdf5_glob)[1:] # Use the others 
 
         self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys, n_talkers, demo) for h5_file in self.all_hdf5_files]
 

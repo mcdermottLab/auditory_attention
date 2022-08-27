@@ -213,7 +213,7 @@ class AttentionalTrackingModule(LightningModule):
 
     def train_dataloader(self):
         dataset = self.train_val_dataset(**self.corpora_config,
-                                       train=True,
+                                       mode='train',
                                        noise_only=self.noise_only,
                                        transform=self.transforms)
         dataloader = torch.utils.data.DataLoader(
@@ -226,7 +226,7 @@ class AttentionalTrackingModule(LightningModule):
 
     def val_dataloader(self):
         dataset = self.train_val_dataset(**self.corpora_config,
-                                       train=False,
+                                       mode='val',
                                        noise_only=self.noise_only,
                                        transform=self.transforms)
         dataloader = torch.utils.data.DataLoader(
@@ -238,8 +238,8 @@ class AttentionalTrackingModule(LightningModule):
 
     def test_dataloader(self):
         if self.n_test_distractors: 
-            dataset = jsinV3_attn_tracking_multi_talker_background(**self.corpora_config, train=False, transform=[self.audio_transforms, self.bg_talker_transforms], n_talkers=int(self.n_test_distractors))
+            dataset = jsinV3_attn_tracking_multi_talker_background(**self.corpora_config, mode='test', transform=[self.audio_transforms, self.bg_talker_transforms], n_talkers=int(self.n_test_distractors))
         else:
-            dataset = jsinV3_attn_tracking_validation(**self.corpora_config, train=False, transform=self.transforms, noise_bg=self.audioset_bg_test) 
+            dataset = jsinV3_attn_tracking_validation(**self.corpora_config, mode='test', transform=self.transforms, noise_bg=self.audioset_bg_test) 
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=self.loader_config['num_workers'])
         return dataloader
