@@ -76,7 +76,8 @@ class H5Dataset(torch.utils.data.Dataset):
     def get_talker_ixs(self, background_ixs):
         '''Randomly choose fixed number of talkers'''
         talker_ixs = np.random.choice(background_ixs, size=self.n_talkers, replace=False)
-        talker_ixs = np.sort(talker_ixs)
+        if self.n_talkers > 1:
+            talker_ixs = np.sort(talker_ixs)
         return talker_ixs
 
     def get_random_n_talker_ixs(self, background_ixs):
