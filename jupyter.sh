@@ -4,9 +4,9 @@
 #SBATCH --error=outLogs/notebook%j.err
 #SBATCH --mem=8Gb
 #SBATCH --time=6:00:00
-#SBATCH --partition=normal
+#SBATCH --partition=mcdermott
 #SBATCH --cpus-per-task=1
-
+#SBATCH -x node108
 module add openmind/miniconda
 
 
