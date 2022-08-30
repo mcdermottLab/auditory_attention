@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=20
 #SBATCH --time=3:00:00
 #SBATCH --partition=normal
-#SBATCH --array=0-22
+#SBATCH --array=0-22%10
 
 module add openmind/miniconda
 
