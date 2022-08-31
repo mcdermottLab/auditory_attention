@@ -50,7 +50,9 @@ def run_eval(args):
     
     
     config['data']['loader']['num_workers'] = args.n_jobs
-    config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
+    if args.gpus >=1:
+        config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
+    
     
     config['model_name'] = model_name
     config['noise_kwargs']['high_snr'] = snr  

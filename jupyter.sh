@@ -6,7 +6,7 @@
 #SBATCH --time=6:00:00
 #SBATCH --partition=mcdermott
 #SBATCH --cpus-per-task=1
-#SBATCH -x node108
+#SBATCH -x node[100-115]
 module add openmind/miniconda
 
 

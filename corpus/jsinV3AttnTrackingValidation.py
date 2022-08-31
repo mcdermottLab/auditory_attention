@@ -7,6 +7,7 @@ import sys
 import pickle
 import numpy as np
 import librosa
+import pandas as pd 
 
 
 class jsinV3_attn_tracking_validation(torch.utils.data.ConcatDataset):
@@ -30,7 +31,7 @@ class jsinV3_attn_tracking_validation(torch.utils.data.ConcatDataset):
         elif mode == 'test':
             self.all_hdf5_files = glob.glob(root + '/valid_*/' + self.hdf5_glob)[1:] # Use the others 
 
-        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys, demo, noise_bg, get_f0) for h5_file in self.all_hdf5_files]
+        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys, demo, noise_bg, get_f0, mode) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
 
@@ -44,7 +45,7 @@ class jsinV3_attn_tracking_validation(torch.utils.data.ConcatDataset):
 
 
 class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path, transform, target_keys, demo, noise_bg, get_f0):
+    def __init__(self, path, transform, target_keys, demo, noise_bg, get_f0, mode):
         """
         Builds a pytorch hdf5 dataset
         Args:
@@ -62,7 +63,14 @@ class H5Dataset(torch.utils.data.Dataset):
         # self.chunk_size = hdf5_chunk_size
         with h5py.File(self.file_path, 'r', swmr=True) as file:
             self.dataset_len = len(file['sources']['signal']['signal'])
-
+        if get_f0:
+            if mode == 'val':
+                file = 'validation_f0_ix_mapping_w_mean_var_and_parent_file.pdpkl' 
+            elif mode == 'test':
+                file = 'test_f0_ix_mapping_w_mean_var_and_parent_file.pdpkl'
+            pd_file_path = '/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/' + file
+            self.f0_lookup = pd.read_pickle(pd_file_path)
+            
     def __getitem__(self, index):
         """
         Gets components of the hdf5 file that are used for training
@@ -119,12 +127,13 @@ class H5Dataset(torch.utils.data.Dataset):
         # Transforms will take in the signal and the noise source for this dataset
         # If no transform, just return the speech with no background
         if self.get_f0:
-            fg_f0, _, _ = librosa.pyin(signal, sr=20000, fmin=75, fmax=450)
-            bg_f0, _, _ = librosa.pyin(background, sr=20000, fmin=75, fmax=450)
-            # get mean for test
-            fg_f0 = fg_f0.mean()
-            bg_f0 = bg_f0.mean()
-
+            fg_f0_info = self.f0_lookup[self.f0_lookup.global_ix == index]
+            fg_f0 = fg_f0_info.f0_mean.item()
+            
+            bg_f0_info = self.f0_lookup[(self.f0_lookup.ix_in_parent_h5 == background_ix) &
+                                        (self.f0_lookup.parent_h5_file == self.file_path)]
+            bg_f0 = bg_f0_info.f0_mean.item()
+            
         if self.transform is not None:
             signal, _ = self.transform(foreground, background)
             fg_cue, _ = self.transform(fg_cue, None)

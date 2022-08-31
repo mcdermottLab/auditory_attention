@@ -2,7 +2,7 @@
 #SBATCH --job-name=single_talker_w_audioset
 #SBATCH --output=outLogs/attn_cue_single_talker_w_audioset_%j.out
 #SBATCH --error=outLogs/attn_cue_single_talker_w_audioset_%j.err
-#SBATCH --mem=156Gb
+#SBATCH --mem=256Gb
 #SBATCH -N 1
 ##SBATCH -w node093
 #SBATCH  -x node[100-115]
@@ -15,7 +15,7 @@ module add openmind/miniconda
 module add openmind/cudnn/9.1-7.0.5
 module add openmind/cuda/11.3
 
-source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11
+source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
 python3 train.py --config config/attentional_cue/attn_cue_lr_1e-4_bs_64_constrained_slope_multi_distractor.yaml\
                  --gpus 4 --n_jobs 5 --mixed_precision \
