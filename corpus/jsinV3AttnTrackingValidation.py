@@ -6,6 +6,7 @@ import sys
 # import src.audio_transforms as audio_transforms
 import pickle
 import numpy as np
+import librosa
 
 
 class jsinV3_attn_tracking_validation(torch.utils.data.ConcatDataset):
@@ -15,7 +16,7 @@ class jsinV3_attn_tracking_validation(torch.utils.data.ConcatDataset):
     hdf5_glob = 'JSIN_all__run_*.h5'
     target_keys = ['signal/word_int']
 
-    def __init__(self, root, mode='train', download=False, transform=None, demo=False, noise_bg=False):
+    def __init__(self, root, mode='train', download=False, transform=None, demo=False, noise_bg=False, get_f0=False):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the 
         specified root directory. 
@@ -29,7 +30,7 @@ class jsinV3_attn_tracking_validation(torch.utils.data.ConcatDataset):
         elif mode == 'test':
             self.all_hdf5_files = glob.glob(root + '/valid_*/' + self.hdf5_glob)[1:] # Use the others 
 
-        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys, demo, noise_bg) for h5_file in self.all_hdf5_files]
+        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys, demo, noise_bg, get_f0) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
 
@@ -43,7 +44,7 @@ class jsinV3_attn_tracking_validation(torch.utils.data.ConcatDataset):
 
 
 class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path, transform, target_keys, demo, noise_bg):
+    def __init__(self, path, transform, target_keys, demo, noise_bg, get_f0):
         """
         Builds a pytorch hdf5 dataset
         Args:
@@ -55,6 +56,7 @@ class H5Dataset(torch.utils.data.Dataset):
         self.target_keys = target_keys
         self.demo = demo
         self.noise_bg = noise_bg
+        self.get_f0 = get_f0
         # TODO: implement chunking the hdf5 file so that we can shuffle the data
         # TODO: implement shuffling the audioset and the speech separately
         # self.chunk_size = hdf5_chunk_size
@@ -116,6 +118,13 @@ class H5Dataset(torch.utils.data.Dataset):
 
         # Transforms will take in the signal and the noise source for this dataset
         # If no transform, just return the speech with no background
+        if self.get_f0:
+            fg_f0, _, _ = librosa.pyin(signal, sr=20000, fmin=75, fmax=450)
+            bg_f0, _, _ = librosa.pyin(background, sr=20000, fmin=75, fmax=450)
+            # get mean for test
+            fg_f0 = fg_f0.mean()
+            bg_f0 = bg_f0.mean()
+
         if self.transform is not None:
             signal, _ = self.transform(foreground, background)
             fg_cue, _ = self.transform(fg_cue, None)
@@ -147,6 +156,8 @@ class H5Dataset(torch.utils.data.Dataset):
             return foreground, background, signal, fg_cue, bg_cue, fg_target, bg_target
         if self.noise_bg:
                 return signal, fg_cue, fg_target # no bg cue or target
+        if self.get_f0:
+            return signal, fg_cue, bg_cue, fg_target, bg_target, fg_f0, bg_f0
         return signal, fg_cue, bg_cue, fg_target, bg_target
 
     def __len__(self):

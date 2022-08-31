@@ -48,6 +48,7 @@ class AttentionalTrackingModule(LightningModule):
         self.corpora_config = config['data']['corpus']
         self.loader_config = config['data']['loader']
         self.data_config = self.config['data']
+        self.get_f0 = self.config.get('get_f0', False) 
 
         # set training dataset
         self.multi_distractor = self.data_config.get('multi_distractor', False) 
@@ -193,6 +194,8 @@ class AttentionalTrackingModule(LightningModule):
     def test_step(self, batch, batch_idx):
         if  self.audioset_bg_test or self.n_test_distractors:
             signal, fg_cue, fg_labels = batch
+        elif self.get_f0:
+            signal, fg_cue, bg_cue, fg_labels, bg_labels, fg_f0, bg_f0 = batch
         else:
             signal, fg_cue, bg_cue, fg_labels, bg_labels = batch
         
@@ -207,6 +210,10 @@ class AttentionalTrackingModule(LightningModule):
             # log test confusion on tasks that have it 
             self.accuracy['test_confusion'](fg_outputs, bg_labels)
             self.log("test_confusion", self.accuracy['test_confusion'], on_step=True, on_epoch=False)
+            
+        if self.get_f0:
+            self.log("fg_f0", fg_f0, on_step=True, on_epoch=False)
+            self.log("bg_f0", bg_f0, on_step=True, on_epoch=False)
 
         return fg_loss
 
@@ -240,6 +247,6 @@ class AttentionalTrackingModule(LightningModule):
         if self.n_test_distractors: 
             dataset = jsinV3_attn_tracking_multi_talker_background(**self.corpora_config, mode='test', transform=[self.audio_transforms, self.bg_talker_transforms], n_talkers=int(self.n_test_distractors))
         else:
-            dataset = jsinV3_attn_tracking_validation(**self.corpora_config, mode='test', transform=self.transforms, noise_bg=self.audioset_bg_test) 
+            dataset = jsinV3_attn_tracking_validation(**self.corpora_config, mode='test', transform=self.transforms, noise_bg=self.audioset_bg_test, get_f0=self.get_f0) 
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=self.loader_config['num_workers'])
         return dataloader
