@@ -2,7 +2,7 @@
 #SBATCH --job-name=single_talker_w_audioset
 #SBATCH --output=outLogs/attn_cue_single_talker_w_audioset_%j.out
 #SBATCH --error=outLogs/attn_cue_single_talker_w_audioset_%j.err
-#SBATCH --mem=128Gb
+#SBATCH --mem=156Gb
 #SBATCH -N 1
 ##SBATCH -w node093
 #SBATCH  -x node[100-115]

@@ -7,6 +7,8 @@
 #SBATCH --time=3:00:00
 #SBATCH --partition=normal
 #SBATCH --array=0-22%10
+#SBATCH -x node108
+
 
 module add openmind/miniconda
 

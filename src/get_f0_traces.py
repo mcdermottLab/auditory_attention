@@ -9,7 +9,7 @@ import torch
 
 data_path = '/om2/user/msaddler/projects/ibmHearingAid/assets/data/datasets/JSIN_v3.00/nStim_20000/2000ms/rms_0.1/noiseSNR_-10_10/stimSR_20000/reverb_none/noise_all/JSIN_all_v3/subsets/valid_RQTTZB4C3TJJVLJUWDV72TYMC7S4MNHH'
 
-validation_h5s = Path(data_path).glob('*.h5')
+validation_h5s = list(Path(data_path).glob('*.h5'))
 
 
 class H5Dataset(torch.utils.data.Dataset):
@@ -27,6 +27,9 @@ class H5Dataset(torch.utils.data.Dataset):
         talker = self.dataset['sources']['signal']['speaker_int'][index]
         word = self.dataset['sources']['signal']['word_int'][index]
         return signal, talker, word
+    
+    def __len__(self):
+        return self.dataset_len
 
 def get_f0(data_ix, dataset):
     '''Calculate f0 for voiced regions of signal and return f0, talker, and word'''
