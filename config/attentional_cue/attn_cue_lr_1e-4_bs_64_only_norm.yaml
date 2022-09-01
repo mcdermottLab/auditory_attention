@@ -34,10 +34,9 @@ noise_kwargs: # parameters for background signal levels
   high_snr: 10
 
 val_metric: 'ACC/val_acc'
-model_name: 'AttnCNN'
-layernorm_first: False
-attn_constraints:
-  slope: True
+model_name: 'AttnCNNOnlyNorm'
+layernorm_first: True
+
 hparas:                                   # Experiment hyper-parameters
   valid_step: 5000
   epochs: 10
@@ -47,5 +46,6 @@ hparas:                                   # Experiment hyper-parameters
   lr_scheduler: 'fixed'                   # 'fixed'/'warmup'
   curriculum: 0
   gradient_clip_val: 100 
+    
   
-
+  

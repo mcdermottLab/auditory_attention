@@ -23,22 +23,24 @@ def run_eval(args):
 
     model_name, snr = eval_conditions[args.array_id]
     
-    if "AttnCNN" in model_name:
+    if model_name == "AttnCNN":
         config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64.yaml"
-        if model_name == "AttnCNN":
-            checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_bs_64_lr_1e-4/checkpoints/epoch=1-step=120790.ckpt"
-            
-        elif model_name == "AttnCNNConstrained":
-            checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_pos_slope_bs_64_lr_1e-4/checkpoints/epoch=0-step=65000-v1.ckpt"
-            
-        elif model_name == "AttnCNNPosSlope":
-            checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_pos_slope_bs_64_lr_1e-4/checkpoints/epoch=1-step=95791.ckpt"
-            
-        elif model_name == "AttnCNNOnlyNorm":
-            checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_bs_64_lr_1e-4/checkpoints/epoch=1-step=135791.ckpt"
+        checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_bs_64_lr_1e-4/checkpoints/epoch=1-step=120790.ckpt"
+        
+    elif model_name == "AttnCNNConstrained":
+        config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64_fully_constrained.yaml"
+        checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_pos_slope_bs_64_lr_1e-4/checkpoints/epoch=0-step=65000-v1.ckpt"
+        
+    elif model_name == "AttnCNNPosSlope":
+        config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64_constrain_slope.yaml"
+        checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_pos_slope_bs_64_lr_1e-4/checkpoints/epoch=1-step=95791.ckpt"
+        
+    elif model_name == "AttnCNNOnlyNorm":
+        config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64_only_norm.yaml"
+        checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_bs_64_lr_1e-4/checkpoints/epoch=1-step=135791.ckpt"
             
     elif model_name == "AttnTrackingControl":
-        config_name = "config/attentional_cue/attn_tracking_control_high_snr.yaml"
+        config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64.yaml"
         checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/multi_talker_control/jsin_precombined_gammatone_40_channels_20kHz_on_gpu_1e-4lr/checkpoints/epoch=5-step=741324.ckpt"
         
     elif model_name == "AudiosetBackground":

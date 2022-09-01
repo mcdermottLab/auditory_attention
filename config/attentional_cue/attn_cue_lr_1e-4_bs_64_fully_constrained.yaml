@@ -35,7 +35,7 @@ noise_kwargs: # parameters for background signal levels
 
 val_metric: 'ACC/val_acc'
 model_name: 'AttnCNN'
-layernorm_first: False
+layernorm_first: True
 attn_constraints:
   slope: True
 hparas:                                   # Experiment hyper-parameters
@@ -48,4 +48,5 @@ hparas:                                   # Experiment hyper-parameters
   curriculum: 0
   gradient_clip_val: 100 
   
-
+  
+  
