@@ -25,7 +25,7 @@ def run_eval(args):
     model_name, snr, num_bg_talkers = eval_conditions[args.array_id]
     
     if "AttnCNN" in model_name:
-        config_name = "config/attentional_cue/attn_cue_high_snr_lr_1e-4_bs_64.yaml"
+        config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64.yaml"
         if model_name == "AttnCNN":
             checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_bs_64_lr_1e-4/checkpoints/epoch=1-step=120790.ckpt"
             

@@ -16,7 +16,7 @@ module add openmind/cuda/11.3
 
 export CONDA_ENVS_PATH=~/my-envs:/om2/user/imgriff/conda_envs
 
-source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11
+source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
 
 

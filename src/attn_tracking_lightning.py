@@ -199,21 +199,23 @@ class AttentionalTrackingModule(LightningModule):
         else:
             signal, fg_cue, bg_cue, fg_labels, bg_labels = batch
         
+        batch_size = len(signal)
         # self() is self.forward()  
         fg_outputs = self(fg_cue, signal) 
         fg_loss = self.loss_fn(fg_outputs, fg_labels)
         # calc foreground talker word accuracy
-        self.accuracy["test"](fg_outputs, fg_labels)
-        self.log(f"ACC/test_fg_acc", self.accuracy["test"], on_step=True, on_epoch=False)
-        
-        if not self.audioset_bg_test and not self.n_test_distractors:
-            # log test confusion on tasks that have it 
-            self.accuracy['test_confusion'](fg_outputs, bg_labels)
-            self.log("test_confusion", self.accuracy['test_confusion'], on_step=True, on_epoch=False)
-            
-        if self.get_f0:
-            self.log("fg_f0", fg_f0, on_step=True, on_epoch=False)
-            self.log("bg_f0", bg_f0, on_step=True, on_epoch=False)
+        for ix in range(batch_size):
+            self.accuracy["test"](fg_outputs[ix].softmax(-1).argmax(-1).view(1,-1), fg_labels[ix].view(1,-1))
+            self.log(f"ACC/test_fg_acc_eg_{ix}", self.accuracy["test"], on_step=True, on_epoch=False)
+
+            if not self.audioset_bg_test and not self.n_test_distractors:
+                # log test confusion on tasks that have it 
+                self.accuracy['test_confusion'](fg_outputs[ix].softmax(-1).argmax(-1).view(1,-1), bg_labels[ix].view(1,-1))
+                self.log(f"test_confusion_eg_{ix}", self.accuracy['test_confusion'], on_step=True, on_epoch=False)
+
+            if self.get_f0:
+                self.log(f"fg_f0_eg_{ix}", fg_f0[ix], on_step=True, on_epoch=False)
+                self.log(f"bg_f0_eg_{ix}", bg_f0[ix], on_step=True, on_epoch=False)
 
         return fg_loss
 
@@ -245,8 +247,13 @@ class AttentionalTrackingModule(LightningModule):
 
     def test_dataloader(self):
         if self.n_test_distractors: 
-            dataset = jsinV3_attn_tracking_multi_talker_background(**self.corpora_config, mode='test', transform=[self.audio_transforms, self.bg_talker_transforms], n_talkers=int(self.n_test_distractors))
+            dataset = jsinV3_attn_tracking_multi_talker_background(**self.corpora_config, mode='test',
+                                                                   transform=[self.audio_transforms, self.bg_talker_transforms],
+                                                                   n_talkers=int(self.n_test_distractors))
         else:
-            dataset = jsinV3_attn_tracking_validation(**self.corpora_config, mode='test', transform=self.transforms, noise_bg=self.audioset_bg_test, get_f0=self.get_f0) 
-        dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, num_workers=self.loader_config['num_workers'])
+            dataset = jsinV3_attn_tracking_validation(**self.corpora_config, mode='test', transform=self.transforms,
+                                                      noise_bg=self.audioset_bg_test, get_f0=self.get_f0) 
+        dataloader = torch.utils.data.DataLoader(dataset,
+                                                 batch_size=self.loader_config['batch_size'],
+                                                 num_workers=self.loader_config['num_workers'])
         return dataloader

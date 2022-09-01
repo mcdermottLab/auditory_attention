@@ -24,7 +24,7 @@ def run_eval(args):
     model_name, snr = eval_conditions[args.array_id]
     
     if "AttnCNN" in model_name:
-        config_name = "config/attentional_cue/attn_cue_high_snr_lr_1e-4_bs_64.yaml"
+        config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64.yaml"
         if model_name == "AttnCNN":
             checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_bs_64_lr_1e-4/checkpoints/epoch=1-step=120790.ckpt"
             
@@ -50,8 +50,10 @@ def run_eval(args):
     
     
     config['data']['loader']['num_workers'] = args.n_jobs
-    if args.gpus >=1:
+    if args.gpus >1:
         config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
+    else:
+        config['data']['loader']['batch_size'] = 32
     
     
     config['model_name'] = model_name
