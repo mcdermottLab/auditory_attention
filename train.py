@@ -30,7 +30,7 @@ def run_train(args):
     
     checkpoint_dir = args.exp_dir / "checkpoints"
     if args.ckpt_path != '':
-        ckpt_path = args.exp_dir / args.ckpt_path
+        ckpt_path = checkpoint_dir / args.ckpt_path
     else:
         ckpt_path = None
         
