@@ -47,7 +47,7 @@ def run_train(args):
                 monitor=value,
                 mode="max",
                 save_top_k=1,
-                save_weights_only=True,
+                # save_weights_only=True,
                 verbose=True,
             ))
     
@@ -57,7 +57,7 @@ def run_train(args):
             monitor=f"{config['val_metric']}",
             mode="max" if 'ACC' in config['val_metric'] else "min",
             save_top_k=1,
-            save_weights_only=True,
+            # save_weights_only=True,
             verbose=True,
         ))
         
@@ -66,7 +66,7 @@ def run_train(args):
         monitor="Losses/train_loss",
         mode="min",
         save_top_k=1,
-        save_weights_only=True,
+        # save_weights_only=True,
         verbose=True,
     )
     
@@ -82,7 +82,7 @@ def run_train(args):
         num_nodes=args.num_nodes,
         gpus=args.gpus,
         accelerator="gpu",
-        resume_from_checkpoint = ckpt_path,  
+        # resume_from_checkpoint = ckpt_path,  
         strategy=DDPPlugin(find_unused_parameters=False),
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=config['hparas']['gradient_clip_val'],
@@ -92,29 +92,34 @@ def run_train(args):
 
     if config['model_name'] == 'RNNT':
         from src.giga_rnnt_lightning import RNNTModule
-        model = RNNTModule(config)
+        module = RNNTModule(config)
     elif config['model_name'] == 'LAS':
         if config['data']['corpus']['name'] == 'Librispeech':
             from src.libri_las_lightning import LASModule
         elif config['data']['corpus']['name'] == 'GigaSpeech':
             from src.giga_las_lightning import LASModule
-        model = LASModule(config)      
+        module = LASModule(config)      
     elif config['model_name'] == 'wav2vec':
         from src.wav2vec_lightning import wav2vecModule
-        model = wav2vecModule(config)
+        module =wav2vecModule(config)
     elif config['model_name'] == 'CochCNN':
         from src.coch_word_rec_lightning import CochWordRecModule
-        model = CochWordRecModule(config)
+        module = CochWordRecModule(config)
     elif config['model_name'] == 'CochMultiCNN':
         from src.coch_multitask_lightning import CochMultiTaskModule
-        model = CochMultiTaskModule(config)
+        module = CochMultiTaskModule(config)
     elif config['model_name'] == 'AttnTrackingControl':
         from src.attentional_tracking_control_lightning import AttnTrackingControlModule
-        model = AttnTrackingControlModule(config)
+        module = AttnTrackingControlModule(config)
     elif config['model_name'] == 'AttnCNN' or 'AttnCNN' in config['model_name']:
         from src.attn_tracking_lightning import AttentionalTrackingModule
-        model = AttentionalTrackingModule(config)
-
+        module = AttentionalTrackingModule(config)
+    
+    if ckpt_path:
+        model =  module.load_from_checkpoint(checkpoint_path=ckpt_path, config=config) 
+    else:
+        model = module(config)
+    
     trainer.fit(model)
 
 
