@@ -4,7 +4,7 @@ from scipy import stats
 from tqdm.auto import tqdm
 
 
-act_name = 'attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_pos_slope_bs_64_lr_1e-4/model_output_reps.pkl'
+act_name = 'attn_cue_models/attn_cue_jsin_multi_distractor_w_audioset_bs_64_lr_1e-4/model_output_reps.pkl'
 
 
 # 17Gb array - I/O takes a little while
@@ -41,7 +41,7 @@ for layer, mixture_acts in tqdm(mixture_reps.items(), total=len(mixture_reps)):
 
     
 
-out_name = 'attn_cue_jsin_pilot_no_pretrain_norm_at_input_pos_slope_bs_64_lr_1e-4.pkl'
+out_name = 'attn_cue_jsin_multi_distractor_w_audioset_bs_64_lr_1e-4_corrs.pkl'
 
 out_dict = dict(fg_corr_results=fg_corr_results, bg_corr_results=bg_corr_results)
 

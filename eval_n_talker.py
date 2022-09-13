@@ -10,8 +10,8 @@ from pytorch_lightning import Trainer, seed_everything
 # from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger
 from src.attn_tracking_lightning import AttentionalTrackingModule
-from src.attentional_tracking_control_lightning import AttnTrackingControlModule
-from src.attn_rove_rms_lightning import AttnRoveRMSModule
+# from src.attentional_tracking_control_lightning import AttnTrackingControlModule
+# from src.attn_rove_rms_lightning import AttnRoveRMSModule
 
 
 seed_everything(1)
@@ -24,46 +24,51 @@ def run_eval(args):
         
     model_name, snr, num_bg_talkers = eval_conditions[args.array_id]
     
-    if "AttnCNN" in model_name:
-        config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64.yaml"
-        if model_name == "AttnCNN":
-            checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_bs_64_lr_1e-4/checkpoints/epoch=1-step=120790.ckpt"
-            
-        elif model_name == "AttnCNNConstrained":
-            checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_pos_slope_bs_64_lr_1e-4/checkpoints/epoch=0-step=65000-v1.ckpt"
-            
-        elif model_name == "AttnCNNPosSlope":
-            checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_pos_slope_bs_64_lr_1e-4/checkpoints/epoch=1-step=95791.ckpt"
-            
-        elif model_name == "AttnCNNOnlyNorm":
-            checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_bs_64_lr_1e-4/checkpoints/epoch=1-step=135791.ckpt"
+    
+# if "AttnCNN" in model_name:
+    config_name = "config/attentional_cue/attn_cue_high_snr_lr_1e-4_bs_64.yaml"
+    if model_name == "AttnCNN":
+        checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_bs_64_lr_1e-4/checkpoints/epoch=1-step=120790.ckpt"
+
+    elif model_name == "AttnCNNConstrained":
+        checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_pos_slope_bs_64_lr_1e-4/checkpoints/epoch=0-step=65000-v1.ckpt"
+
+    elif model_name == "AttnCNNPosSlope":
+        checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_pos_slope_bs_64_lr_1e-4/checkpoints/epoch=1-step=95791.ckpt"
+
+    elif model_name == "AttnCNNOnlyNorm":
+        checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_bs_64_lr_1e-4/checkpoints/epoch=1-step=135791.ckpt"
             
     elif model_name == "AttnTrackingControl":
         config_name = "config/attentional_cue/attn_tracking_control_high_snr.yaml"
         checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/multi_talker_control/jsin_precombined_gammatone_40_channels_20kHz_on_gpu_1e-4lr/checkpoints/epoch=5-step=741324.ckpt"
         
     elif model_name == "AudiosetBackground":
-        config_name = "config/attn_cue_lr_1e-4_bs_64_constrained_slope_noise_only.yaml"
+        config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64_constrained_slope_noise_only.yaml"
         checkpoint_path = "/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_audset_bg_fully_constrained_bs_64_lr_1e-4/checkpoints/epoch=1-step=140791.ckpt"
         
-    
+    elif model_name == "MultiDistractorAttnCNN":
+        config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64_constrained_slope_multi_distractor.yaml"
+        checkpoint_path = "/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_multi_distractor_w_audioset_bs_64_lr_1e-4/checkpoints/epoch=0-step=70000.ckpt"
+        
     config = yaml.load(open(config_name, 'r'), Loader=yaml.FullLoader)
     
     
     config['data']['loader']['num_workers'] = args.n_jobs
-    config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
+    config['data']['loader']['batch_size'] = 8 # config['data']['loader']['batch_size'] // args.gpus
+    
     
     config['model_name'] = model_name
     config['noise_kwargs']['high_snr'] = snr  
     config['noise_kwargs']['low_snr'] = snr
-    config['n_distractors'] = num_bg_talkers
+    config['data']['corpus']['n_talkers'] = num_bg_talkers
     
     if snr == 'clean':
         log_name = f"{num_bg_talkers}_talker_{model_name}_{snr}"
     else:
         log_name = f"{num_bg_talkers}_talker_{model_name}_{snr}dB_SNR"
 
-        
+    print(log_name)
         
 #     checkpoint_dir = args.exp_dir / "checkpoints"
 #     print(checkpoint_dir)

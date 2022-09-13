@@ -17,12 +17,15 @@ class jsinV3_attn_tracking_validation(torch.utils.data.ConcatDataset):
     hdf5_glob = 'JSIN_all__run_*.h5'
     target_keys = ['signal/word_int']
 
-    def __init__(self, root, mode='train', download=False, transform=None, demo=False, noise_bg=False, get_f0=False):
+    def __init__(self, root, mode='train', download=False, transform=None, demo=False, noise_bg=False, n_talkers=False, get_f0=False):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the 
         specified root directory. 
         """
         del download
+        
+        if isinstance(transform, list):
+            transform = transform[0]
 
         if mode == 'train':
             self.all_hdf5_files = glob.glob(root + '/train_*/' + self.hdf5_glob)
