@@ -69,6 +69,8 @@ class AttentionalTrackingModule(LightningModule):
         self.noise_only = self.data_config.get('noise_only', False) # audioset noise instead of background talker for training
         self.audioset_bg_test =  self.config.get('audioset_bg', False)
         self.n_test_talkers = self.corpora_config.get('n_talkers', False) # int or False  
+        self.corpora_name = self.config.get('corpora_name', False)
+        self.run_timit = self.corpora_name == 'TIMIT'
 
         self.audio_transforms = at.AudioCompose([
             at.AudioToTensor(),
@@ -260,6 +262,10 @@ class AttentionalTrackingModule(LightningModule):
             dataset = jsinV3_attn_tracking_multi_talker_background(**self.corpora_config, mode='test',
                                                                    transform=[self.audio_transforms, self.bg_talker_transforms])
 #                                                                    n_talkers=int(self.n_test_talkers))
+        elif self.run_timit:
+            from corpus.timit import TIMIT_WSN
+            dataset = TIMIT_WSN(**self.corpora_config, mode='test',
+                                transform=[self.audio_transforms, self.bg_talker_transforms])
         else:
             dataset = jsinV3_attn_tracking_validation(**self.corpora_config, mode='test', transform=self.transforms,
                                                       noise_bg=self.audioset_bg_test, get_f0=self.get_f0) 

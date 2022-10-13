@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 
 
 class TIMIT_WSN(Dataset):
-    def __init__(self, root, mode='test', n_talkers=1, transform=None, noise_only=False, demo=False):
+    def __init__(self, root, mode='test', n_talkers=1, transform=None, demo=False):
         """
         Builds a pytorch dataset from a pandas dataframe
         Args:
