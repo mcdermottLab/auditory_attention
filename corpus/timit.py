@@ -95,3 +95,7 @@ class TIMIT_WSN(Dataset):
         if self.demo:
             return foreground, background, signal, fg_cue, fg_target
         return signal, fg_cue, fg_target
+    
+    def __len__(self):
+        return self.dataset_len
+
