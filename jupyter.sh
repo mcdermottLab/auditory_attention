@@ -3,7 +3,7 @@
 #SBATCH --output=outLogs/notebook%j.out
 #SBATCH --error=outLogs/notebook%j.err
 #SBATCH --mem=12Gb
-#SBATCH --time=2:00:00
+#SBATCH --time=6:00:00
 #SBATCH --partition=mcdermott
 #SBATCH --cpus-per-task=1
 #SBATCH -x node[100-115]
