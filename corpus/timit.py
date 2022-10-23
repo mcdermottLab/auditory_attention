@@ -6,7 +6,7 @@ from torch.utils.data import Dataset
 
 
 class TIMIT_WSN(Dataset):
-    def __init__(self, root, mode='test', n_talkers=1, transform=None, demo=False):
+    def __init__(self, root, mode='test', n_talkers=1, bg_label=True, transform=None, demo=False):
         """
         Builds a pytorch dataset from a pandas dataframe
         Args:
@@ -18,6 +18,7 @@ class TIMIT_WSN(Dataset):
         self.dataset = pd.read_pickle(self.path)
         self.n_talkers = n_talkers 
         self.demo = demo 
+        self.bg_label = bg_label
 
         if isinstance(n_talkers, (list, tuple)):
             self.get_bg_talker_ixs = self.get_random_n_talker_ixs
@@ -59,7 +60,7 @@ class TIMIT_WSN(Dataset):
               post processing, and the target word idx. 
             
         """
-        foreground = self.dataset.signal[index]
+        foreground = self.dataset.signal[index].astype('float32')
         talker = self.dataset.speaker[index]
         fg_target = self.dataset.word_int[index]
 
@@ -68,7 +69,7 @@ class TIMIT_WSN(Dataset):
         cue_ix = np.random.choice(cue_ixs)
         assert self.dataset.speaker[cue_ix] == talker, "Cue selected from different talker!"
         assert cue_ix != index, "Cue excerpt cannot be the same as foreground!"
-        fg_cue = self.dataset.signal[cue_ix]
+        fg_cue = self.dataset.signal[cue_ix].astype('float32')
 
         # get background talkers
         background_ixs = np.where(self.dataset.speaker != talker)[0]
@@ -87,6 +88,7 @@ class TIMIT_WSN(Dataset):
                     background = self.mix_transform(talker, background)[0].squeeze().numpy() 
         else:
             background = background_talkers.squeeze()
+        background = background.astype('float32')
 
         # get cochleagrams of target in noise and of cue 
         signal, _ = self.coch_transform(foreground, background)
@@ -94,6 +96,10 @@ class TIMIT_WSN(Dataset):
 
         if self.demo:
             return foreground, background, signal, fg_cue, fg_target
+        if self.bg_label:
+            bg_target = self.dataset.word_int[talker_ixs[0]]
+            # returning fg_cue for bg_cue - is not used but needed by collate fn
+            return signal, fg_cue, fg_cue, fg_target, bg_target
         return signal, fg_cue, fg_target
     
     def __len__(self):

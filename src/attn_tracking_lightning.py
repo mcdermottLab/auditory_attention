@@ -71,6 +71,7 @@ class AttentionalTrackingModule(LightningModule):
         self.n_test_talkers = self.corpora_config.get('n_talkers', False) # int or False  
         self.corpora_name = self.config.get('corpora_name', False)
         self.run_timit = self.corpora_name == 'TIMIT'
+        print(self.corpora_name, self.run_timit)
 
         self.audio_transforms = at.AudioCompose([
             at.AudioToTensor(),
@@ -258,14 +259,18 @@ class AttentionalTrackingModule(LightningModule):
         return dataloader
 
     def test_dataloader(self):
-        if self.n_test_talkers: 
+        if self.n_test_talkers and not self.run_timit: 
             dataset = jsinV3_attn_tracking_multi_talker_background(**self.corpora_config, mode='test',
-                                                                   transform=[self.audio_transforms, self.bg_talker_transforms])
+                                                                   transform=self.transforms)
 #                                                                    n_talkers=int(self.n_test_talkers))
         elif self.run_timit:
             from corpus.timit import TIMIT_WSN
-            dataset = TIMIT_WSN(**self.corpora_config, mode='test',
-                                transform=[self.audio_transforms, self.bg_talker_transforms])
+            del self.corpora_config['n_talkers'] # int or False  
+            get_bg_label = True if not self.n_test_talkers else False
+            n_talkers = self.n_test_talkers if self.n_test_talkers else 1 
+
+            dataset = TIMIT_WSN(**self.corpora_config, mode='test', n_talkers=n_talkers,
+                                transform=self.transforms, bg_label=get_bg_label)
         else:
             dataset = jsinV3_attn_tracking_validation(**self.corpora_config, mode='test', transform=self.transforms,
                                                       noise_bg=self.audioset_bg_test, get_f0=self.get_f0) 

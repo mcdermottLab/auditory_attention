@@ -327,7 +327,7 @@ class AudioToCochlearRep(torch.nn.Module):
                 the background audio sample
         """
         del background_wav
-
+        
         foreground_coch = self.Cochleagram(foreground_wav)
 
         return foreground_coch, None
