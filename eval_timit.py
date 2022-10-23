@@ -19,12 +19,12 @@ seed_everything(1)
 def run_eval(args):
     
     
-    with open(args.eval_cond_file, 'rb') as f:
-        eval_conditions = pickle.load(f)
+    # with open(args.eval_cond_file, 'rb') as f:
+    #     eval_conditions = pickle.load(f)
         
-    model_name, snr, num_bg_talkers = eval_conditions[args.array_id]
+    # model_name, snr, num_bg_talkers = eval_conditions[args.array_id]
     
-    
+    model_name = "MultiDistractorAttnCNN"
 # if "AttnCNN" in model_name:
     config_name = "config/attentional_cue/attn_cue_high_snr_lr_1e-4_bs_64.yaml"
     if model_name == "AttnCNN":
@@ -55,18 +55,20 @@ def run_eval(args):
     
     
     config['data']['loader']['num_workers'] = args.n_jobs
-    config['data']['loader']['batch_size'] = 8 # config['data']['loader']['batch_size'] // args.gpus
-    config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/timit_wsn_compatible.pdpkl'
+    config['data']['loader']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
+    config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/attn_task_dataframes/attn_task_dataset_00.pdpkl'
     
     config['model_name'] = model_name
-    config['noise_kwargs']['high_snr'] = snr  
-    config['noise_kwargs']['low_snr'] = snr
-    config['data']['corpus']['n_talkers'] = num_bg_talkers if not args.get_confusions else False
+    # config['noise_kwargs']['high_snr'] = snr  
+    # config['noise_kwargs']['low_snr'] = snr
+    # config['data']['corpus']['n_talkers'] = num_bg_talkers if not args.get_confusions else False
     config['corpora_name'] = 'TIMIT'
-    if snr == 'clean':
-        log_name = f"TIMIT_{num_bg_talkers}_talker_{model_name}_{snr}"
-    else:
-        log_name = f"TIMIT_{num_bg_talkers}_talker_{model_name}_{snr}dB_SNR"
+    log_name = f"TIMIT_attn_task_dataset_00_{model_name}"
+
+    # if snr == 'clean':
+    #     log_name = f"TIMIT_{num_bg_talkers}_talker_{model_name}_{snr}"
+    # else:
+    #     log_name = f"TIMIT_{num_bg_talkers}_talker_{model_name}_{snr}dB_SNR"
 
     print(log_name)
         

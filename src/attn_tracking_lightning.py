@@ -73,12 +73,22 @@ class AttentionalTrackingModule(LightningModule):
         self.run_timit = self.corpora_name == 'TIMIT'
         print(self.corpora_name, self.run_timit)
 
-        self.audio_transforms = at.AudioCompose([
-            at.AudioToTensor(),
-            at.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
-            at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
-            at.UnsqueezeAudio(dim=0),
-        ])
+        if self.run_timit:
+            self.test_step = self.test_timit 
+            self.audio_transforms = at.AudioCompose([
+                at.AudioToTensor(),
+                at.UnsqueezeAudio(dim=0),
+            ])
+
+        else:
+            self.test_step = self._test_timit
+                
+            self.audio_transforms = at.AudioCompose([
+                at.AudioToTensor(),
+                at.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
+                at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
+                at.UnsqueezeAudio(dim=0),
+            ])
 
         if self.n_test_talkers:
             self.bg_talker_transforms = at.AudioCompose([
@@ -194,7 +204,7 @@ class AttentionalTrackingModule(LightningModule):
     def validation_step(self, batch, batch_idx):
         return self._step(batch, batch_idx, "val")
 
-    def test_step(self, batch, batch_idx):
+    def _test_step(self, batch, batch_idx):
         if  self.audioset_bg_test or self.n_test_talkers:
             signal, fg_cue, fg_labels = batch
         elif self.get_f0:
@@ -231,6 +241,19 @@ class AttentionalTrackingModule(LightningModule):
 
 
         return fg_loss
+
+    def test_timit(self, batch, batch_idx):
+        signal, fg_cue, fg_labels = batch
+        # self() is self.forward()  
+        fg_outputs = self(fg_cue, signal) 
+        fg_loss = self.loss_fn(fg_outputs, fg_labels)
+
+        self.accuracy["test"](fg_outputs, fg_labels)
+        self.log(f"ACC/test_fg_acc", self.accuracy["test"], on_step=True, on_epoch=False)
+        self.log(f"pred_word", fg_outputs.item(), on_step=True, on_epoch=False)
+
+        return fg_loss
+
 
 
     def train_dataloader(self):

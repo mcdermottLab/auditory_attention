@@ -105,3 +105,54 @@ class TIMIT_WSN(Dataset):
     def __len__(self):
         return self.dataset_len
 
+
+class TIMIT_WSN_Prepaired(Dataset):
+    def __init__(self, root, mode='test', n_talkers=None, transform=None, demo=False):
+        """
+        Builds a pytorch dataset from a pandas dataframe that has cues and mixtures pre-cut
+        Args:
+            root (str): location of the pd dataframe
+        """
+        self.path = root
+        self.coch_transform = transform[0] # set of transforms to apply to signals 
+        self.dataset = pd.read_pickle(self.path)
+        self.demo = demo 
+
+        self.dataset_len = self.dataset.shape[0]
+
+    def class_map(self):
+        """
+        Loads the mapping between the word IDX and human readable word map. 
+        """
+        word_and_speaker_encodings = pickle.load( open( "/om4/group/mcdermott/user/jfeather/projects/model_metamers/figure_generation_notebooks/word_and_speaker_encodings_jsinv3.pckl", "rb" )) 
+        class_map = word_and_speaker_encodings['word_idx_to_word']
+        return class_map
+
+
+    def __getitem__(self, index):
+        """
+        Gets components of the pd dataframe that are used for training
+        Cues and mixtures are prepaired, so we just need to transform
+        the signals.  
+        Args: 
+            index (int): index into the pd dataframe
+        Returns:
+            [mixture, cue, target_word] : the training audio (signal) post preprocessing
+              which may combine the foreground and background speech, the training audio cue 
+              post processing, and the target word idx. 
+        """
+        mixture = self.dataset.mixture_signal[index] # pre-mixed target and distractor 
+        cue = self.dataset.cue_signal[index]        # pre selected cue 
+        target_word = self.dataset.word_int[index]  # target word label
+        # transform cue and signal to cochleagrams 
+        mixture, _ = self.coch_transform(mixture, None)
+        cue, _ = self.coch_transform(cue, None)
+
+        if self.demo:
+            target = self.dataset.signal[index]
+            distractor = self.dataset.distractor_signal[index]
+            return target, distractor, mixture, cue, target_word
+        return mixture, cue, target_word
+    
+    def __len__(self):
+        return self.dataset_len
