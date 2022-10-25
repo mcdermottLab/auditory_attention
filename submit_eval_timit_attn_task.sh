@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=multi_timit
-#SBATCH --output=outLogs/attn_eval_timit_%A_%a.out
-#SBATCH --error=outLogs/attn_eval_timit_%A_%a.err
+#SBATCH --output=outLogs/attn_eval_timit_%j.out
+#SBATCH --error=outLogs/attn_eval_timit_%j.err
 #SBATCH --mem=24Gb
 #SBATCH --cpus-per-task=5
 #SBATCH --time=3:00:00

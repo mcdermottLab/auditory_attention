@@ -31,7 +31,7 @@ class TIMIT_WSN(Dataset):
         """
         Loads the mapping between the word IDX and human readable word map. 
         """
-        word_and_speaker_encodings = pickle.load( open( "/om4/group/mcdermott/user/jfeather/projects/model_metamers/figure_generation_notebooks/word_and_speaker_encodings_jsinv3.pckl", "rb" )) 
+        word_and_speaker_encodings = pickle.load( open( "/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/word_and_speaker_encodings_jsinv3.pckl", "rb" )) 
         class_map = word_and_speaker_encodings['word_idx_to_word']
         return class_map
 
@@ -124,7 +124,7 @@ class TIMIT_WSN_Prepaired(Dataset):
         """
         Loads the mapping between the word IDX and human readable word map. 
         """
-        word_and_speaker_encodings = pickle.load( open( "/om4/group/mcdermott/user/jfeather/projects/model_metamers/figure_generation_notebooks/word_and_speaker_encodings_jsinv3.pckl", "rb" )) 
+        word_and_speaker_encodings = pickle.load( open( "/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/word_and_speaker_encodings_jsinv3.pckl", "rb" )) 
         class_map = word_and_speaker_encodings['word_idx_to_word']
         return class_map
 
@@ -141,9 +141,9 @@ class TIMIT_WSN_Prepaired(Dataset):
               which may combine the foreground and background speech, the training audio cue 
               post processing, and the target word idx. 
         """
-        mixture = self.dataset.mixture_signal[index] # pre-mixed target and distractor 
-        cue = self.dataset.cue_signal[index]        # pre selected cue 
-        target_word = self.dataset.word_int[index]  # target word label
+        mixture = self.dataset.mixture_signal[index].astype('float32') # pre-mixed target and distractor 
+        cue = self.dataset.cue_signal[index].astype('float32')        # pre selected cue 
+        target_word = self.dataset.word_int[index].astype('int')  # target word label
         # transform cue and signal to cochleagrams 
         mixture, _ = self.coch_transform(mixture, None)
         cue, _ = self.coch_transform(cue, None)

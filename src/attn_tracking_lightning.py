@@ -168,7 +168,6 @@ class AttentionalTrackingModule(LightningModule):
             self.lr_scheduler = None
             self.optimizer = opt(model_paras,lr=opt_cfg['lr'], eps=opt_cfg['eps'])       
         
-
     def _step(self, batch, batch_idx, step_type):
         if batch is None:
             return None
@@ -247,14 +246,12 @@ class AttentionalTrackingModule(LightningModule):
         # self() is self.forward()  
         fg_outputs = self(fg_cue, signal) 
         fg_loss = self.loss_fn(fg_outputs, fg_labels)
-
+        model_guess = fg_outputs.softmax(-1).argmax(-1) 
         self.accuracy["test"](fg_outputs, fg_labels)
         self.log(f"ACC/test_fg_acc", self.accuracy["test"], on_step=True, on_epoch=False)
-        self.log(f"pred_word", fg_outputs.item(), on_step=True, on_epoch=False)
+        self.log(f"pred_word_ix", model_guess.item(), on_step=True, on_epoch=False)
 
         return fg_loss
-
-
 
     def train_dataloader(self):
         dataset = self.train_val_dataset(**self.corpora_config,
@@ -287,13 +284,11 @@ class AttentionalTrackingModule(LightningModule):
                                                                    transform=self.transforms)
 #                                                                    n_talkers=int(self.n_test_talkers))
         elif self.run_timit:
-            from corpus.timit import TIMIT_WSN
+            from corpus.timit import TIMIT_WSN_Prepaired
             del self.corpora_config['n_talkers'] # int or False  
-            get_bg_label = True if not self.n_test_talkers else False
-            n_talkers = self.n_test_talkers if self.n_test_talkers else 1 
 
-            dataset = TIMIT_WSN(**self.corpora_config, mode='test', n_talkers=n_talkers,
-                                transform=self.transforms, bg_label=get_bg_label)
+            dataset = TIMIT_WSN_Prepaired(**self.corpora_config, mode='test',
+                                transform=self.transforms)
         else:
             dataset = jsinV3_attn_tracking_validation(**self.corpora_config, mode='test', transform=self.transforms,
                                                       noise_bg=self.audioset_bg_test, get_f0=self.get_f0) 

@@ -56,7 +56,7 @@ def run_eval(args):
     
     config['data']['loader']['num_workers'] = args.n_jobs
     config['data']['loader']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
-    config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/attn_task_dataframes/attn_task_dataset_00.pdpkl'
+    config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/attn_task_dataframes/timit_all_attn_stim_for_model_eval.pdpkl'
     
     config['model_name'] = model_name
     # config['noise_kwargs']['high_snr'] = snr  
