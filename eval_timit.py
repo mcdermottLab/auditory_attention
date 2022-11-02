@@ -56,14 +56,16 @@ def run_eval(args):
     
     config['data']['loader']['num_workers'] = args.n_jobs
     config['data']['loader']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
-    config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/attn_task_dataframes/timit_all_attn_stim_for_model_eval.pdpkl'
+    config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/attn_task_dataframes/timit_all_attn_stim_for_model_eval_0_1rms.pdpkl'
     
     config['model_name'] = model_name
     # config['noise_kwargs']['high_snr'] = snr  
     # config['noise_kwargs']['low_snr'] = snr
     # config['data']['corpus']['n_talkers'] = num_bg_talkers if not args.get_confusions else False
     config['corpora_name'] = 'TIMIT'
-    log_name = f"TIMIT_attn_task_dataset_00_{model_name}"
+#     log_name = f"TIMIT_attn_task_dataset_00_{model_name}"
+    log_name = f"TIMIT_attn_task_all_stim_01_rms_{model_name}"
+
 
     # if snr == 'clean':
     #     log_name = f"TIMIT_{num_bg_talkers}_talker_{model_name}_{snr}"

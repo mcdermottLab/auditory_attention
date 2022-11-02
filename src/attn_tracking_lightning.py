@@ -77,14 +77,16 @@ class AttentionalTrackingModule(LightningModule):
 
         if self.matched_cue_level:
             import src.audio_attention_transforms as aat
-            from corpus.jsinV3_attn_multi_talker_w_audioset import jsinV3_attn_multi_talker_w_audioset
-            self.train_val_dataset = jsinV3_attn_multi_talker_w_audioset
+            from corpus.jsinV3_attn_cue_multi_source import jsinV3_attn_cue_multi_source
+            self.train_val_dataset = jsinV3_attn_cue_multi_source
             # these transforms take cue, foreground, background as input 
             self.audio_transforms = aat.AudioCompose([
                 aat.AudioToTensor(),
                 aat.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
                 aat.RMSNormalizeMixtureAndMatchCueLevel(rms_level=0.1),
                 aat.UnsqueezeAudio(dim=0),
+                aat.AudioToAudioRepresentation(**self.audio_config)
+
             ])
             # these transforms take foreground, background as input 
             self.bg_combine_transforms = at.AudioCompose([
@@ -116,7 +118,7 @@ class AttentionalTrackingModule(LightningModule):
             self.test_step = self._test_step
                 
         # add distractor transforms if running multiple talkers
-        if self.n_test_talkers:
+        if self.n_test_talkers and not self.multi_distractor:
             self.bg_talker_transforms = at.AudioCompose([
                 at.AudioToTensor(),
                 at.RMSNormalizeForegroundAndBackground(rms_level=0.1)
@@ -139,7 +141,7 @@ class AttentionalTrackingModule(LightningModule):
                 self.model
             )
             self.transforms = self.audio_transforms
-        else:
+        elif not self.matched_cue_level:
             self.audio_transforms = at.AudioCompose([
                 self.audio_transforms,
                 at.AudioToAudioRepresentation(**self.audio_config)

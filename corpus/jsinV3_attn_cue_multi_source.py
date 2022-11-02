@@ -141,16 +141,10 @@ class H5Dataset(torch.utils.data.Dataset):
         assert (np.diff(talker_ixs) > 0).all(), "Background indices not ascending"
         background_talkers = signals[talker_ixs, :]
         # Transforms will take in the signal and the noise source for this dataset
-        # # mix talkers at random SNRs:
-        # for ix, talker in enumerate(background_talkers):
-        #     if ix == 0:
-        #         background_talkers = self.mix_transform(talker, None)[0].squeeze().numpy() # [0] to select signal. mix_transform returns fg, bg pairs - here bg is none 
-        #     else:
-        #         background_talkers = self.mix_transform(talker, background_talkers)[0].squeeze().numpy() # [0] to select signal. mix_transform returns fg, bg pairs - here bg is none 
         background = [self.mix_transform(bg, None)[0].squeeze().numpy() for bg in background_talkers]
         background = np.sum(background, axis=0)
         # mix audioset and talkers 
-        background = self.mix_transform(background_talkers, noise)[0].squeeze().numpy() # [0] to select signal. mix_transform returns fg, bg pairs - here bg is none 
+        background = self.mix_transform(background, noise)[0].squeeze().numpy() # [0] to select signal. mix_transform returns fg, bg pairs - here bg is none 
         # get cochleagrams of target in noise and of cue 
         fg_cue, signal, _ = self.coch_transform(fg_cue, foreground, background)
             

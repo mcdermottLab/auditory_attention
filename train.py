@@ -25,8 +25,10 @@ def run_train(args):
         return
       
     config['n_jobs'] = args.n_jobs
-    
-    config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
+    if args.gpus > 0:
+        config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
+    else:
+        config['data']['loader']['batch_size'] = 1
     
     checkpoint_dir = args.exp_dir / "checkpoints"
     if args.ckpt_path != '':
@@ -57,7 +59,7 @@ def run_train(args):
             monitor=f"{config['val_metric']}",
             mode="max" if 'ACC' in config['val_metric'] else "min",
             save_top_k=1,
-            # save_weights_only=True,
+#             save_weights_only=True,
             verbose=True,
         ))
         
@@ -66,7 +68,7 @@ def run_train(args):
         monitor="Losses/train_loss",
         mode="min",
         save_top_k=1,
-        # save_weights_only=True,
+#         save_weights_only=True,
         verbose=True,
     )
     

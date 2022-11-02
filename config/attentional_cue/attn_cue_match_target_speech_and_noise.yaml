@@ -29,7 +29,7 @@ data:
       clip_value: 5
       power: 0.3
   loader:
-    batch_size: 64                         # Gets divided by num gpus
+    batch_size: 256                         # Gets divided by num gpus
 #     num_workers: 20
 
 noise_kwargs: # parameters for background signal levels 

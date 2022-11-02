@@ -144,7 +144,7 @@ class ClippedGradPower(torch.nn.Module):
         foreground_wav = self.compression_function(foreground_wav)
         if background_wav is not None:
             background_wav = self.compression_function(background_wav)
-        return foreground_wav, background_wav
+        return cue_wav, foreground_wav, background_wav
 
 
 class AudioToAudioRepresentation(torch.nn.Module):
