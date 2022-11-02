@@ -48,7 +48,6 @@ class AttentionalTrackingModule(LightningModule):
         self.corpora_config = config['data']['corpus']
         self.loader_config = config['data']['loader']
         self.data_config = self.config['data']
-        self.get_f0 = self.config.get('get_f0', False) 
 
         # set training dataset
         self.multi_distractor = self.data_config.get('multi_distractor', False) 
@@ -65,14 +64,47 @@ class AttentionalTrackingModule(LightningModule):
             from corpus.jsinV3AttnTracking import jsinV3_attn_tracking
             self.train_val_dataset = jsinV3_attn_tracking
 
-        # set evaluation background noise params
+        # set corpora params
         self.noise_only = self.data_config.get('noise_only', False) # audioset noise instead of background talker for training
         self.audioset_bg_test =  self.config.get('audioset_bg', False)
         self.n_test_talkers = self.corpora_config.get('n_talkers', False) # int or False  
+        self.matched_cue_level = self.config.get('matched_cue_level', False)
+        self.get_f0 = self.config.get('get_f0', False) 
         self.corpora_name = self.config.get('corpora_name', False)
         self.run_timit = self.corpora_name == 'TIMIT'
-        print(self.corpora_name, self.run_timit)
 
+        # Get audio transforms
+
+        if self.matched_cue_level:
+            import src.audio_attention_transforms as aat
+            from corpus.jsinV3_attn_multi_talker_w_audioset import jsinV3_attn_multi_talker_w_audioset
+            self.train_val_dataset = jsinV3_attn_multi_talker_w_audioset
+            # these transforms take cue, foreground, background as input 
+            self.audio_transforms = aat.AudioCompose([
+                aat.AudioToTensor(),
+                aat.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
+                aat.RMSNormalizeMixtureAndMatchCueLevel(rms_level=0.1),
+                aat.UnsqueezeAudio(dim=0),
+            ])
+            # these transforms take foreground, background as input 
+            self.bg_combine_transforms = at.AudioCompose([
+                            at.AudioToTensor(),
+                            # at.CombineWithRandomDBSNR(low_snr=0, high_snr=0), # set distractors to same level for matched cue level training  
+                            # at.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
+                            at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
+                            # at.UnsqueezeAudio(dim=0),
+                        ])
+
+
+        else:
+            self.audio_transforms = at.AudioCompose([
+                at.AudioToTensor(),
+                at.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
+                at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
+                at.UnsqueezeAudio(dim=0),
+            ])
+        
+        # Check if test set is timit 
         if self.run_timit:
             self.test_step = self.test_timit 
             self.audio_transforms = at.AudioCompose([
@@ -81,15 +113,9 @@ class AttentionalTrackingModule(LightningModule):
             ])
 
         else:
-            self.test_step = self._test_timit
+            self.test_step = self._test_step
                 
-            self.audio_transforms = at.AudioCompose([
-                at.AudioToTensor(),
-                at.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
-                at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
-                at.UnsqueezeAudio(dim=0),
-            ])
-
+        # add distractor transforms if running multiple talkers
         if self.n_test_talkers:
             self.bg_talker_transforms = at.AudioCompose([
                 at.AudioToTensor(),
