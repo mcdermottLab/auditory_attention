@@ -10,7 +10,11 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.plugins import DDPPlugin
 
+# get nodename 
+import socket
 
+
+hostname = socket.gethostname()
 
 
 def run_train(args):
@@ -36,7 +40,7 @@ def run_train(args):
     else:
         ckpt_path = None
         
-    if args.dgx002_path:
+    if  'dgx002' in hostname:
         config['data']['corpus']['root'] = '/mnt/local-scratch/JSIN_v3.00'
         
     callbacks = []
@@ -49,7 +53,7 @@ def run_train(args):
                 monitor=value,
                 mode="max",
                 save_top_k=1,
-                # save_weights_only=True,
+#                 save_weights_only=True,
                 verbose=True,
             ))
     

@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=10
 #SBATCH --time=3:00:00
 #SBATCH --partition=mcdermott
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:1 --constraint=20GB
 
 
 module add openmind/miniconda
