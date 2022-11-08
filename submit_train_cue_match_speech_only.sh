@@ -19,5 +19,6 @@ source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
 python3 train.py --config config/attentional_cue/attn_cue_match_target_speech_distractor_only.yaml\
                  --gpus 4 --n_jobs 5 --mixed_precision  \
-                 --exp_dir ./attn_cue_models/attn_cue_match_target_speech_distractor_only 
+                 --exp_dir ./attn_cue_models/attn_cue_match_target_speech_distractor_only\
+                 --ckpt_path epoch=0-step=40000.ckpt
                 

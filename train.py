@@ -87,7 +87,7 @@ def run_train(args):
         detect_anomaly=False,
         num_nodes=args.num_nodes,
         gpus=args.gpus,
-        accelerator="gpu",
+        accelerator="gpu" if args.gpus > 0 else 'cpu',
         # resume_from_checkpoint = ckpt_path,  
         strategy=DDPPlugin(find_unused_parameters=False),
         val_check_interval=config['hparas']['valid_step'],
