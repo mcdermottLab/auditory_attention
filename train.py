@@ -10,7 +10,11 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.plugins import DDPPlugin
 
+# get nodename 
+import socket
 
+
+hostname = socket.gethostname()
 
 
 def run_train(args):
@@ -36,7 +40,7 @@ def run_train(args):
     else:
         ckpt_path = None
         
-    if args.dgx002_path:
+    if  'dgx002' in hostname:
         config['data']['corpus']['root'] = '/mnt/local-scratch/JSIN_v3.00'
         
     callbacks = []
@@ -49,7 +53,7 @@ def run_train(args):
                 monitor=value,
                 mode="max",
                 save_top_k=1,
-                # save_weights_only=True,
+#                 save_weights_only=True,
                 verbose=True,
             ))
     
@@ -83,7 +87,7 @@ def run_train(args):
         detect_anomaly=False,
         num_nodes=args.num_nodes,
         gpus=args.gpus,
-        accelerator="gpu",
+        accelerator="gpu" if args.gpus > 0 else 'cpu',
         # resume_from_checkpoint = ckpt_path,  
         strategy=DDPPlugin(find_unused_parameters=False),
         val_check_interval=config['hparas']['valid_step'],

@@ -5,7 +5,7 @@
 #SBATCH --mem=60Gb
 #SBATCH --cpus-per-task=5
 #SBATCH --time=3:00:00
-#SBATCH --partition=normal
+#SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:1
 
 module add openmind/miniconda
@@ -15,8 +15,8 @@ module add openmind/cuda/11.3
 source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
 python3 eval_timit.py --gpus 1 --n_jobs 5 --exp_dir "attn_cue_models/attn_timit_task" \
-                      --model_name "MultiDistractorAttnCNN" \
-                      --config_name "config/attentional_cue/attn_cue_lr_1e-4_bs_64_constrained_slope_multi_distractor.yaml"
-                      --ckpt_path "/attn_cue_models/attn_cue_jsin_multi_distractor_w_audioset_bs_64_lr_1e-4/checkpoints/epoch=0-step=70000.ckpt"
+                      --model_name "match_cue_speech_and_noise_v2" \
+                      --config_name "config/attentional_cue/attn_cue_match_target_speech_and_noise.yaml" \
+                      --ckpt_path "attn_cue_models/attn_cue_match_target_speech_and_noise/checkpoints/epoch=0-step=5000.ckpt"
 
 

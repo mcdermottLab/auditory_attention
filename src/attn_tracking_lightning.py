@@ -86,11 +86,10 @@ class AttentionalTrackingModule(LightningModule):
             # these transforms take cue, foreground, background as input 
             self.audio_transforms = aat.AudioCompose([
                 aat.AudioToTensor(),
+                aat.RMSNormalizeForegroundAndBackground(rms_level=0.1), # normalize so all signals at same level pre-mix
                 aat.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
-                aat.RMSNormalizeMixtureAndMatchCueLevel(rms_level=0.1),
+                aat.RMSNormalizeMixtureAndMatchCueLevel(rms_level=0.1), # set cue to same level as target 
                 aat.UnsqueezeAudio(dim=0),
-                aat.AudioToAudioRepresentation(**self.audio_config)
-
             ])
             # these transforms take foreground, background as input 
             self.bg_combine_transforms = at.AudioCompose([
@@ -140,12 +139,18 @@ class AttentionalTrackingModule(LightningModule):
 
         # Add input rep to model or audio transforms
         if self.config['data']['audio']['rep_kwargs']['rep_on_gpu']:
-            self.model = cm.SequentialAttacker(
-                cm.AudioInputRepresentation(**self.audio_config),
+            self.model = cm.AttnSequentialAttacker(
+                cm.AttnAudioInputRepresentation(**self.audio_config),
                 self.model
             )
-            self.transforms = self.audio_transforms
-        elif not self.matched_cue_level:
+#             self.transforms = self.audio_transforms
+            
+        elif self.matched_cue_level:
+            self.audio_transforms = aat.AudioCompose([
+                self.audio_transforms,
+                aat.AudioToAudioRepresentation(**self.audio_config)
+            ])
+        else:
             self.audio_transforms = at.AudioCompose([
                 self.audio_transforms,
                 at.AudioToAudioRepresentation(**self.audio_config)
@@ -283,7 +288,7 @@ class AttentionalTrackingModule(LightningModule):
         model_guess = fg_outputs.log_softmax(-1).argmax(-1) 
         self.accuracy["test"](fg_outputs, fg_labels)
         self.log(f"ACC/test_fg_acc", self.accuracy["test"], on_step=True, on_epoch=False)
-        self.log(f"pred_word_ix", model_guess.item(), on_step=True, on_epoch=False)
+        self.log(f"pred_word_ix", model_guess, on_step=True, on_epoch=False)
 
         return fg_loss
 
@@ -320,6 +325,7 @@ class AttentionalTrackingModule(LightningModule):
         elif self.run_timit:
             from corpus.timit import TIMIT_WSN_Prepaired
             del self.corpora_config['n_talkers'] # int or False  
+            del self.corpora_config['with_audioset'] # int or False  
 
             dataset = TIMIT_WSN_Prepaired(**self.corpora_config, mode='test',
                                 transform=self.transforms)

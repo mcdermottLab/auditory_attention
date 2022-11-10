@@ -40,7 +40,7 @@ class jsinV3_attn_cue_multi_source(torch.utils.data.ConcatDataset):
         """
         Loads the mapping between the word IDX and human readable word map. 
         """
-        word_and_speaker_encodings = pickle.load( open( "/om4/group/mcdermott/user/jfeather/projects/model_metamers/figure_generation_notebooks/word_and_speaker_encodings_jsinv3.pckl", "rb" )) 
+        word_and_speaker_encodings = pickle.load( open( "/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/word_and_speaker_encodings_jsinv3.pckl", "rb" )) 
         class_map = word_and_speaker_encodings['word_idx_to_word']
         return class_map
 
@@ -142,8 +142,10 @@ class H5Dataset(torch.utils.data.Dataset):
         assert (np.diff(talker_ixs) > 0).all(), "Background indices not ascending"
         background_talkers = signals[talker_ixs, :]
         # Transforms will take in the signal and the noise source for this dataset
-        background = [self.mix_transform(bg, None)[0].squeeze().numpy() for bg in background_talkers]
-        background = np.sum(background, axis=0)
+        if background_talkers.ndim > 1:
+            background_talkers = np.sum(background_talkers, axis=0)
+        background, _  = self.mix_transform(background_talkers, None) # rms normalize talker_mask
+        background = background.squeeze().numpy()
         # mix audioset and talkers 
         background = self.mix_transform(background, noise)[0].squeeze().numpy() # [0] to select signal. mix_transform returns fg, bg pairs - here bg is none 
         # get cochleagrams of target in noise and of cue 

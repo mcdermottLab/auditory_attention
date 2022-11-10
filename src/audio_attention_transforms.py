@@ -545,10 +545,8 @@ class RMSNormalizeMixtureAndMatchCueLevel(torch.nn.Module):
 
         if cue_wav is not None:
             cue_wav = ch_demean(cue_wav)
-            rms_cue = ch_rms(cue_wav)
             # set cue to level of mixture 
-            cue_wav = cue_wav * rms_foreground  / rms_cue * scale_factor
-            
+            cue_wav = cue_wav * scale_factor
         return cue_wav, foreground_wav, None
 
 
