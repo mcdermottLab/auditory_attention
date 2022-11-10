@@ -49,6 +49,14 @@ def run_eval(args):
         config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64_constrained_slope_multi_distractor.yaml"
         checkpoint_path = "/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_multi_distractor_w_audioset_bs_64_lr_1e-4/checkpoints/epoch=0-step=70000.ckpt"
         
+    elif model_name == "speech_only":
+        config_name = "config/attentional_cue/attn_cue_match_target_speech_distractor_only.yaml"
+        checkpoint_path = "/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_match_target_speech_distractor_only/checkpoints/epoch=0-step=40000.ckpt"
+        
+    elif model_name == "speech_and_noise":
+        config_name = "config/attentional_cue/attn_cue_match_target_speech_and_noise.yaml"
+        checkpoint_path = "/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_match_target_speech_and_noise/checkpoints/epoch=0-step=5000.ckpt"
+        
     
     config = yaml.load(open(config_name, 'r'), Loader=yaml.FullLoader)
     
@@ -59,6 +67,9 @@ def run_eval(args):
     config['model_name'] = model_name
     config['noise_kwargs']['high_snr'] = snr  
     config['noise_kwargs']['low_snr'] = snr
+    
+    
+    del config['with_audioset']
     
     if snr == 'clean':
         log_name = f"{model_name}_{snr}"

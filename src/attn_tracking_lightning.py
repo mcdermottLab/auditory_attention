@@ -282,7 +282,7 @@ class AttentionalTrackingModule(LightningModule):
         model_guess = fg_outputs.softmax(-1).argmax(-1) 
         self.accuracy["test"](fg_outputs, fg_labels)
         self.log(f"ACC/test_fg_acc", self.accuracy["test"], on_step=True, on_epoch=False)
-        self.log(f"pred_word_ix", model_guess.item(), on_step=True, on_epoch=False)
+        self.log(f"pred_word_ix", model_guess, on_step=True, on_epoch=False)
 
         return fg_loss
 
