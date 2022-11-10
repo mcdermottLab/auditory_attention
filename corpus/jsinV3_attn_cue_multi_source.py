@@ -32,7 +32,7 @@ class jsinV3_attn_cue_multi_source(torch.utils.data.ConcatDataset):
         elif mode == 'test':
             self.all_hdf5_files = glob.glob(root + '/valid_*/' + self.hdf5_glob)[1:] # Use the others 
 
-        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys, n_talkers, with_audioset, demo) for h5_file in self.all_hdf5_files]
+        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, mode, self.target_keys, n_talkers, with_audioset, demo) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
 
@@ -46,7 +46,7 @@ class jsinV3_attn_cue_multi_source(torch.utils.data.ConcatDataset):
 
 
 class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path, transform, target_keys, n_talkers, with_audioset, demo):
+    def __init__(self, path, transform, mode, target_keys, n_talkers, with_audioset, demo):
         """
         Builds a pytorch hdf5 dataset
         Args:
@@ -54,6 +54,7 @@ class H5Dataset(torch.utils.data.Dataset):
         """
         self.file_path = path
         self.dataset = None
+        self.mode = mode
         # has cochleagram transform after rms normalization & fg-bg combination - from audio attention transforms 
         self.coch_transform = transform[0] 
         # rms normalizes - from audio transforms
@@ -164,6 +165,10 @@ class H5Dataset(torch.utils.data.Dataset):
                     fg_target[target_key] = fg_target[target_key].astype(np.float32)
         if self.demo:
             return foreground, background, signal, fg_cue, fg_target
+        if self.mode == 'test':
+            bg_targets = self.dataset['sources']['signal/word_int'][talker_ixs, :]
+            bg_cue = None # for test step in attn_tracking_lightning.py
+            return signal, fg_cue, bg_cue, fg_target, bg_targets 
         return signal, fg_cue, fg_target
 
     def __len__(self):

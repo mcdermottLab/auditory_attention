@@ -4,11 +4,13 @@
 import torch
 import torchmetrics
 from pytorch_lightning import LightningModule
-from corpus.jsinV3AttnTrackingValidation import jsinV3_attn_tracking_validation
-from corpus.jsinV3_attn_tracking_multi_talker_background import jsinV3_attn_tracking_multi_talker_background
 
 import src.audio_transforms as at
-import src.custom_modules as cm 
+import src.custom_modules as cm
+from corpus.jsinV3_attn_tracking_multi_talker_background import \
+    jsinV3_attn_tracking_multi_talker_background
+from corpus.jsinV3AttnTrackingValidation import jsinV3_attn_tracking_validation
+
 # import psutil
 
 
@@ -52,7 +54,8 @@ class AttentionalTrackingModule(LightningModule):
         # set training dataset
         self.multi_distractor = self.data_config.get('multi_distractor', False) 
         if self.multi_distractor:
-            from corpus.jsinV3_attn_multi_talker_w_audioset import jsinV3_attn_multi_talker_w_audioset
+            from corpus.jsinV3_attn_multi_talker_w_audioset import \
+                jsinV3_attn_multi_talker_w_audioset
             self.train_val_dataset = jsinV3_attn_multi_talker_w_audioset
             self.bg_combine_transforms = at.AudioCompose([
                             at.AudioToTensor(),
@@ -77,7 +80,8 @@ class AttentionalTrackingModule(LightningModule):
 
         if self.matched_cue_level:
             import src.audio_attention_transforms as aat
-            from corpus.jsinV3_attn_cue_multi_source import jsinV3_attn_cue_multi_source
+            from corpus.jsinV3_attn_cue_multi_source import \
+                jsinV3_attn_cue_multi_source
             self.train_val_dataset = jsinV3_attn_cue_multi_source
             # these transforms take cue, foreground, background as input 
             self.audio_transforms = aat.AudioCompose([
@@ -232,6 +236,7 @@ class AttentionalTrackingModule(LightningModule):
         return self._step(batch, batch_idx, "val")
 
     def _test_step(self, batch, batch_idx):
+        bg_labels = None
         if  self.audioset_bg_test or self.n_test_talkers:
             signal, fg_cue, fg_labels = batch
         elif self.get_f0:
@@ -258,14 +263,15 @@ class AttentionalTrackingModule(LightningModule):
                 self.log(f"bg_f0_eg_{ix}", bg_f0[ix], on_step=True, on_epoch=False)
                 
         else:
-            self.accuracy["test"](fg_outputs, fg_labels)
+            # self.accuracy["test"](fg_outputs, fg_labels)
             self.log(f"ACC/test_fg_acc", self.accuracy["test"], on_step=True, on_epoch=False)
 
-            if not self.audioset_bg_test and not self.n_test_talkers:
+            if bg_labels != None:
                 # log test confusion on tasks that have it 
-                self.accuracy['test_confusion'](fg_outputs, bg_labels)
-                self.log(f"test_confusion", self.accuracy['test_confusion'], on_step=True, on_epoch=False)
-
+                # self.accuracy['test_confusion'](fg_outputs, bg_labels)
+                model_guesses = fg_outputs.log_softmax(-1).argmax(-1).view(1,-1)
+                confusion = int(model_guesses in bg_labels)
+                self.log(f"test_confusion", confusion, on_step=True, on_epoch=False)
 
         return fg_loss
 
@@ -274,7 +280,7 @@ class AttentionalTrackingModule(LightningModule):
         # self() is self.forward()  
         fg_outputs = self(fg_cue, signal) 
         fg_loss = self.loss_fn(fg_outputs, fg_labels)
-        model_guess = fg_outputs.softmax(-1).argmax(-1) 
+        model_guess = fg_outputs.log_softmax(-1).argmax(-1) 
         self.accuracy["test"](fg_outputs, fg_labels)
         self.log(f"ACC/test_fg_acc", self.accuracy["test"], on_step=True, on_epoch=False)
         self.log(f"pred_word_ix", model_guess.item(), on_step=True, on_epoch=False)
@@ -317,6 +323,13 @@ class AttentionalTrackingModule(LightningModule):
 
             dataset = TIMIT_WSN_Prepaired(**self.corpora_config, mode='test',
                                 transform=self.transforms)
+                                
+        elif self.matched_cue_level:
+            dataset = self.train_val_dataset(**self.corpora_config,
+                                            mode='test',
+                                            noise_only=self.noise_only,
+                                            transform=self.transforms)
+
         else:
             dataset = jsinV3_attn_tracking_validation(**self.corpora_config, mode='test', transform=self.transforms,
                                                       noise_bg=self.audioset_bg_test, get_f0=self.get_f0) 
