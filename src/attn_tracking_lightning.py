@@ -242,7 +242,7 @@ class AttentionalTrackingModule(LightningModule):
 
     def _test_step(self, batch, batch_idx):
         bg_labels = None
-        if  self.audioset_bg_test or self.n_test_talkers:
+        if  self.audioset_bg_test or self.n_test_talkers and not self.matched_cue_level:
             signal, fg_cue, fg_labels = batch
         elif self.get_f0:
             signal, fg_cue, bg_cue, fg_labels, bg_labels, fg_f0, bg_f0 = batch
@@ -318,7 +318,7 @@ class AttentionalTrackingModule(LightningModule):
         return dataloader
 
     def test_dataloader(self):
-        if self.n_test_talkers and not self.run_timit: 
+        if self.n_test_talkers and not self.run_timit and not self.matched_cue_level: 
             dataset = jsinV3_attn_tracking_multi_talker_background(**self.corpora_config, mode='test',
                                                                    transform=self.transforms)
 #                                                                    n_talkers=int(self.n_test_talkers))
