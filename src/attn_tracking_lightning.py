@@ -129,9 +129,13 @@ class AttentionalTrackingModule(LightningModule):
 
         # Init Model
         ln_first = self.config.get('layernorm_first', False) 
+        batchnorm_model = self.config.get('batchnorm', False) 
         if ln_first:
             print('ln_first')
             from src.attentional_cue_model_ln_first import AuditoryCNN
+        elif batchnorm_model:
+            print("Using Batch Norm architecture")
+            from src.attentional_cue_model_w_bn import AuditoryCNN
         else:
             from src.attentional_cue_model import AuditoryCNN
 
