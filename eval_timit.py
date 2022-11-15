@@ -58,15 +58,20 @@ def run_eval(args):
     config['matched_cue_level'] = False
     config['data']['loader']['num_workers'] = args.n_jobs
     config['data']['loader']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
-    config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/attn_task_dataframes/timit_attn_stim_for_model_all_targets.pdpkl'
-    
-#     config['model_name'] = model_name
-    # config['noise_kwargs']['high_snr'] = snr  
-    # config['noise_kwargs']['low_snr'] = snr
-    # config['data']['corpus']['n_talkers'] = num_bg_talkers if not args.get_confusions else False
     config['corpora_name'] = 'TIMIT'
-#     log_name = f"TIMIT_attn_task_dataset_00_{model_name}"
-    log_name = f"TIMIT_attn_task_all_targets_{model_name}"
+
+    if args.whispered:
+        config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/whispered_timit/all_targets_whispered_single_distractor_0dB_SNR.pdpkl'
+        log_name = f"TIMIT_whispered_speech_attn_task_0dB_SNR_all_targets_{model_name}"
+        
+    elif args.inharmonic:
+        config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/whispered_timit/all_targets_inharmonic_single_distractor_0dB_SNR.pdpkl'
+        log_name = f"TIMIT_inharmonic_speech_attn_task_0dB_SNR_all_targets_{model_name}"    
+            
+    else:
+        config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/attn_task_dataframes/timit_attn_stim_for_model_all_targets.pdpkl'
+    #     log_name = f"TIMIT_attn_task_dataset_00_{model_name}"
+        log_name = f"TIMIT_attn_task_all_targets_{model_name}"
 
     print(log_name)
         
@@ -163,7 +168,20 @@ def cli_main():
         action='store_true',
         help="get target-distractor confusions",
     )
-
+    parser.add_argument(
+        "--whispered",
+        default=False,
+        action='store_true',
+        help="run using whispered speech",
+    )    
+    parser.add_argument(
+        "--inharmonic",
+        default=False,
+        action='store_true',
+        help="run using inharmonic speech",
+    )    
+    
+    
     args = parser.parse_args()
 
     run_eval(args)

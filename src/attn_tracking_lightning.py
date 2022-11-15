@@ -325,7 +325,8 @@ class AttentionalTrackingModule(LightningModule):
         elif self.run_timit:
             from corpus.timit import TIMIT_WSN_Prepaired
             del self.corpora_config['n_talkers'] # int or False  
-            del self.corpora_config['with_audioset'] # int or False  
+            if self.corpora_config.get('with_audioset', False):
+                del self.corpora_config['with_audioset'] # int or False  
 
             dataset = TIMIT_WSN_Prepaired(**self.corpora_config, mode='test',
                                 transform=self.transforms)
