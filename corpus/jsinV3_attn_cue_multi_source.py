@@ -168,8 +168,9 @@ class H5Dataset(torch.utils.data.Dataset):
         if self.demo:
             return foreground, background, signal, fg_cue, fg_target
         if self.mode == 'test':
-            bg_targets = self.dataset['sources']['signal/word_int'][talker_ixs, :]
-            bg_cue = None # for test step in attn_tracking_lightning.py
+            print(f"{talker_ixs=}")
+            bg_targets = self.dataset['sources']['signal']['word_int'][talker_ixs]
+            bg_cue = torch.tensor([1]) # ignored in test step in attn_tracking_lightning.py
             return signal, fg_cue, bg_cue, fg_target, bg_targets 
         return signal, fg_cue, fg_target
 

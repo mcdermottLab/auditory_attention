@@ -62,14 +62,18 @@ def run_eval(args):
     
     
     config['data']['loader']['num_workers'] = args.n_jobs
-    config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
+  #  if args.gpus > 0:
+ #       config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
+#    else:
+    config['data']['loader']['batch_size'] = 1
+
     
     config['model_name'] = model_name
     config['noise_kwargs']['high_snr'] = snr  
     config['noise_kwargs']['low_snr'] = snr
     
     
-    del config['with_audioset']
+    #del config['with_audioset']
     
     if snr == 'clean':
         log_name = f"{model_name}_{snr}"
