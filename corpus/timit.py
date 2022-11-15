@@ -107,7 +107,7 @@ class TIMIT_WSN(Dataset):
 
 
 class TIMIT_WSN_Prepaired(Dataset):
-    def __init__(self, root, mode='test', n_talkers=None, transform=None, demo=False):
+    def __init__(self, root, mode='test', n_talkers=None, transform=None, demo=False, clean_targets=False):
         """
         Builds a pytorch dataset from a pandas dataframe that has cues and mixtures pre-cut
         Args:
@@ -119,6 +119,12 @@ class TIMIT_WSN_Prepaired(Dataset):
         self.demo = demo 
 
         self.dataset_len = self.dataset.shape[0]
+
+        if clean_targets:
+            self.target_signals = self.dataset.signal
+        else:
+            self.target_signals = self.dataset.mixture_signal
+
 
     def class_map(self):
         """
@@ -141,7 +147,7 @@ class TIMIT_WSN_Prepaired(Dataset):
               which may combine the foreground and background speech, the training audio cue 
               post processing, and the target word idx. 
         """
-        mixture = self.dataset.mixture_signal[index].astype('float32') # pre-mixed target and distractor 
+        mixture = self.target_signals[index].astype('float32') # pre-mixed target and distractor 
         cue = self.dataset.cue_signal[index].astype('float32')        # pre selected cue 
         target_word = self.dataset.word_int[index].astype('int')  # target word label
         # transform cue and signal to cochleagrams 

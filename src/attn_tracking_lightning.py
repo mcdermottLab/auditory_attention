@@ -333,7 +333,8 @@ class AttentionalTrackingModule(LightningModule):
                 del self.corpora_config['with_audioset'] # int or False  
 
             dataset = TIMIT_WSN_Prepaired(**self.corpora_config, mode='test',
-                                transform=self.transforms)
+                                        transform=self.transforms)
+                                        # clean_targets = self.corpora_config.get('clean_targets', False))
                                 
         elif self.matched_cue_level:
             dataset = self.train_val_dataset(**self.corpora_config,
