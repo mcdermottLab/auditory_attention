@@ -60,23 +60,25 @@ def run_eval(args):
     config['data']['loader']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
     config['corpora_name'] = 'TIMIT'
     config['data']['corpus']['clean_targets'] = args.clean_targets
+    snr = 'clean' if args.clean_targets else '0dB_SNR'
 
     if args.whispered:
         config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/whispered_timit/all_targets_whispered_single_distractor_0dB_SNR.pdpkl'
-        log_name = f"TIMIT_whispered_speech_attn_task_0dB_SNR_all_targets_{model_name}"
+        task_name = "_whispered_speech_"
         
     elif args.inharmonic:
         config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/whispered_timit/all_targets_inharmonic_single_distractor_0dB_SNR.pdpkl'
-        log_name = f"TIMIT_inharmonic_speech_attn_task_0dB_SNR_all_targets_{model_name}"    
+        task_name = "_inharmonic_speech_"
             
     else:
         if args.clean_targets:
             config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/clean_timit_targets_attn_task_0.1rms.pdpkl'
-            log_name = f"TIMIT_attn_task_clean_targets_{model_name}"
-
         else:
             config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/attn_task_dataframes/timit_attn_stim_for_model_all_targets.pdpkl'
-            log_name = f"TIMIT_attn_task_all_targets_{model_name}"
+        task_name = "_"
+    
+    log_name = f"TIMIT{task_name}attn_task_{snr}_all_targets_{model_name}"
+
 
     print(log_name)
         
