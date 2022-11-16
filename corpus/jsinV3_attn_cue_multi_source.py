@@ -166,7 +166,7 @@ class H5Dataset(torch.utils.data.Dataset):
                 if target_key == 'noise/labels_binary_via_int':
                     fg_target[target_key] = fg_target[target_key].astype(np.float32)
         if self.demo:
-            return foreground, background, signal, fg_cue, fg_target
+            return foreground, background, noise, signal, fg_cue, fg_target
         if self.mode == 'test':
             print(f"{talker_ixs=}")
             bg_targets = self.dataset['sources']['signal']['word_int'][talker_ixs]
