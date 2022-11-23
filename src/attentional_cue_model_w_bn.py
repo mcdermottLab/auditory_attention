@@ -35,7 +35,7 @@ class AuditoryCNN(nn.Module):
     def __init__(self, num_classes=1000):
         super(AuditoryCNN, self).__init__()
 
-        self.norm_coch_rep = nn.BatchNorm2d([1, 40, 16000])
+        self.norm_coch_rep = nn.BatchNorm2d(1)
         self.attn_block_in = _SimpleAttentionalCueBlock(40, 1)
 
         self.conv0 = nn.Sequential(
