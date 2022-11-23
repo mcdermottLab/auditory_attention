@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=cue_match_speech_and_noise
-#SBATCH --output=outLogs/attn_cue_match_speech_and_noise_%j.out
-#SBATCH --error=outLogs/attn_cue_match_speech_and_noise_%j.err
+#SBATCH --output=outLogs/attn_cue_match_speech_and_noise_bn_%j.out
+#SBATCH --error=outLogs/attn_cue_match_speech_and_noise_bn_%j.err
 #SBATCH --mem=300Gb
 #SBATCH -N 1
 ##SBATCH -w dgx002
@@ -17,8 +17,8 @@ module add openmind/cuda/11.3
 
 source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
-python3 train.py --config config/attentional_cue/attn_cue_match_target_speech_and_noise.yaml\
+python3 train.py --config config/attentional_cue/attn_cue_match_target_speech_and_noise_batch_norm.yaml\
                  --gpus 4 --n_jobs 5 --mixed_precision  \
-                 --exp_dir ./attn_cue_models/attn_cue_match_target_speech_and_noise\
+                 --exp_dir ./attn_cue_models/attn_cue_match_target_speech_and_noise_batch_norm\
                 
                 

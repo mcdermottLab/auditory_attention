@@ -62,12 +62,16 @@ def run_eval(args):
     config['data']['corpus']['clean_targets'] = args.clean_targets
     snr = 'clean' if args.clean_targets else '0dB_SNR'
 
-    if args.whispered:
+    if args.harmonic: 
+        config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/harmonic_timit/all_targets_harmonic_single_distractor_0dB_SNR.pdpkl'
+        task_name = "_harmonic_speech_"    
+        
+    elif args.whispered:
         config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/whispered_timit/all_targets_whispered_single_distractor_0dB_SNR.pdpkl'
         task_name = "_whispered_speech_"
         
     elif args.inharmonic:
-        config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/whispered_timit/all_targets_inharmonic_single_distractor_0dB_SNR.pdpkl'
+        config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/inharmonic_timit/all_targets_inharmonic_single_distractor_0dB_SNR.pdpkl'
         task_name = "_inharmonic_speech_"
             
     else:
@@ -175,6 +179,12 @@ def cli_main():
         action='store_true',
         help="get target-distractor confusions",
     )
+    parser.add_argument(
+        "--harmonic",
+        default=False,
+        action='store_true',
+        help="run using harmonic speech",
+    )  
     parser.add_argument(
         "--whispered",
         default=False,
