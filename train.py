@@ -96,30 +96,30 @@ def run_train(args):
         callbacks=callbacks)
 
 
-    if config['model_name'] == 'RNNT':
-        from src.giga_rnnt_lightning import RNNTModule
-        module = RNNTModule
-    elif config['model_name'] == 'LAS':
-        if config['data']['corpus']['name'] == 'Librispeech':
-            from src.libri_las_lightning import LASModule
-        elif config['data']['corpus']['name'] == 'GigaSpeech':
-            from src.giga_las_lightning import LASModule
-        module = LASModule      
-    elif config['model_name'] == 'wav2vec':
-        from src.wav2vec_lightning import wav2vecModule
-        module =wav2vecModule
-    elif config['model_name'] == 'CochCNN':
-        from src.coch_word_rec_lightning import CochWordRecModule
-        module = CochWordRecModule
-    elif config['model_name'] == 'CochMultiCNN':
-        from src.coch_multitask_lightning import CochMultiTaskModule
-        module = CochMultiTaskModule
-    elif config['model_name'] == 'AttnTrackingControl':
-        from src.attentional_tracking_control_lightning import AttnTrackingControlModule
-        module = AttnTrackingControlModule
-    elif config['model_name'] == 'AttnCNN' or 'AttnCNN' in config['model_name']:
-        from src.attn_tracking_lightning import AttentionalTrackingModule
-        module = AttentionalTrackingModule
+    #if config['model_name'] == 'RNNT':
+    #    from src.giga_rnnt_lightning import RNNTModule
+    #    module = RNNTModule
+    #elif config['model_name'] == 'LAS':
+    #    if config['data']['corpus']['name'] == 'Librispeech':
+    #        from src.libri_las_lightning import LASModule
+    #    elif config['data']['corpus']['name'] == 'GigaSpeech':
+    #        from src.giga_las_lightning import LASModule
+    #    module = LASModule      
+    #elif config['model_name'] == 'wav2vec':
+    #    from src.wav2vec_lightning import wav2vecModule
+    #    module =wav2vecModule
+    #elif config['model_name'] == 'CochCNN':
+    #    from src.coch_word_rec_lightning import CochWordRecModule
+    #    module = CochWordRecModule
+    #elif config['model_name'] == 'CochMultiCNN':
+    #    from src.coch_multitask_lightning import CochMultiTaskModule
+    #    module = CochMultiTaskModule
+    #elif config['model_name'] == 'AttnTrackingControl':
+      #  from src.attentional_tracking_control_lightning import AttnTrackingControlModule
+     #   module = AttnTrackingControlModule
+    #elif config['model_name'] == 'AttnCNN' or 'AttnCNN' in config['model_name']:
+    from src.attn_tracking_lightning import AttentionalTrackingModule
+    module = AttentionalTrackingModule
     
     if ckpt_path:
         model =  module.load_from_checkpoint(checkpoint_path=ckpt_path, config=config) 

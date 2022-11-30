@@ -175,7 +175,10 @@ def main(args):
             min_contour_f0 = f0_contour[f0_contour > 0 ].min()
             min_f0s.append(min_contour_f0)
         print(f"Mins on trial {ix} --> {min_f0s}")
-        min_f0 = min(min_f0s)
+        
+        # Clip bad F0 estimates ie. f0 below reasonable vocal range 
+        min_f0 = np.array(min_f0s).clip(60).min()
+
 
         # Make harmonic jitter 
         jitter_pattern = eng.make_jittered_speech_harmonics(
@@ -235,7 +238,9 @@ def main(args):
 
     trial_data['distractor_word_ints'] = trial_data['distractor_words'].apply(get_ix_from_words)
     
-    out_path = Path('/om2/user/imgriff/datasets/timit/inharmonic_timit/')
+    out_path = Path('/om2/user/imgriff/datasets/timit/inharmonic_timit_v2/')
+    if not out_path.exists():
+        out_path.mkdir(parents=True, exist_ok=True)
     out_name = out_path / f'timit_inharm_attn_stim_for_model_subset_{args.array_ix:02d}.pdpkl'
 
     print(f"Saving stimuli to: {out_name.as_posix()}") 

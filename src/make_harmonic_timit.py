@@ -10,7 +10,28 @@ import sys
 sys.path.append('/om2/user/msaddler/python-packages/msutil')
 import util_stimuli
 
+
 np.random.seed(0)
+
+
+def impose_inharmonic_jitter_pattern(y, sr, jitter, eng=None):
+    x = matlab.double(y.reshape([-1, 1]).tolist())
+    fs = matlab.double([sr])
+    jitter_pattern = matlab.double(np.array(jitter).reshape([-1, 1]).tolist())
+    
+    y_resynth_matlab = eng.STRAIGHT_impose_inharmonic_jitter_pattern(
+        x,
+        fs,
+        jitter_pattern)
+    y_resynth = np.array(y_resynth_matlab).astype(np.float32).reshape([-1])
+    NAN_IDX = np.isnan(y_resynth)
+    if NAN_IDX.sum() > 0:
+        print("Replacing {} NaN values (of {}) with zeros".format(NAN_IDX.sum(), NAN_IDX.shape[0]))
+        y_resynth[NAN_IDX] = 0
+    npad = int((y.shape[0] - y_resynth.shape[0]) / 2)
+    y_resynth = np.pad(y_resynth, [npad, npad])
+    return y_resynth
+
 
 def make_harm_speech(y, sr, eng=None):
     x = matlab.double(y.reshape([-1, 1]).tolist())
@@ -117,7 +138,22 @@ def main(args):
 
     snr = 0 # start with 0 dB 
     print("Starting stimuli generation...") 
-    snr = 0 # start with 0 dB 
+
+    # create null jitter pattern - no jitter imposed
+    # just running resynthesis with same functions as inharmonic condition for fair comparison
+    # will be same all-0 pattern for every step, so just create it once 
+    
+#     harm_nums = np.arange(1, 31)
+#     jitter_pattern = eng.make_jittered_speech_harmonics(
+#         matlab.double([0]),
+#         matlab.double(harm_nums.tolist()),
+#         matlab.double([0]),
+#         matlab.double([0]))
+#     jitter_pattern = np.array(jitter_pattern).reshape([-1]).astype(float)
+
+    jitter_pattern = np.zeros(30).astype(float) # gives same as above
+    
+    
     for ix, row in tqdm(to_run.iterrows(), total=len(to_run)):
         # add wantned data to trial dict
         update_dict(trial_data, row)
@@ -130,10 +166,10 @@ def main(args):
 
         cue_data = cue_timit[cue_timit.speaker == row.speaker].sample(1)
         cue_signal = cue_data['signal'].item()
-
-        cue_new = make_harm_speech(cue_signal, sr,  eng=eng)
-        target_new = make_harm_speech(target_signal, sr,  eng=eng)
-        distractor_new = make_harm_speech(distractor_signal, sr,  eng=eng)
+        
+        cue_new = impose_inharmonic_jitter_pattern(cue_signal, 20_000, jitter_pattern, eng=eng)
+        target_new = impose_inharmonic_jitter_pattern(target_signal, 20_000, jitter_pattern, eng=eng)
+        distractor_new = impose_inharmonic_jitter_pattern(distractor_signal, 20_000, jitter_pattern, eng=eng)
 
 
         mixture, _ = combine_with_noise(target_new, distractor_new, snr) # first_scale_factor unused
@@ -176,7 +212,9 @@ def main(args):
 
     trial_data['distractor_word_ints'] = trial_data['distractor_words'].apply(get_ix_from_words)
     
-    out_path = Path('/om2/user/imgriff/datasets/timit/harmonic_timit/')
+    out_path = Path('/om2/user/imgriff/datasets/timit/harmonic_timit_using_jitter_fn/')
+    if not out_path.exists():
+        out_path.mkdir(parents=True, exist_ok=True)
     out_name = out_path / f'timit_harmonic_attn_stim_for_model_subset_{args.array_ix:02d}.pdpkl'
 
     print(f"Saving stimuli to: {out_name.as_posix()}") 
