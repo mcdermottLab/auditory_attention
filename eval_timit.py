@@ -79,6 +79,7 @@ def run_eval(args):
             config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/clean_timit_targets_attn_task_0.1rms.pdpkl'
         else:
             config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/attn_task_dataframes/timit_attn_stim_for_model_all_targets.pdpkl'
+            snr = ''
         task_name = "_"
     
     log_name = f"TIMIT{task_name}attn_task_{snr}_all_targets_{model_name}"
