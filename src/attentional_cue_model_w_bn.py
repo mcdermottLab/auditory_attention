@@ -32,7 +32,7 @@ class _SimpleAttentionalCueBlock(nn.Module):
         return mixture
 
 class AuditoryCNN(nn.Module):
-    def __init__(self, num_classes=1000):
+    def __init__(self, num_classes=1000, fc_size=4096):
         super(AuditoryCNN, self).__init__()
 
         self.norm_coch_rep = nn.BatchNorm2d(1)
@@ -94,10 +94,10 @@ class AuditoryCNN(nn.Module):
         )
         self.attn_block6 = _SimpleAttentionalCueBlock(6, 512)
 
-        self.fullyconnected = nn.Linear(512*6*16, 4096)
+        self.fullyconnected = nn.Linear(512*6*16, fc_size)
         self.relufc = nn.ReLU(inplace = True)
         self.dropout = nn.Dropout()
-        self.classification = nn.Linear(4096, num_classes)
+        self.classification = nn.Linear(fc_size, num_classes)
         
 
     def forward(self, cue, mixture=None):

@@ -136,8 +136,10 @@ class AttentionalTrackingModule(LightningModule):
             from src.attentional_cue_model_w_bn import AuditoryCNN
         else:
             from src.attentional_cue_model import AuditoryCNN
-
-        self.model = AuditoryCNN(self.data_config['num_words']) # vocab size
+        
+        fc_size = self.data_config.get('fc_size', 4096)
+        self.model = AuditoryCNN(self.data_config['num_words'],# vocab size
+                                fc_size=fc_size) 
 
         # Add input rep to model or audio transforms
         if self.config['data']['audio']['rep_kwargs']['rep_on_gpu']:

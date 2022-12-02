@@ -147,7 +147,7 @@ class H5Dataset(torch.utils.data.Dataset):
 #         background, _  = self.mix_transform(background_talkers, None) # rms normalize talker_mask
 #         background = background.squeeze().numpy()
         # mix audioset and talkers 
-        background = self.mix_transform(background, noise)[0].squeeze().numpy() # [0] to select signal. mix_transform returns fg, bg pairs - here bg is none 
+        background = self.mix_transform(background_talkers, noise)[0].squeeze().numpy() # [0] to select signal. mix_transform returns fg, bg pairs - here bg is none 
         # get cochleagrams of target in noise and of cue 
         fg_cue, signal, _ = self.coch_transform(fg_cue, foreground, background)
             
