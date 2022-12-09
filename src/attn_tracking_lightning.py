@@ -94,7 +94,7 @@ class AttentionalTrackingModule(LightningModule):
             # these transforms take foreground, background as input 
             self.bg_combine_transforms = at.AudioCompose([
                             at.AudioToTensor(),
-                            at.CombineWithRandomDBSNR(low_snr=0, high_snr=0), # set distractors to same level for matched cue level training  
+                            at.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
                             at.RMSNormalizeForegroundAndBackground(rms_level=0.1)
                         ])
 

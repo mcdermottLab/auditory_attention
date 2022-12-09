@@ -142,10 +142,12 @@ class H5Dataset(torch.utils.data.Dataset):
         assert (np.diff(talker_ixs) > 0).all(), "Background indices not ascending"
         background_talkers = signals[talker_ixs, :]
         # Transforms will take in the signal and the noise source for this dataset
-        if background_talkers.ndim > 1:
-            background_talkers = np.sum(background_talkers, axis=0)
-#         background, _  = self.mix_transform(background_talkers, None) # rms normalize talker_mask
-#         background = background.squeeze().numpy()
+        # mix talkers at random SNRs:
+        for ix, talker in enumerate(background_talkers):
+            if ix == 0:
+                background_talkers = self.mix_transform(talker, None)[0].squeeze().numpy() # [0] to select signal. mix_transform returns fg, bg pairs - here bg is none 
+            else:
+                background_talkers = self.mix_transform(talker, background_talkers)[0].squeeze().numpy() # [0] to select signal. mix_transform returns fg, bg pairs - here bg is none 
         # mix audioset and talkers 
         background = self.mix_transform(background_talkers, noise)[0].squeeze().numpy() # [0] to select signal. mix_transform returns fg, bg pairs - here bg is none 
         # get cochleagrams of target in noise and of cue 
@@ -168,7 +170,6 @@ class H5Dataset(torch.utils.data.Dataset):
         if self.demo:
             return foreground, background, noise, signal, fg_cue, fg_target
         if self.mode == 'test':
-            print(f"{talker_ixs=}")
             bg_targets = self.dataset['sources']['signal']['word_int'][talker_ixs]
             bg_cue = torch.tensor([1]) # ignored in test step in attn_tracking_lightning.py
             return signal, fg_cue, bg_cue, fg_target, bg_targets 
