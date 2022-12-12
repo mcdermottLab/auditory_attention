@@ -15,8 +15,8 @@ module add openmind/cuda/11.3
 source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
 python3 eval_timit.py --gpus 1 --n_jobs 5 --exp_dir "attn_cue_models/attn_timit_task" \
-                      --model_name "match_cue_speech_and_noise_v4" \
-                      --config_name "config/attentional_cue/attn_cue_match_target_speech_and_noise.yaml" \
-                      --ckpt_path "attn_cue_models/attn_cue_match_target_speech_and_noise/checkpoints/epoch=0-step=20000-v4.ckpt"
+                      --model_name "match_cue_speech_and_noise_batch_norm" \
+                      --config_name "config/attentional_cue/attn_cue_match_target_speech_and_noise_batch_norm.yaml" \
+                      --ckpt_path "attn_cue_models/attn_cue_match_target_speech_and_noise_batch_norm/checkpoints/epoch=0-step=15000.ckpt"
 
 
