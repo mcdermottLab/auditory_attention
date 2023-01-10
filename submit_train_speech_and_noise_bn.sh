@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH --job-name=cue_match_speech_and_noise
-#SBATCH --output=outLogs/attn_cue_speech_and_noise_%j.out
-#SBATCH --error=outLogs/attn_cue_speech_and_noise_%j.err
-#SBATCH --mem=300Gb
+#SBATCH --output=outLogs/attn_cue_speech_and_noise_bn%j.out
+#SBATCH --error=outLogs/attn_cue_speech_and_noise_bn%j.err
+#SBATCH --mem=256Gb
 #SBATCH -N 1
 #SBATCH --cpus-per-task=20
 #SBATCH --time=48:00:00
 #SBATCH --partition=mcdermott
-#SBATCH --gres=gpu:A100:4
+#SBATCH --gres=gpu:4 --constraint=30GB
 
 module add openmind/miniconda
 module add openmind/cudnn/9.1-7.0.5
