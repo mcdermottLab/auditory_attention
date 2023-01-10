@@ -4,9 +4,9 @@ import torch.nn as nn
 from src.layers import conv2d_same
 from src.custom_modules import HannPooling2d
 
-class _SimpleAttentionalCueBlock(nn.Module):
+class SimpleAttentionalGain(nn.Module):
     def __init__(self, frequency_dim, cnn_channels):
-        super(_SimpleAttentionalCueBlock, self).__init__()
+        super(SimpleAttentionalGain, self).__init__()
         self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) # outsize is N, C, FreqDim, 1
         self.bias = nn.Parameter(torch.zeros(1)) # init gain scaling to zero
         self.slope = nn.Parameter(torch.ones(1)) # init slope to one
@@ -36,7 +36,7 @@ class AuditoryCNN(nn.Module):
         super(AuditoryCNN, self).__init__()
 
 #         self.norm_coch_rep = nn.LayerNorm([1, 40, 16000])
-        self.attn_block_in = _SimpleAttentionalCueBlock(40, 1)
+        self.attn_block_in = SimpleAttentionalGain(40, 1)
 
         self.conv0 = nn.Sequential(
                     nn.LayerNorm([1, 40, 16000]),
@@ -44,7 +44,7 @@ class AuditoryCNN(nn.Module):
                     nn.ReLU(inplace = True),
                     HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
         )
-        self.attn_block0 = _SimpleAttentionalCueBlock(20, 32)
+        self.attn_block0 = SimpleAttentionalGain(20, 32)
 
         self.conv1 = nn.Sequential(
             nn.LayerNorm([32, 20, 4000]),
@@ -52,7 +52,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
         )
-        self.attn_block1 = _SimpleAttentionalCueBlock(10, 64)
+        self.attn_block1 = SimpleAttentionalGain(10, 64)
 
         self.conv2 = nn.Sequential(
             nn.LayerNorm([64, 10, 1000]),
@@ -60,7 +60,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 4], pool_size = [1, 13], padding = [0, 6])
         )
-        self.attn_block2 = _SimpleAttentionalCueBlock(10, 256)
+        self.attn_block2 = SimpleAttentionalGain(10, 256)
 
         self.conv3 =  nn.Sequential(
             nn.LayerNorm([256, 10, 250]),
@@ -68,7 +68,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 4], pool_size = [1, 13], padding = [0, 6])
         )
-        self.attn_block3 = _SimpleAttentionalCueBlock(10, 512)
+        self.attn_block3 = SimpleAttentionalGain(10, 512)
 
         self.conv4 = nn.Sequential(
             nn.LayerNorm([512, 10, 63]),
@@ -76,7 +76,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 1], pool_size = [1, 1], padding = [0, 0])
         )
-        self.attn_block4 = _SimpleAttentionalCueBlock(10, 512)
+        self.attn_block4 = SimpleAttentionalGain(10, 512)
 
         self.conv5 = nn.Sequential(
             nn.LayerNorm([512, 10, 63]),
@@ -84,7 +84,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 1], pool_size = [1, 1], padding = [0, 0])
         )
-        self.attn_block5 = _SimpleAttentionalCueBlock(10, 512)
+        self.attn_block5 = SimpleAttentionalGain(10, 512)
 
         self.conv6 = nn.Sequential(
             nn.LayerNorm([512, 10, 63]),
@@ -92,7 +92,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [2, 4], pool_size = [6, 13], padding = [3, 6])
         )
-        self.attn_block6 = _SimpleAttentionalCueBlock(6, 512)
+        self.attn_block6 = SimpleAttentionalGain(6, 512)
 
         self.fullyconnected = nn.Linear(512*6*16, 4096)
         self.relufc = nn.ReLU(inplace = True)
