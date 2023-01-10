@@ -33,8 +33,8 @@ data:
 #     num_workers: 20
 
 noise_kwargs: # parameters for background signal levels 
-  low_snr: -15
-  high_snr: 15
+  low_snr: -10
+  high_snr: 10
 
 val_metric: 'ACC/val_acc'
 model_name: 'MultiDistractorAttnCNN'
