@@ -222,6 +222,8 @@ class AttentionalTrackingModule(LightningModule):
         
         loss = self.loss_fn(outputs, labels)
         # calc accuracy
+        loss = loss[~torch.isnan(loss)]
+        loss = loss[~torch.isinf(loss)]
         self.accuracy[step_type](outputs, labels)
 
         self.log(f"Losses/{step_type}_loss", loss.detach(), on_step=True, on_epoch=False)        
