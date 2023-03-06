@@ -18,7 +18,7 @@ import re
 from tqdm import tqdm
 from pathlib import Path
 import pandas as pd
-
+import numpy as np
 torch.random.manual_seed(0)
 
 ##############################
@@ -250,8 +250,8 @@ def main(args):
                 valid_meta[ix]['alignment'] = np.nan
                 continue 
     # Save as pandas dataframe
-    valid_meta = valid_meta[valid_meta.alignment.notna()]
     alignment_data = pd.DataFrame.from_records(valid_meta)
+    alignment_data = alignment_data[alignment_data.alignment.notna()]
     out_path = commonvoice_path / 'alignment_dfs' 
     out_path.mkdir(parents=True, exist_ok=True)
     out_name = out_path / f"alignment_split_{args.array_ix:03}.pdpkl"
