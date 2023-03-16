@@ -1,6 +1,6 @@
 import torch
 import torchaudio
-import torchaudio.transforms as T
+from torchaudio.functional import resample
 
 
 print(torch.__version__)
@@ -19,6 +19,7 @@ from tqdm import tqdm
 from pathlib import Path
 import pandas as pd
 import numpy as np
+
 torch.random.manual_seed(0)
 
 ##############################
@@ -184,15 +185,13 @@ def main(args):
     print(device)
     # define resampler to convert audio to sampling rate of wav2vec2
     resample_rate = bundle._sample_rate
-    resampler = T.Resample(args.source_sample_rate, resample_rate, dtype=torch.float32)
     
     # get dataset 
-    pd_path = Path('/om2/data/public/mozilla-CommonVoice-9.0/cv-corpus-9.0-2022-04-27/en/')
-    
-    commonvoice_path = Path('/scratch2/weka/mcdermott/imgriff/datasets/commonvoice_9/en/')
+    commonvoice_path = Path('/om2/data/public/mozilla-CommonVoice-9.0/cv-corpus-9.0-2022-04-27/en/')
+
     mp3_path = commonvoice_path / 'clips'
     # get manifest of all valid files:
-    tsv_path = pd_path / 'validated.tsv'
+    tsv_path = commonvoice_path / 'validated.tsv'
 
     valid_df = pd.read_csv(tsv_path, sep='\t')
     valid_df = valid_df[~pd.isna(valid_df.sentence)]
@@ -222,7 +221,10 @@ def main(args):
             
                 # read mp3 and process through wav2vec2
                 waveform, wav_sr = torchaudio.load(speech_file)
-                waveform = resampler(waveform)
+                waveform = resample(waveform = waveform,
+                                    orig_freq = wav_sr,
+                                     new_freq = resample_rate,
+                                     resampling_method="sincs_interp_kaiser")
                 emissions, _ = model(waveform.to(device))
                 # get model emissions
                 emissions = torch.log_softmax(emissions, dim=-1)
@@ -243,16 +245,20 @@ def main(args):
                     x0 = int(ratio * word.start) /  bundle.sample_rate
                     x1 = int(ratio * word.end) /  bundle.sample_rate
                     word_alignment.append(Alignment(word.label, x0, x1, word.score))
-                # update meta dict for this eg with alignment 
+                # update meta dict for this eg with alignment and original sr 
                 valid_meta[ix]['alignment'] = word_alignment
+                valid_meta[ix]['sr'] = wav_sr
+
             except Exception as e:
                 print(e, f"on step {ix}")
                 valid_meta[ix]['alignment'] = np.nan
                 continue 
     # Save as pandas dataframe
+    pd_path = Path('/scratch2/weka/mcdermott/imgriff/datasets/commonvoice_9/en/')
+
     alignment_data = pd.DataFrame.from_records(valid_meta)
     alignment_data = alignment_data[alignment_data.alignment.notna()]
-    out_path = commonvoice_path / 'alignment_dfs' 
+    out_path = pd_path / 'alignment_dfs' 
     out_path.mkdir(parents=True, exist_ok=True)
     out_name = out_path / f"alignment_split_{args.array_ix:03}.pdpkl"
     
@@ -276,11 +282,6 @@ if __name__ == "__main__":
                     type=int,
                     help="Number of files to proccess in job.",
                     )
-    parser.add_argument("--source_sample_rate",
-                default=32000,
-                type=int,
-                help="Sampling rate of audio files getting aligned",
-                )
     args = parser.parse_args()
 
 
