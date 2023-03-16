@@ -254,7 +254,7 @@ def main(args):
                 valid_meta[ix]['alignment'] = np.nan
                 continue 
     # Save as pandas dataframe
-    pd_path = Path('/scratch2/weka/mcdermott/imgriff/datasets/commonvoice_9/en/')
+    pd_path = Path('/om2/user/imgriff/datasets/commonvoice_9/en/')
 
     alignment_data = pd.DataFrame.from_records(valid_meta)
     alignment_data = alignment_data[alignment_data.alignment.notna()]
