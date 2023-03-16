@@ -223,8 +223,7 @@ def main(args):
                 waveform, wav_sr = torchaudio.load(speech_file)
                 waveform = resample(waveform = waveform,
                                     orig_freq = wav_sr,
-                                     new_freq = resample_rate,
-                                     resampling_method="sincs_interp_kaiser")
+                                    new_freq = resample_rate)
                 emissions, _ = model(waveform.to(device))
                 # get model emissions
                 emissions = torch.log_softmax(emissions, dim=-1)
