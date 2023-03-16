@@ -72,7 +72,7 @@ docs/_build/
 target/
 
 # Jupyter Notebook
-.ipynb_checkpoints
+*.ipynb_checkpoints
 
 # IPython
 profile_default/
@@ -124,9 +124,33 @@ run.sh
 ckpt
 outLogs
 result
+outLogs
+attn_cue_models
+attentional_gain_activations
+ARO_2023_figs
+demo_plots
+librispeech_pl
+null_activation_corrs
+results
+single_word_results
+wav2vec_exp
+wav2vec_1e-5_lr_exp
+word_rec
+lightning_logs
 
 
 # swap file
 *.swp
 eg_gen_architecture.py
 corpus/jsinV3AttnTrackVal_v1.py
+
+# data
+*.npy
+*.pkl
+*.pdpkl
+*.json
+*.csv
+*.wav
+*.pckl
+*.tar
+*.txt
