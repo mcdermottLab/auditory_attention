@@ -8,7 +8,7 @@
 #SBATCH --time=6:00:00
 #SBATCH --partition=mcdermott
 #SBATCH --cpus-per-task=1
-#SBATCH -x node[100-115]
+#SBATCH -x dgx002
 module add openmind/miniconda
 
 
@@ -20,5 +20,5 @@ source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
 
 
-export LC_ALL=C; unset XDG_RUNTIME_DIR && jupyter notebook --no-browser --ip='0.0.0.0' --port=1337
+export LC_ALL=C; unset XDG_RUNTIME_DIR && jupyter notebook --no-browser --ip='0.0.0.0' --port=1337 --NotebookApp.allow_origin='*'
 
