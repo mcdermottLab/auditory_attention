@@ -7,7 +7,7 @@
 #SBATCH --time=0:40:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:1
-#SBATCH --array=0-100
+#SBATCH --array=1-100
 
 
 module add openmind/miniconda
