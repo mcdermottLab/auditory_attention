@@ -154,3 +154,4 @@ corpus/jsinV3AttnTrackVal_v1.py
 *.pckl
 *.tar
 *.txt
+tests/sample_data/gigaspeech_words-10k.vocab
