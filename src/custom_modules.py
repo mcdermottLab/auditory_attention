@@ -3,6 +3,8 @@ from torch import nn
 from src import audio_transforms
 from torch._jit_internal import _copy_to_script_wrapper
 import numpy as np
+from collections import OrderedDict
+
 
 class FakeReLU(ch.autograd.Function):
     @staticmethod
