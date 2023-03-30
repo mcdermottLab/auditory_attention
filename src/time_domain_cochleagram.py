@@ -39,6 +39,7 @@ class TimeDomainCochleagram(torch.nn.Module):
             
         # if on_gpu - we'll pre-fab an impulse response for a convolutional FIR filter:
         if on_gpu:
+                print('using FIR cochleagram')
                 window_size = 10
                 ir = torch.hstack([torch.ones(1,1), torch.zeros(1,filter_params['sr']-1)])
                 kernel = ERB_filter_bank(ir, self.erb_coefs)
@@ -50,6 +51,7 @@ class TimeDomainCochleagram(torch.nn.Module):
         
         # if on cpu, we can use an IIR filter directly 
         else:
+            print('using IIR cochleagram')
             self.compute_rep = lambda x: ERB_filter_bank(x, self.erb_coefs)
 
         self.downsampling = downsampling
