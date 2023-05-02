@@ -19,7 +19,9 @@ class TimeDomainCochleagram(torch.nn.Module):
     domain.
 
     """
-    def __init__(self, filter_params, downsampling, compression=None, use_pad=None, on_gpu=False, impulse_len=1):
+    def __init__(self, filter_params, downsampling, compression=None,
+                 use_pad=None, on_gpu=False, impulse_len=1,
+                 center_crop=True, out_dur=2):
         """
         Makes the torch components used for the cochleagram generation.
 
@@ -36,7 +38,8 @@ class TimeDomainCochleagram(torch.nn.Module):
                                           filter_params['n_channels'],
                                           filter_params['low_lim'])
         self.erb_coefs = torch.from_numpy(self.erb_coefs).float()
-            
+        self.center_crop = center_crop
+        self.n_out_frames = int(out_dur * filter_params['sr'])
         # if on_gpu - we'll pre-fab an impulse response for a convolutional FIR filter:
         if on_gpu:
                 print('using FIR cochleagram')
@@ -60,6 +63,12 @@ class TimeDomainCochleagram(torch.nn.Module):
 
     def forward(self, x):
         x = self.compute_rep(x)
+        if self.center_crop:
+            x_dur = x.shape[-1]
+            diff = (x_dur - self.n_out_frames) // 2
+            frame_start = diff 
+            frame_end = int(x_dur - diff)
+            x = x[..., frame_start : frame_end]
         x = torch.nn.functional.relu(x)
         x = self.downsampling(x)
         if self.compression is not None:
