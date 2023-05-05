@@ -104,7 +104,7 @@ class AttentionalTrackingModule(LightningModule):
                 at.AudioToTensor(),
                 at.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
                 at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
-                at.UnsqueezeAudio(dim=0),
+                at.UnsqueezeAudio(dim=0), 
             ])
         
         # Check if test set is timit 
@@ -222,11 +222,11 @@ class AttentionalTrackingModule(LightningModule):
         
         loss = self.loss_fn(outputs, labels)
         # calc accuracy
-        loss = loss[~torch.isnan(loss)]
-        loss = loss[~torch.isinf(loss)]
+        # loss = loss[~torch.isnan(loss)]
+        # loss = loss[~torch.isinf(loss)]
         self.accuracy[step_type](outputs, labels)
 
-        self.log(f"Losses/{step_type}_loss", loss.detach(), on_step=True, on_epoch=False)        
+        self.log(f"Losses/{step_type}_loss", loss.detach().item(), on_step=True, on_epoch=False)        
         self.log(f"ACC/{step_type}_acc", self.accuracy[step_type], on_step=False, on_epoch=True)
         return loss
     
@@ -310,7 +310,7 @@ class AttentionalTrackingModule(LightningModule):
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=self.loader_config['batch_size'],
-            num_workers=self.config['n_jobs'],
+            num_workers=self.loader_config['num_workers'],
             pin_memory=True
         )
         return dataloader
@@ -323,7 +323,7 @@ class AttentionalTrackingModule(LightningModule):
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=self.loader_config['batch_size'],
-            num_workers=self.config['n_jobs']
+            num_workers=self.loader_config['num_workers']
         )
         return dataloader
 

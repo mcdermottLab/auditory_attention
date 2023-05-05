@@ -2,7 +2,7 @@
 #SBATCH --job-name=jupyter_notebook
 #SBATCH --output=outLogs/notebook%j.out
 #SBATCH --error=outLogs/notebook%j.err
-#SBATCH --mem=16Gb
+#SBATCH --mem=6Gb
 #SBATCH -n 1 
 #SBATCH -N 1
 #SBATCH --time=6:00:00

@@ -1,6 +1,8 @@
 
 data:
   num_words: 794        
+  fc_size: 512
+
   multi_distractor: True
   corpus:
     n_talkers: [1,5]
@@ -29,7 +31,7 @@ data:
       clip_value: 5
       power: 0.3
   loader:
-    batch_size: 256                         # Gets divided by num gpus
+    batch_size: 64                         # Gets divided by num gpus
 #     num_workers: 20
 
 noise_kwargs: # parameters for background signal levels 
@@ -44,7 +46,7 @@ fc_attn_only: True
 attn_constraints:
   slope: True
 hparas:                                   # Experiment hyper-parameters
-  valid_step: 5000
+  valid_step: 500
   epochs: 10
   optimizer: 'Adam'
   lr: 0.0001
