@@ -1,4 +1,4 @@
-#!/bin/bash -l
+#!/bin/bash 
 #SBATCH --job-name=cv_baseline
 #SBATCH --output=outLogs/train_cv_baseline_%j.out
 #SBATCH --error=outLogs/train_cv_baseline_%j.err
@@ -12,7 +12,6 @@
 module add openmind/miniconda
 module add openmind/cudnn/11.5-v8.3.3.40
 module add openmind/cuda/11.3
-
 
 
 source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch

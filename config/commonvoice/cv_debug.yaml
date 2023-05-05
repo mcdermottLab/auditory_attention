@@ -14,7 +14,7 @@ audio:                                  # Attributes of audio feature
     rep_on_gpu: True
     center_crop: True
     out_dur: 2  ## in seconds
-    impulse_len: 0.25
+    impulse_len: 0.2
     env_extraction_type: 'Half-wave Rectification'
     downsampling_type: 'TorchTransformsResample'
     downsampling_kwargs:
@@ -30,7 +30,7 @@ audio:                                  # Attributes of audio feature
     power: 0.3
 
 loader:
-  batch_size: 256                         # Gets divided by num gpus
+  batch_size: 8                         # Gets divided by num gpus
 
 model:
   num_words: 998        
@@ -40,14 +40,14 @@ val_metric: 'ACC/val_acc'
 model_name: 'cv_clean_word_rec_baseline'
 
 hparas:                                   # Experiment hyper-parameters
-  valid_step: 500
+  valid_step: 5000
   epochs: 10
   optimizer: 'Adam'
-  lr: 0.001
+  lr: 0.0001
   eps: 0.00000001                         # 1e-8
   lr_scheduler: 'fixed'                   # 'fixed'/'warmup'
   curriculum: 0
-  gradient_clip_val: 10
+  gradient_clip_val: 100 
   
 
   

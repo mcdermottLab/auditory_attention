@@ -28,11 +28,19 @@ def run_train(args):
         print(args.config)
         return
       
-    config['n_jobs'] = args.n_jobs
-    if args.gpus > 0:
-        config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
+    if 'data' in config.keys():
+        config['data']['loader']['num_workers'] = args.n_jobs
+        if args.gpus > 0:
+            config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
+        else:
+            config['data']['loader']['batch_size'] = 1
     else:
-        config['data']['loader']['batch_size'] = 1
+        config['loader']['num_workers'] = args.n_jobs
+        if args.gpus > 0:
+            config['loader']['batch_size'] = config['loader']['batch_size'] // args.gpus
+        else:
+            config['data']['loader']['batch_size'] = 1
+
     
     checkpoint_dir = args.exp_dir / "checkpoints"
     if args.ckpt_path != '':
@@ -80,12 +88,12 @@ def run_train(args):
    
     trainer = Trainer(
         # precision=16 if args.mixed_precision else 32,
-        precision=16,
+        precision=16 if 'commonvoice' not in args.config else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
     
        # log_every_n_steps = 10,
-        detect_anomaly=False,
+        detect_anomaly=True,
         num_nodes=args.num_nodes,
         gpus=args.gpus,
         accelerator="gpu" if args.gpus > 0 else 'cpu',
@@ -96,7 +104,7 @@ def run_train(args):
         profiler=None,
         callbacks=callbacks)
 
-    if 'commonvoice' in args.config.as_posix():
+    if 'commonvoice' in args.config:
         from src.cv_word_lightning import CommonVoiceWordRec
         print('CommonVoice Task')
         module = CommonVoiceWordRec
