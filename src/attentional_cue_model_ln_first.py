@@ -5,9 +5,12 @@ from src.layers import conv2d_same
 from src.custom_modules import HannPooling2d
 
 class SimpleAttentionalGain(nn.Module):
-    def __init__(self, frequency_dim, cnn_channels):
+    def __init__(self, frequency_dim, cnn_channels, global_avg=False):
         super(SimpleAttentionalGain, self).__init__()
-        self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) # outsize is N, C, FreqDim, 1
+        if global_avg:
+            self.time_average = nn.AdaptiveAvgPool2d((1, 1)) # outsize is N, C, 1, 1
+        else:
+            self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) # outsize is N, C, FreqDim, 1
         self.bias = nn.Parameter(torch.zeros(1)) # init gain scaling to zero
         self.slope = nn.Parameter(torch.ones(1)) # init slope to one
         self.threshold = nn.Parameter(torch.zeros(1)) # init threshold to zero
@@ -31,12 +34,14 @@ class SimpleAttentionalGain(nn.Module):
         mixture = torch.mul(mixture, cue)
         return mixture
 
+
+
 class AuditoryCNN(nn.Module):
-    def __init__(self, num_classes=1000, fc_size=4096):
+    def __init__(self, num_classes=1000, fc_size=4096, global_avg=False):
         super(AuditoryCNN, self).__init__()
 
         self.norm_coch_rep = nn.LayerNorm([1, 40, 16000])
-        self.attn_block_in = SimpleAttentionalGain(40, 1)
+        self.attn_block_in = SimpleAttentionalGain(40, 1, global_avg=global_avg)
 
         self.conv0 = nn.Sequential(
                     nn.LayerNorm([1, 40, 16000]),
@@ -44,7 +49,7 @@ class AuditoryCNN(nn.Module):
                     nn.ReLU(inplace = True),
                     HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
         )
-        self.attn_block0 = SimpleAttentionalGain(20, 32)
+        self.attn_block0 = SimpleAttentionalGain(20, 32, global_avg=global_avg)
 
         self.conv1 = nn.Sequential(
             nn.LayerNorm([32, 20, 4000]),
@@ -52,7 +57,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
         )
-        self.attn_block1 = SimpleAttentionalGain(10, 64)
+        self.attn_block1 = SimpleAttentionalGain(10, 64, global_avg=global_avg)
 
         self.conv2 = nn.Sequential(
             nn.LayerNorm([64, 10, 1000]),
@@ -60,7 +65,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 4], pool_size = [1, 13], padding = [0, 6])
         )
-        self.attn_block2 = SimpleAttentionalGain(10, 256)
+        self.attn_block2 = SimpleAttentionalGain(10, 256, global_avg=global_avg)
 
         self.conv3 =  nn.Sequential(
             nn.LayerNorm([256, 10, 250]),
@@ -68,7 +73,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 4], pool_size = [1, 13], padding = [0, 6])
         )
-        self.attn_block3 = SimpleAttentionalGain(10, 512)
+        self.attn_block3 = SimpleAttentionalGain(10, 512, global_avg=global_avg)
 
         self.conv4 = nn.Sequential(
             nn.LayerNorm([512, 10, 63]),
@@ -76,7 +81,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 1], pool_size = [1, 1], padding = [0, 0])
         )
-        self.attn_block4 = SimpleAttentionalGain(10, 512)
+        self.attn_block4 = SimpleAttentionalGain(10, 512, global_avg=global_avg)
 
         self.conv5 = nn.Sequential(
             nn.LayerNorm([512, 10, 63]),
@@ -84,7 +89,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 1], pool_size = [1, 1], padding = [0, 0])
         )
-        self.attn_block5 = SimpleAttentionalGain(10, 512)
+        self.attn_block5 = SimpleAttentionalGain(10, 512, global_avg=global_avg)
 
         self.conv6 = nn.Sequential(
             nn.LayerNorm([512, 10, 63]),
@@ -92,7 +97,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [2, 4], pool_size = [6, 13], padding = [3, 6])
         )
-        self.attn_block6 = SimpleAttentionalGain(6, 512)
+        self.attn_block6 = SimpleAttentionalGain(6, 512, global_avg=global_avg)
 
         self.fullyconnected = nn.Linear(512*6*16, fc_size)
         self.relufc = nn.ReLU(inplace = True)

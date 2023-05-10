@@ -30,7 +30,7 @@ audio:                                  # Attributes of audio feature
     power: 0.3
 
 loader:
-  batch_size: 256                         # Gets divided by num gpus
+  batch_size: 512                         # Gets divided by num gpus
 
 model:
   num_words: 998        
@@ -43,7 +43,7 @@ hparas:                                   # Experiment hyper-parameters
   valid_step: 500
   epochs: 10
   optimizer: 'Adam'
-  lr: 0.001
+  lr: 0.0001
   eps: 0.00000001                         # 1e-8
   lr_scheduler: 'fixed'                   # 'fixed'/'warmup'
   curriculum: 0
