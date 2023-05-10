@@ -19,7 +19,5 @@ source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
 python3 train.py --config /om2/user/imgriff/projects/Auditory-Attention/config/commonvoice/cv_word_baseline.yaml\
                  --gpus 4 --n_jobs 14 --mixed_precision  \
-                 --exp_dir attn_cue_models/cv_baseline_word_task 
-                
-                
-
+                 --exp_dir attn_cue_models/cv_baseline_word_task \
+                 --resume_training

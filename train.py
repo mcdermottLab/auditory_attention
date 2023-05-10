@@ -43,6 +43,7 @@ def run_train(args):
 
     
     checkpoint_dir = args.exp_dir / "checkpoints"
+
     if args.ckpt_path != '':
         ckpt_path = checkpoint_dir / args.ckpt_path
     else:
@@ -71,7 +72,7 @@ def run_train(args):
             monitor=f"{config['val_metric']}",
             mode="max" if 'ACC' in config['val_metric'] else "min",
             save_top_k=1,
-#             save_weights_only=True,
+            save_weights_only=True,
             verbose=True,
         ))
         
@@ -80,7 +81,7 @@ def run_train(args):
         monitor="Losses/train_loss",
         mode="min",
         save_top_k=1,
-#         save_weights_only=True,
+        save_weights_only=True,
         verbose=True,
     )
     
@@ -113,10 +114,13 @@ def run_train(args):
         from src.attn_tracking_lightning import AttentionalTrackingModule
         module = AttentionalTrackingModule
     
-    if ckpt_path:
-        model =  module.load_from_checkpoint(checkpoint_path=ckpt_path, config=config) 
+    if args.resume_training or ckpt_path:
+        if ckpt_path is None:
+            ckpt_path = sorted(checkpoint_dir.glob("*.ckpt"))[-1]
+        model = module.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)  
     else:
         model = module(config)
+    trainer.fit(model)
     
     trainer.fit(model)
 
@@ -171,6 +175,12 @@ def cli_main():
     default=0,
     type=int,
     help="Number of CPUs for dataloader. (Default: 0)",
+    )
+    parser.add_argument(
+        "--resume_training",
+        default=False,
+        action='store_true',
+        help="Continue training from checkpoint",
     )
     args = parser.parse_args()
 

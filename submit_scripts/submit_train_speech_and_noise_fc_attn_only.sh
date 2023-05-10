@@ -10,7 +10,7 @@
 #SBATCH --cpus-per-task=20
 #SBATCH --time=48:00:00
 #SBATCH --partition=mcdermott
-#SBATCH --gres=gpu:1 --constraint=40GB 
+#SBATCH --gres=gpu:1 --constraint=30GB 
 
 export HDF5_USE_FILE_LOCKING=FALSE
 module add openmind/miniconda
@@ -24,5 +24,6 @@ module add openmind/cuda/11.3
 python train.py --config config/attentional_cue/attn_cue_speech_and_noise_fc_only.yaml\
                  --gpus 1 --n_jobs 20 --mixed_precision  \
                  --exp_dir ./attn_cue_models/attn_cue_speech_and_noise_fc_attn_only\
+                 --resume_training
                 
                 
