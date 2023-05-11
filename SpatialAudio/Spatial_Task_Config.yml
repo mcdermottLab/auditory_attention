@@ -1,19 +1,24 @@
-
 data:
-  num_words: 794
-  num_locs: 1_000
-  task: "location"                     
+  num_f0_bins: 291                       # quarter semitone bins over 4 octaves [-2 : +2] + within note and silence 
+  task: 'location'  # can be 'location', 'word', or 'both'
   corpus:
-    root: '/om2/user/msaddler/projects/ibmHearingAid/assets/data/datasets/JSIN_v3.00/nStim_20000/2000ms/rms_0.1/noiseSNR_-10_10/stimSR_20000/reverb_none/noise_all/JSIN_all_v3/subsets/' # Path to raw GigaSpeech dataset
+    root:  
+    speech_path: '/om2/scratch/Thu/msaddler/data_modmel/sr20000_pystraight/'
+    noise_path: 
+
+  noise_kwargs: # these are unused in this model
+    low_snr: 0
+    high_snr: 0 
   audio:                                  # Attributes of audio feature
     rep_type:  'cochlea_filt'
     rep_kwargs:
       sr: 20000
       env_sr: 8000
-      n_channels: 40
+      n_channels: 50
       low_lim: 40
       use_pad: True
-      rep_on_gpu: False
+      rep_on_gpu: True
+      impulse_len: 0.20
       env_extraction_type: 'Half-wave Rectification'
       downsampling_type: 'TorchTransformsResample'
       downsampling_kwargs:
@@ -28,26 +33,33 @@ data:
       clip_value: 5
       power: 0.3
   loader:
-    batch_size: 64                         # Gets divided by num gpus
-#     num_workers: 20
+    batch_size: 128
 
-noise_kwargs: # parameters for background signal levels 
-  low_snr: -10
-  high_snr: 10
-
-val_metric: 'ACC/val_acc'
-model_name: 'AttnCNN'
-layernorm_first: False
-attn_constraints:
-  slope: True
 hparas:                                   # Experiment hyper-parameters
-  valid_step: 5000
-  epochs: 10
+  valid_step: 60
+  epochs: 500
   optimizer: 'Adam'
-  lr: 0.0001
+  lr: 0.00001
   eps: 0.00000001                         # 1e-8
   lr_scheduler: 'fixed'                   # 'fixed'/'warmup'
   curriculum: 0
-  gradient_clip_val: 100 
+  class_weight_path:                      # No class weights for this task
   
+  
+train_task: 'speech'
 
+model:                                    # Model architecture
+  cnn_dim: [32, 64, 128, 256, 512, 512, 512]                       
+  kernel:  [[2, 34], [2, 14], [5, 5], [5, 5], [2, 6], [2, 5], [2, 6]]
+  stride: [1,1,1,1,1,1,1]
+  padding: [0,0,0,0,0,0,0]
+  pool_stride: [[2, 4], [1, 4], [1, 4], [1, 4], [1, 1], [1, 1], [1, 1]] 
+  pool_size: [[8, 13], [8, 13], [1, 13], [1, 13], [1, 1], [1, 1], [1, 13]]
+  module: 'GRU'                        # 'LSTM'/'GRU'/'Transformer'
+  bidirection: False
+  rnn_dim: [512]
+  dropout: [0.6]
+  layer_norm: [True]
+  proj: [True]      # Linear projection + Tanh after each rnn layer
+  sample_rate: [1]
+  sample_style: 'drop'                  # 'drop'/'concat'

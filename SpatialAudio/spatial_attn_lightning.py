@@ -53,6 +53,7 @@ class AttentionalTrackingModule(LightningModule):
         self.corpora_config = config['data']['corpus']
         self.loader_config = config['data']['loader']
         self.data_config = self.config['data']
+        self.task = config['task']
 
         # set corpora params
         self.noise_only = self.data_config.get('noise_only', False) # audioset noise instead of background talker for training
@@ -111,7 +112,7 @@ class AttentionalTrackingModule(LightningModule):
 
         fc_size = self.data_config.get('fc_size', 4096)
         self.model = AuditoryCNN(self.data_config['num_words'],# vocab size
-                                fc_size=fc_size) 
+                                fc_size=fc_size, self.task) 
 
         # Add input rep to model or audio transforms
         if self.config['data']['audio']['rep_kwargs']['rep_on_gpu']:
