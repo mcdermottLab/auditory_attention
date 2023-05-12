@@ -305,6 +305,7 @@ class AttentionalTrackingModule(LightningModule):
         return fg_loss
 
     def train_dataloader(self):
+        print(self.train_val_dataset)
         dataset = self.train_val_dataset(**self.corpora_config,
                                        mode='train',
                                        noise_only=self.noise_only,

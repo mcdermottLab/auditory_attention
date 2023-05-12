@@ -14,7 +14,7 @@ data:
       n_channels: 40
       low_lim: 40
       use_pad: True
-      rep_on_gpu: True
+      rep_on_gpu: False
       impulse_len: 0.20
       env_extraction_type: 'Half-wave Rectification'
       downsampling_type: 'TorchTransformsResample'

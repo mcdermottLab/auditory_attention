@@ -89,7 +89,7 @@ def run_train(args):
    
     trainer = Trainer(
         # precision=16 if args.mixed_precision else 32,
-        precision=16 if 'commonvoice' not in args.config else 32,
+        precision=32, #16 if 'commonvoice' not in args.config else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
     

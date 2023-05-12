@@ -20,8 +20,8 @@ class TimeDomainCochleagram(torch.nn.Module):
 
     """
     def __init__(self, filter_params, downsampling, compression=None,
-                 use_pad=None, on_gpu=False, impulse_len=1,
-                 center_crop=True, out_dur=2):
+                 use_pad=None, rep_on_gpu=False, binaural=False, impulse_len=1,
+                 center_crop=True, out_dur=2, **kwargs):
         """
         Makes the torch components used for the cochleagram generation.
 
@@ -39,9 +39,14 @@ class TimeDomainCochleagram(torch.nn.Module):
                                           filter_params['low_lim'])
         self.erb_coefs = torch.from_numpy(self.erb_coefs).float()
         self.center_crop = center_crop
+        print(f"{center_crop=}")
         self.n_out_frames = int(out_dur * filter_params['sr'])
-        # if on_gpu - we'll pre-fab an impulse response for a convolutional FIR filter:
-        if on_gpu:
+        self.binaural = binaural
+        print(f"{binaural=}")
+        if self.binaural:
+            print(f"Binaural cochleagram")
+        # if rep_on_gpu - we'll pre-fab an impulse response for a convolutional FIR filter:
+        if rep_on_gpu:
                 print('using FIR cochleagram')
                 window_size = 10
                 impulse_dur = int(filter_params['sr'] * impulse_len)
@@ -52,17 +57,23 @@ class TimeDomainCochleagram(torch.nn.Module):
                 kernel = torch.from_numpy(kernel).float()
                 kernel = torch.fliplr(kernel) # needed for conv layer to perform conv not auto. cor. 
                 self.compute_rep = ComputeSubbands(kernel, use_pad)
-        
+                self.cat_dim = 1
         # if on cpu, we can use an IIR filter directly 
         else:
             print('using IIR cochleagram')
             self.compute_rep = lambda x: ERB_filter_bank(x, self.erb_coefs)
+            self.cat_dim = 0
 
         self.downsampling = downsampling
         self.compression = compression
 
     def forward(self, x):
-        x = self.compute_rep(x)
+        if self.binaural:
+            left_x = self.compute_rep(x[:, 0, :])
+            right_x = self.compute_rep(x[:, 1, :])
+            x = torch.cat([left_x, right_x], dim=self.cat_dim)
+        else:
+            x = self.compute_rep(x)
         if self.center_crop:
             x_dur = x.shape[-1]
             diff = (x_dur - self.n_out_frames) // 2
@@ -81,9 +92,8 @@ class ComputeSubbands(torch.nn.Module):
     Convolves input with impulse response of filters in cochlear filter
     bank.
     """
-    def __init__(self, coch_filters, use_pad=None):
+    def __init__(self, coch_filters, binaural=False):
         super(ComputeSubbands, self).__init__()
-        self.use_pad = use_pad
         self.n_taps = coch_filters.shape[1]
         self.pad_factor = self.n_taps - 1 # need odd number for total len
         self.n_channels = coch_filters.shape[0]

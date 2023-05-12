@@ -296,7 +296,7 @@ class AudioToCochlearRep(torch.nn.Module):
         self.coch_filter_kwargs = {'sr':self.sr,
                                    'env_sr': self.env_sr,
                                    'n_channels': cgram_kwargs['n_channels'],
-                                   'low_lim': cgram_kwargs['low_lim']
+                                   'low_lim': cgram_kwargs['low_lim'],
                                    }
         # Define an envelope extraction operation in Forward
         # Define a downsampling operation
@@ -313,9 +313,8 @@ class AudioToCochlearRep(torch.nn.Module):
         # Define cochleagram
         self.Cochleagram = TimeDomainCochleagram(self.coch_filter_kwargs,
                                                 self.downsampling_op,
-                                                use_pad=self.use_pad,
                                                 compression=None,
-                                                on_gpu=cgram_kwargs['rep_on_gpu'])
+                                                **cgram_kwargs)
 
 
     def forward(self, foreground_wav, background_wav):

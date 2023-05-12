@@ -1,4 +1,5 @@
 #!/bin/bash
+
 #SBATCH --job-name=cue_match_speech_and_noise
 #SBATCH --output=outLogs/attn_global_avg_%j.out
 #SBATCH --error=outLogs/attn_global_avg_%j.err
@@ -12,13 +13,16 @@
 #SBATCH --gres=gpu:2 --constraint=60GB 
 
 module add openmind/miniconda
-module add openmind/cudnn/9.1-7.0.5
-module add openmind/cuda/11.3
+export HDF5_USE_FILE_LOCKING=FALSE
 
 source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
+module add openmind/cudnn/11.5-v8.3.3.40
+module add openmind/cuda/11.3
+
+
 python3 train.py --config config/attentional_cue/attn_cue_match_target_speech_and_noise_global_avg_cue.yaml\
-                 --gpus 2 --n_jobs 10 --mixed_precision  \
+                 --gpus 2 --n_jobs 10  \
                  --exp_dir ./attn_cue_models/attn_cue_match_target_speech_and_noise_global_avg_cue\
                 
                 
