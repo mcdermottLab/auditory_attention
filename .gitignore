@@ -137,6 +137,7 @@ wav2vec_exp
 wav2vec_1e-5_lr_exp
 word_rec
 lightning_logs
+behavioral_experiments
 
 
 # swap file

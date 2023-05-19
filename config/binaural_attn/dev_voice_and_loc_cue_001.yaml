@@ -4,6 +4,7 @@ corpus:
   task: "word"
   root: '/om/user/imgriff/datasets/spatial_audio_pipeline/assets/spatial_attention_v1/'
 
+
 audio:                                  # Attributes of audio feature
   rep_type:  'cochlea_filt'
   rep_kwargs:
@@ -34,6 +35,7 @@ audio:                                  # Attributes of audio feature
 
 val_metric: 'ACC/val_acc'
 model_name: 'binaural_attn_cue_voice_and_loc'
+
 
 model:
   num_classes:                         # 998 words in cv vocab
