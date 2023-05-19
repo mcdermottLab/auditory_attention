@@ -1,5 +1,5 @@
 data:
-  num_f0_bins: 291                       # quarter semitone bins over 4 octaves [-2 : +2] + within note and silence 
+  num_classes: ['num_words', 'num_locs']                  # quarter semitone bins over 4 octaves [-2 : +2] + within note and silence 
   task: 'location'  # can be 'location', 'word', or 'both'
   corpus:
     root:  

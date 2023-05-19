@@ -34,7 +34,7 @@ class SimpleAttentionalGain(nn.Module):
 class CNN2DExtractor(nn.Module):
     ''' CNN wrapper, includes relu and layer-norm if applied'''
 
-    def __init__(self, input_sr, input_channels, out_channels, kernel, stride, padding, pool_stride, pool_size):
+    def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size):
         super(CNN2DExtractor, self).__init__()
         # Setup
         self.out_channels = out_channels
@@ -50,7 +50,7 @@ class CNN2DExtractor(nn.Module):
         self.output_height = self.frequency_dim # initialization for output feature dim calculation
         self.output_len = int(self.input_sr * 10) # init samples are 10 seconds at 8kHz - softcode eventually
 
-        for l in range(n_layers):
+        for l, attn in layer_dict:
             nIn = 1 if l == 0 else out_channels[l - 1]
             nOut = out_channels[l]
             # LayerNorm
@@ -63,6 +63,8 @@ class CNN2DExtractor(nn.Module):
             # Pooling 
             self.cnn.add_module('pooling{0}'.format(l),
                       HannPooling2d(stride=pool_stride[l], pool_size=pool_size[l]))
+            if attn:
+                self.cnn.add_module('attn{0}'.format(l), SimpleAttentionalGain(nIn, nOut))
 
             # Compute output shapes using conv formula [(Height - Filter + 2Pad)/ Stride]+1
             if padding[l] == 'same':
@@ -75,57 +77,22 @@ class CNN2DExtractor(nn.Module):
             self.output_height = int(np.floor((self.output_height - pool_size[l][0]) / pool_stride[l][0]) + 1)
             self.output_len = int(np.floor((self.output_len - pool_size[l][1]) / pool_stride[l][1]) + 1)
         self.output_size = self.output_height * nOut
-        self.temp_downsample = self.get_downsample_factor()
 
-    def forward(self, cue, mixture): 
+    def forward(self, cue, mixture):
          # pass cue through cnn & store reps
         if cue == None:
-            mixture = self.norm_coch_rep(mixture)
-            mixture = self.conv0(mixture) # has layer norm as 1st layer - may be a problem? 
-            mixture = self.conv1(mixture)
-            mixture = self.conv2(mixture)
-            mixture = self.conv3(mixture)
-            mixture = self.conv4(mixture)
-            mixture = self.conv5(mixture)
-            out = self.conv6(mixture)
+            out = self.cnn.forward(mixture)
 
+        # not sure if sequential is the right container if we want to do this
+        # need to figure out if we want attention blocks for every layer if we have them
         else:
-            cue = self.norm_coch_rep(cue)
-            cue0 = self.conv0(cue) # has layer norm as 1st layer - may be a problem? 
-            cue1 = self.conv1(cue0)
-            cue2 = self.conv2(cue1)
-            cue3 = self.conv3(cue2)
-            cue4 = self.conv4(cue3)
-            cue5 = self.conv5(cue4)
-            cue6 = self.conv6(cue5)
-
-            ## Combine cue and mixture using attention
-            mixture = self.norm_coch_rep(mixture)
-            # attn for cochlear model
-            attn = self.attn_block_in(cue, mixture)
-            # conv 0 
-            attn = self.conv0(attn)
-            attn = self.attn_block0(cue0, attn)
-            # conv 1
-            attn = self.conv1(attn)
-            attn = self.attn_block1(cue1, attn)
-            #conv 2
-            attn = self.conv2(attn)
-            attn = self.attn_block2(cue2, attn)
-            #conv 3
-            attn = self.conv3(attn)
-            attn = self.attn_block3(cue3, attn)
-            #conv4
-            attn = self.conv4(attn)
-            attn = self.attn_block4(cue4, attn)
-            #conv5
-            attn = self.conv5(attn)
-            attn = self.attn_block5(cue5, attn)
-            #conv6
-            attn = self.conv6(attn)
-            attn = self.attn_block6(cue6, attn)
-
-            out = attn
+            for name, module in self.cnn.modules():
+                if 'attn' in name:
+                    mixture = self.cnn.{name}(cue, mixture)
+                else:
+                    mixture = self.cnn.{name}(mixture)
+                    cue = self.cnn.{name}(cue)
+            out = mixture
 
         out = out.view(out.size(0), 512*6*16) # B x FC size
         out = self.fullyconnected(out)        
