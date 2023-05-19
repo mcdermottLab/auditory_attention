@@ -34,6 +34,14 @@ def run_train(args):
             config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
         else:
             config['data']['loader']['batch_size'] = 1
+
+    elif 'binaural' in args.config:
+        config['num_workers'] = args.n_jobs
+        if args.gpus > 0:
+            config['hparas']['batch_size'] = config['hparas']['batch_size'] // args.gpus
+        else:
+            config['hparas']['batch_size'] = 1
+
     else:
         config['loader']['num_workers'] = args.n_jobs
         if args.gpus > 0:
@@ -89,7 +97,7 @@ def run_train(args):
    
     trainer = Trainer(
         # precision=16 if args.mixed_precision else 32,
-        precision=32, #16 if 'commonvoice' not in args.config else 32,
+        precision=32,# 16 if 'binaural' in args.config else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
     
@@ -109,6 +117,10 @@ def run_train(args):
         from src.cv_word_lightning import CommonVoiceWordRec
         print('CommonVoice Task')
         module = CommonVoiceWordRec
+    
+    elif 'binaural' in args.config:
+        from src.binaural_attn_lightning import BinauralAttentionModule
+        module = BinauralAttentionModule
 
     else:
         from src.attn_tracking_lightning import AttentionalTrackingModule
@@ -120,10 +132,9 @@ def run_train(args):
         model = module.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)  
     else:
         model = module(config)
+        
     trainer.fit(model)
     
-    trainer.fit(model)
-
 
 def cli_main():
     parser = ArgumentParser()

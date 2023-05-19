@@ -7,10 +7,10 @@
 #SBATCH -N 1
 ##SBATCH -w dgx002
 ## SBATCH -x node[100-115]
-#SBATCH --cpus-per-task=32
-#SBATCH --time=12:00:00
-#SBATCH --partition=multi-gpu
-#SBATCH --gres=gpu:4 # --constraint=60GB 
+#SBATCH --cpus-per-task=40
+#SBATCH --time=2-00:00:00
+#SBATCH --partition=mcdermott
+#SBATCH --gres=gpu:4 --constraint=60GB 
 
 module add openmind/miniconda
 export HDF5_USE_FILE_LOCKING=FALSE
@@ -21,9 +21,8 @@ module add openmind/cudnn/11.5-v8.3.3.40
 module add openmind/cuda/11.3
 
 
-
 python3 train.py --config config/binaural_attn/dev_voice_and_loc_cue_001.yaml \
-                 --gpus 4 --n_jobs 8  \
+                 --gpus 4 --n_jobs 10  \
                  --exp_dir ./attn_cue_models/dev_binaural_cue_voiec_and_loc \
                  --resume_training
                 
