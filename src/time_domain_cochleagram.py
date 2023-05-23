@@ -21,7 +21,7 @@ class TimeDomainCochleagram(torch.nn.Module):
     """
     def __init__(self, filter_params, downsampling, compression=None,
                  use_pad=None, rep_on_gpu=False, binaural=False, impulse_len=1,
-                 center_crop=True, out_dur=2, **kwargs):
+                 center_crop=False, out_dur=2, **kwargs):
         """
         Makes the torch components used for the cochleagram generation.
 

@@ -35,6 +35,36 @@ class SimpleAttentionalGain(nn.Module):
         return mixture
 
 
+class KernelAttentionalGain(nn.Module):
+    def __init__(self, frequency_dim, cnn_channels, global_avg=False):
+        super(SimpleAttentionalGain, self).__init__()
+        if global_avg:
+            self.time_average = nn.AdaptiveAvgPool2d((1, 1)) # outsize is N, C, 1, 1
+        else:
+            self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) # outsize is N, C, FreqDim, 1
+        self.bias = nn.Parameter(torch.zeros(1, cnn_channels, 1, 1)) # init gain scaling to zero
+        self.slope = nn.Parameter(torch.ones(1, cnn_channels, 1, 1)) # init slope to one
+        self.threshold = nn.Parameter(torch.zeros(1, cnn_channels, 1, 1)) # init threshold to zero
+        self.reset_parameters() 
+
+    def reset_parameters(self):
+        nn.init.constant_(self.bias, 0)
+        nn.init.constant_(self.slope, 1)
+        nn.init.constant_(self.threshold, 0)
+
+    def forward(self, cue, mixture):
+        ## Process cue 
+        cue = self.time_average(cue)
+        # apply threshold shift
+        cue = cue - self.threshold
+        # apply slope
+        cue = cue * self.slope
+        # apply sigmoid & bias
+        cue = self.bias + (1-self.bias) * torch.sigmoid(cue)
+        # Apply to mixture (element mult)
+        mixture = torch.mul(mixture, cue)
+        return mixture
+
 
 class AuditoryCNN(nn.Module):
     def __init__(self, num_classes=1000, fc_size=4096, global_avg=False):

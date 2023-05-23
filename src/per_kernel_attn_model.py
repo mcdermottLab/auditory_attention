@@ -35,12 +35,47 @@ class SimpleAttentionalGain(nn.Module):
         return mixture
 
 
+class KernelAttentionalGain(nn.Module):
+    def __init__(self, frequency_dim, cnn_channels, global_avg=False):
+        super(KernelAttentionalGain, self).__init__()
+        if global_avg:
+            self.time_average = nn.AdaptiveAvgPool2d((1, 1)) # outsize is N, C, 1, 1
+        else:
+            self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) # outsize is N, C, FreqDim, 1
+        
+        # set params to 4d tensors - b x c x f x t 
+        self.bias = nn.Parameter(torch.zeros(1, cnn_channels, 1, 1)) # init gain scaling to zero
+        self.slope = nn.Parameter(torch.ones(1, cnn_channels, 1, 1)) # init slope to one
+        self.threshold = nn.Parameter(torch.zeros(1, cnn_channels, 1, 1)) # init threshold to zero
+        self.reset_parameters() 
+
+    def reset_parameters(self):
+        nn.init.constant_(self.bias, 0)
+        nn.init.constant_(self.slope, 1)
+        nn.init.constant_(self.threshold, 0)
+
+    def forward(self, cue, mixture):
+        ## Process cue 
+        cue = self.time_average(cue)
+        # apply threshold shift
+        cue = cue - self.threshold
+        # apply slope
+        cue = cue * self.slope
+        # apply sigmoid & bias
+        cue = self.bias + (1-self.bias) * torch.sigmoid(cue)
+        # Apply to mixture (element mult)
+        mixture = torch.mul(mixture, cue)
+        return mixture
+
+
 class AuditoryCNN(nn.Module):
-    def __init__(self, num_classes=1000, fc_size=4096, global_avg=False):
+    def __init__(self, num_classes=1000, fc_size=4096, global_avg=False, per_kernel_attn=False):
         super(AuditoryCNN, self).__init__()
 
+        self.attn_fn = KernelAttentionalGain if per_kernel_attn else SimpleAttentionalGain
+
         self.norm_coch_rep = nn.LayerNorm([1, 40, 16000])
-        # self.attn_block_in = SimpleAttentionalGain(40, 1)
+        self.attn_block_in = self.attn_fn(40, 1, global_avg=global_avg)
 
         self.conv0 = nn.Sequential(
                     nn.LayerNorm([1, 40, 16000]),
@@ -48,7 +83,7 @@ class AuditoryCNN(nn.Module):
                     nn.ReLU(inplace = True),
                     HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
         )
-        # self.attn_block0 = SimpleAttentionalGain(20, 32)
+        self.attn_block0 = self.attn_fn(20, 32, global_avg=global_avg)
 
         self.conv1 = nn.Sequential(
             nn.LayerNorm([32, 20, 4000]),
@@ -56,7 +91,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
         )
-        # self.attn_block1 = SimpleAttentionalGain(10, 64)
+        self.attn_block1 = self.attn_fn(10, 64, global_avg=global_avg)
 
         self.conv2 = nn.Sequential(
             nn.LayerNorm([64, 10, 1000]),
@@ -64,7 +99,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 4], pool_size = [1, 13], padding = [0, 6])
         )
-        # self.attn_block2 = SimpleAttentionalGain(10, 256)
+        self.attn_block2 = self.attn_fn(10, 256, global_avg=global_avg)
 
         self.conv3 =  nn.Sequential(
             nn.LayerNorm([256, 10, 250]),
@@ -72,7 +107,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 4], pool_size = [1, 13], padding = [0, 6])
         )
-        # self.attn_block3 = SimpleAttentionalGain(10, 512)
+        self.attn_block3 = self.attn_fn(10, 512, global_avg=global_avg)
 
         self.conv4 = nn.Sequential(
             nn.LayerNorm([512, 10, 63]),
@@ -80,7 +115,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 1], pool_size = [1, 1], padding = [0, 0])
         )
-        # self.attn_block4 = SimpleAttentionalGain(10, 512)
+        self.attn_block4 = self.attn_fn(10, 512, global_avg=global_avg)
 
         self.conv5 = nn.Sequential(
             nn.LayerNorm([512, 10, 63]),
@@ -88,7 +123,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [1, 1], pool_size = [1, 1], padding = [0, 0])
         )
-        # self.attn_block5 = SimpleAttentionalGain(10, 512)
+        self.attn_block5 = self.attn_fn(10, 512, global_avg=global_avg)
 
         self.conv6 = nn.Sequential(
             nn.LayerNorm([512, 10, 63]),
@@ -96,7 +131,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [2, 4], pool_size = [6, 13], padding = [3, 6])
         )
-        self.attn_block6 = SimpleAttentionalGain(6, 512, global_avg=global_avg)
+        self.attn_block6 = self.attn_fn(6, 512, global_avg=global_avg)
 
         self.fullyconnected = nn.Linear(512*6*16, fc_size)
         self.relufc = nn.ReLU(inplace = True)
@@ -118,26 +153,31 @@ class AuditoryCNN(nn.Module):
         ## Combine cue and mixture using attention
         if mixture is not None:
             mixture = self.norm_coch_rep(mixture)
+            # attn for cochlear model
+            attn = self.attn_block_in(cue, mixture)
             # conv 0 
-            mixture = self.conv0(mixture)
+            attn = self.conv0(attn)
+            attn = self.attn_block0(cue0, attn)
             # conv 1
-            mixture = self.conv1(mixture)
+            attn = self.conv1(attn)
+            attn = self.attn_block1(cue1, attn)
             #conv 2
-            mixture = self.conv2(mixture)
+            attn = self.conv2(attn)
+            attn = self.attn_block2(cue2, attn)
             #conv 3
-            mixture = self.conv3(mixture)
-            # mixture = self.mixture_block3(cue3, mixture)
+            attn = self.conv3(attn)
+            attn = self.attn_block3(cue3, attn)
             #conv4
-            mixture = self.conv4(mixture)
-            # mixture = self.mixture_block4(cue4, mixture)
+            attn = self.conv4(attn)
+            attn = self.attn_block4(cue4, attn)
             #conv5
-            mixture = self.conv5(mixture)
-            # mixture = self.mixture_block5(cue5, mixture)
+            attn = self.conv5(attn)
+            attn = self.attn_block5(cue5, attn)
             #conv6
-            mixture = self.conv6(mixture)
-            mixture = self.attn_block6(cue6, mixture)
+            attn = self.conv6(attn)
+            attn = self.attn_block6(cue6, attn)
 
-            out = mixture
+            out = attn
         else:
             out = cue6
 

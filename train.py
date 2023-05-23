@@ -96,8 +96,8 @@ def run_train(args):
     callbacks.append(train_checkpoint)
    
     trainer = Trainer(
-        # precision=16 if args.mixed_precision else 32,
-        precision=32,# 16 if 'binaural' in args.config else 32,
+        precision=32, # if args.mixed_precision else 32,
+        # precision=16,# 16 if 'binaural' in args.config else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
     

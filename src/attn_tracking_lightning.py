@@ -129,17 +129,27 @@ class AttentionalTrackingModule(LightningModule):
         ln_first = self.config.get('layernorm_first', False) 
         batchnorm_model = self.config.get('batchnorm', False) 
         fc_attn_only = self.config.get('fc_attn_only', False) 
+        coch_attn_only = self.config.get('coch_attn_only', False) 
+        per_kernel_attn = self.config.get('per_kernel_attn', False) 
+
         if ln_first and not fc_attn_only:
             print('ln_first')
             from src.attentional_cue_model_ln_first import AuditoryCNN
         elif batchnorm_model:
             print("Using Batch Norm architecture")
             from src.attentional_cue_model_w_bn import AuditoryCNN
-        elif fc_attn_only:
+        if fc_attn_only:
             print("Using attention at FC layer only")
             from src.attn_cue_model_fc_attn_only import AuditoryCNN
-        else:
-            from src.attentional_cue_model import AuditoryCNN
+        if coch_attn_only:
+            print("Using attention at cochleagram only")
+            from src.attn_cue_model_coch_attn_only import AuditoryCNN
+        if per_kernel_attn:
+            print("Using attention per kernel")
+            from src.per_kernel_attn_model import AuditoryCNN
+        # elif  :
+        #     print("Using vanilla model")
+        #     from src.attentional_cue_model import AuditoryCNN
         
         fc_size = self.data_config.get('fc_size', 4096)
         global_avg_cue = self.config.get('global_avg_cue', False)

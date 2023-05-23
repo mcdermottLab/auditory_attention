@@ -40,7 +40,7 @@ class AuditoryCNN(nn.Module):
         super(AuditoryCNN, self).__init__()
 
         self.norm_coch_rep = nn.LayerNorm([1, 40, 16000])
-        # self.attn_block_in = SimpleAttentionalGain(40, 1)
+        self.attn_block_in = SimpleAttentionalGain(40, 1)
 
         self.conv0 = nn.Sequential(
                     nn.LayerNorm([1, 40, 16000]),
@@ -96,7 +96,7 @@ class AuditoryCNN(nn.Module):
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [2, 4], pool_size = [6, 13], padding = [3, 6])
         )
-        self.attn_block6 = SimpleAttentionalGain(6, 512, global_avg=global_avg)
+        # self.attn_block6 = SimpleAttentionalGain(6, 512, global_avg=global_avg)
 
         self.fullyconnected = nn.Linear(512*6*16, fc_size)
         self.relufc = nn.ReLU(inplace = True)
@@ -104,44 +104,29 @@ class AuditoryCNN(nn.Module):
         self.classification = nn.Linear(fc_size, num_classes)
         
 
-    def forward(self, cue, mixture=None):
-        # pass cue through cnn & store reps
+    def forward(self, cue, mixture):
+
         cue = self.norm_coch_rep(cue)
-        cue0 = self.conv0(cue) # has layer norm as 1st layer - may be a problem? 
-        cue1 = self.conv1(cue0)
-        cue2 = self.conv2(cue1)
-        cue3 = self.conv3(cue2)
-        cue4 = self.conv4(cue3)
-        cue5 = self.conv5(cue4)
-        cue6 = self.conv6(cue5)
-        
-        ## Combine cue and mixture using attention
-        if mixture is not None:
-            mixture = self.norm_coch_rep(mixture)
-            # conv 0 
-            mixture = self.conv0(mixture)
-            # conv 1
-            mixture = self.conv1(mixture)
-            #conv 2
-            mixture = self.conv2(mixture)
-            #conv 3
-            mixture = self.conv3(mixture)
-            # mixture = self.mixture_block3(cue3, mixture)
-            #conv4
-            mixture = self.conv4(mixture)
-            # mixture = self.mixture_block4(cue4, mixture)
-            #conv5
-            mixture = self.conv5(mixture)
-            # mixture = self.mixture_block5(cue5, mixture)
-            #conv6
-            mixture = self.conv6(mixture)
-            mixture = self.attn_block6(cue6, mixture)
+        ## norm coch rep pre-attn
+        mixture = self.norm_coch_rep(mixture)
+        # attn for cochlear model
+        mixture = self.attn_block_in(cue, mixture)
+        # conv 0 
+        mixture = self.conv0(mixture)
+        # conv 1
+        mixture = self.conv1(mixture)
+        #conv 2
+        mixture = self.conv2(mixture)
+        #conv 3
+        mixture = self.conv3(mixture)
+        #conv4
+        mixture = self.conv4(mixture)
+        #conv5
+        mixture = self.conv5(mixture)
+        #conv6
+        mixture = self.conv6(mixture)
 
-            out = mixture
-        else:
-            out = cue6
-
-        out = out.view(out.size(0), 512*6*16) # B x FC size
+        out = mixture.view(mixture.size(0), 512*6*16) # B x FC size
         out = self.fullyconnected(out)        
         out = self.relufc(out)
         out = self.dropout(out)        
