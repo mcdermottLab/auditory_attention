@@ -20,7 +20,11 @@ class CommonVoiceWordTask(torch.utils.data.ConcatDataset):
         specified root directory. 
         """
 
-        if mode == 'train':
+        # handle if given individual file
+        if mode == "test" and ".hdf5" in root:
+            self.all_hdf5_files = [root]
+
+        elif mode == 'train':
             self.all_hdf5_files = glob.glob(root + '/train_*/' + self.hdf5_glob)
         elif mode == 'val':
             self.all_hdf5_files = glob.glob(root + '/validation_*/' + self.hdf5_glob) 

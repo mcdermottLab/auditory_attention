@@ -10,6 +10,7 @@ from pytorch_lightning import Trainer, seed_everything
 # from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger
 from src.attn_tracking_lightning import AttentionalTrackingModule
+from src.cv_word_lightning import CommonVoiceWordRec
 # from src.attentional_tracking_control_lightning import AttnTrackingControlModule
 # from src.attn_rove_rms_lightning import AttnRoveRMSModule
 
@@ -18,59 +19,36 @@ seed_everything(1)
 
 def run_eval(args):
     
-
     model_name = args.model_name
     checkpoint_path = args.ckpt_path
     config = yaml.load(open(args.config_name, 'r'), Loader=yaml.FullLoader)
     
     config['matched_cue_level'] = False
+
+    if args.eval_timit:
+        eval_stim_path = '/om2/user/imgriff/datasets/timit/clean_timit_targets_attn_task_0.1rms.pdpkl'
+        config['corpora_name'] = 'TIMIT'
+        log_name = f"TIMIT_task_clean_{model_name}"
+
+    else:
+        eval_stim_path = "/om2/user/imgriff/datasets/commonvoice_9_en/3000ms/stimSR_50000/cv_9_en/subsets/model_and_participant_test_set/model_and_participant_test_set_50000Hz_rate_60dB_000.hdf5"
+        config['corpora_name'] = 'model_and_participant_test_set'
+        log_name = f"CommonVoice_attn_task_clean_pilot_{model_name}"
+
     if 'cv' in model_name:
-        config['corpus']['root'] = cv_eval_h5_path
+        config['corpus']['root'] = eval_stim_path
         config['loader']['num_workers'] = args.n_jobs
         config['loader']['batch_size'] = 32
-    config['data']['loader']['num_workers'] = args.n_jobs
-    config['data']['loader']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
-    config['corpora_name'] = 'TIMIT'
-    config['data']['corpus']['clean_targets'] = args.clean_targets
+    else:
+        config['data']['corpus']['root'] = eval_stim_path
+        config['data']['loader']['num_workers'] = args.n_jobs
+        config['data']['loader']['batch_size'] = 32 # config['data']['loader']['batch_size'] // args.gpus
+
     snr = 'clean' if args.clean_targets else '0dB_SNR'
 
-    if args.harmonic: 
-        config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/harmonic_timit/all_targets_harmonic_single_distractor_0dB_SNR_jitter_fn_render.pdpkl'
-        task_name = "_harmonic_speech_jitter_render_"    
-        
-    elif args.whispered:
-        config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/whispered_timit/all_targets_whispered_single_distractor_0dB_SNR.pdpkl'
-        task_name = "_whispered_speech_"
-        
-    elif args.inharmonic:
-        config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/inharmonic_timit/all_targets_inharmonic_single_distractor_0dB_SNR.pdpkl'
-        task_name = "_inharmonic_speech_"
-            
-    else:
-        if args.clean_targets:
-            config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/clean_timit_targets_attn_task_0.1rms.pdpkl'
-        else:
-            config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/attn_task_dataframes/timit_attn_stim_for_model_all_targets.pdpkl'
-            snr = ''
-        task_name = "_"
-    
-    log_name = f"TIMIT{task_name}attn_task_{snr}_all_targets_{model_name}"
-
-
     print(log_name)
-        
-#     checkpoint_dir = args.exp_dir / "checkpoints"
-#     print(checkpoint_dir)
-#     # get latest checkpoint
-#     checkpoints = sorted(checkpoint_dir.glob('*.ckpt'))
-#     checkpoint_path = checkpoints[-1] # sort by training step & get latest
 
-    # get eval set & update params 
-#     test_condition = eval_conditions[args.array_id]
     experiment_dir = args.exp_dir
-    
-    #config['data']['corpus']['root'] = f'/om2/user/mjmcp/TestSets/{test_condition}'
-    #model_name = config['model_name']
 
     logger = CSVLogger(experiment_dir, name=log_name)
 
@@ -89,6 +67,8 @@ def run_eval(args):
         model = AttnTrackingControlModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)    
     elif model_name == "AttnRoveRMSCNN":
         model = AttnRoveRMSModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
+    elif 'cv' in model_name:
+        model = CommonVoiceWordRec.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
     else:
         model = AttentionalTrackingModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)  
     # evaluate model  
@@ -176,6 +156,12 @@ def cli_main():
         action='store_true',
         help="run without distractors",
     )   
+    parser.add_argument(
+        "--eval_timit",
+        default=False,
+        action='store_true',
+        help="run timit evaluation",
+    )  
     
     args = parser.parse_args()
 

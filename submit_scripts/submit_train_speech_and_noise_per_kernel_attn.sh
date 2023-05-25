@@ -22,7 +22,7 @@ module add openmind/cuda/11.3
 
 
 python train.py --config config/attentional_cue/attn_cue_speech_and_noise_per_kernel_attn.yaml\
-                 --gpus 4 --n_jobs 10 --mixed_precision  \
+                 --gpus 4 --n_jobs 10 \
                  --exp_dir ./attn_cue_models/attn_cue_speech_and_noise_per_kernel_attny\
-                
+                 --resume_training
                 

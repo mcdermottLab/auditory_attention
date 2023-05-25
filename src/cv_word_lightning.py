@@ -34,7 +34,12 @@ class CommonVoiceWordRec(LightningModule):
         self.model_config = self.config['model']
 
         # Init dataset
-        self.dataset = CommonVoiceWordTask
+        if config["corpora_name"] == "TIMIT":
+            from corpus.timit import TIMIT_CV_Compat_Prepaired
+            self.dataset = TIMIT_CV_Compat_Prepaired
+            print("Eval on TIMIT stimuli")
+        else:
+            self.dataset = CommonVoiceWordTask
     
         # Init Audio Transforms
         self.audio_transforms = at.AudioCompose([
@@ -96,7 +101,8 @@ class CommonVoiceWordRec(LightningModule):
         self.accuracy[step_type](outputs, labels)
 
         self.log(f"Losses/{step_type}_loss", loss.detach(), on_step=True, on_epoch=False)        
-        self.log(f"ACC/{step_type}_acc", self.accuracy[step_type], on_step=False, on_epoch=True)
+        self.log(f"ACC/{step_type}_acc", self.accuracy[step_type], 
+                on_step=True if step_type == "test" else False, on_epoch=True)
         return loss
     
     def configure_optimizers(self):
@@ -113,7 +119,7 @@ class CommonVoiceWordRec(LightningModule):
     def validation_step(self, batch, batch_idx):
         return self._step(batch, batch_idx, "val")
 
-    def _test_step(self, batch, batch_idx):
+    def test_step(self, batch, batch_idx):
         return self._step(batch, batch_idx, "test")
 
     def _extract_labels(self, samples: List):

@@ -14,7 +14,7 @@ audio:                                  # Attributes of audio feature
     rep_on_gpu: True
     center_crop: True
     out_dur: 2  ## in seconds
-    impulse_len: 0.25
+    impulse_len: 1
     env_extraction_type: 'Half-wave Rectification'
     downsampling_type: 'TorchTransformsResample'
     downsampling_kwargs:
