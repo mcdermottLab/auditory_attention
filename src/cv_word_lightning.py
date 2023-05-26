@@ -32,9 +32,9 @@ class CommonVoiceWordRec(LightningModule):
         self.corpora_config = config['corpus']
         self.loader_config = config['loader']
         self.model_config = self.config['model']
-
+        self.corpus = self.config.get("corpora_name", False)
         # Init dataset
-        if config["corpora_name"] == "TIMIT":
+        if self.config.get("corpora_name", False) == "TIMIT":
             from corpus.timit import TIMIT_CV_Compat_Prepaired
             self.dataset = TIMIT_CV_Compat_Prepaired
             print("Eval on TIMIT stimuli")
@@ -140,6 +140,11 @@ class CommonVoiceWordRec(LightningModule):
     def _collate_fn(self, samples: List):
         features = self._extract_features(samples)
         targets = self._extract_labels(samples)
+        if self.corpus == "TIMIT":
+            # filter oov examples 
+            good_ixs = [ix for ix, target in enumerate(targets) if target != 0]
+            features = features[good_ixs]
+            targets = targets[good_ixs]
         return features, targets
 
 

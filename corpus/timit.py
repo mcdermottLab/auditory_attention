@@ -166,7 +166,7 @@ class TIMIT_WSN_Prepaired(Dataset):
 
 
 class TIMIT_CV_Compat_Prepaired(Dataset):
-    def __init__(self, root, mode='test', demo=False, return_cue=False, clean_targets=False, **kwargs):
+    def __init__(self, root, mode='test', demo=False, return_cue=False, clean_targets=True, **kwargs):
         """
         Builds a pytorch dataset from a pandas dataframe that has cues and mixtures pre-cut
         Args:
@@ -177,13 +177,13 @@ class TIMIT_CV_Compat_Prepaired(Dataset):
         self.demo = demo 
         self.return_cue = return_cue
         self.dataset_len = self.dataset.shape[0]
-        self.upsample = T.Resample(20_000, 50_0000, dtype=torch.float32)
+        self.upsample = T.Resample(20_000, 50_000, dtype=torch.float32)
 
         if clean_targets:
             self.target_signals = self.dataset.signal
         else:
             self.target_signals = self.dataset.mixture_signal
-        self.class_map = self.get_class_map()
+        self.class_remap, self.cv_class_map = self.get_class_map()
 
     def get_class_map(self):
         """
@@ -195,8 +195,9 @@ class TIMIT_CV_Compat_Prepaired(Dataset):
         # key is word, val is int
         cv_class_map = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_word_int_label_dict.pkl", "rb" )) 
         # map wsn class int key to cv class int value 
-        class_map = {ix:(cv_class_map[word] if word in cv_class_map else 0) for ix, word in wsn_class_map.items()}
-        return class_map
+        class_remap = {ix:(cv_class_map[word] if word in cv_class_map else 0) for ix, word in wsn_class_map.items()}
+        class_map = {ix:word for word,ix in cv_class_map.items()}
+        return class_remap, class_map
 
     def __getitem__(self, index):
         """
@@ -214,7 +215,7 @@ class TIMIT_CV_Compat_Prepaired(Dataset):
         mixture = self.upsample(torch.from_numpy(mixture)).numpy()
         target_word_int = self.dataset.word_int[index].astype('int')  # target word label
         # map to cv vocab
-        target_word_int = self.class_map[target_word_int]
+        target_word_int = self.class_remap[target_word_int]
         if self.return_cue:
             cue = self.dataset.cue_signal[index].astype('float32')        # pre selected cue 
 
