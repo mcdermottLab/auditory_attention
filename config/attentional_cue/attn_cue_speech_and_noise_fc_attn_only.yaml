@@ -40,10 +40,10 @@ noise_kwargs: # parameters for background signal levels
   high_snr: 10
 
 val_metric: 'ACC/val_acc'
-model_name: 'PerKernelAttn'
+model_name: 'FCAttnOnly'
 matched_cue_level: False 
 layernorm_first: True
-per_kernel_attn: True
+fc_attn_only: True
 attn_constraints:
   slope: True
 hparas:                                   # Experiment hyper-parameters

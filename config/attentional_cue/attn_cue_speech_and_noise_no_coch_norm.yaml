@@ -1,8 +1,6 @@
 
 data:
   num_words: 794        
-  fc_size: 512
-
   multi_distractor: True
   corpus:
     n_talkers: [1,5]
@@ -16,8 +14,7 @@ data:
       n_channels: 40
       low_lim: 40
       use_pad: True
-      rep_on_gpu: True
-      impulse_len: 0.20
+      rep_on_gpu: False
       env_extraction_type: 'Half-wave Rectification'
       downsampling_type: 'TorchTransformsResample'
       downsampling_kwargs:
@@ -32,7 +29,7 @@ data:
       clip_value: 5
       power: 0.3
   loader:
-    batch_size: 512                         # Gets divided by num gpus
+    batch_size: 256                         # Gets divided by num gpus
 #     num_workers: 20
 
 noise_kwargs: # parameters for background signal levels 
@@ -40,14 +37,13 @@ noise_kwargs: # parameters for background signal levels
   high_snr: 10
 
 val_metric: 'ACC/val_acc'
-model_name: 'PerKernelAttn'
+model_name: 'speech_and_noise_matched_no_coch_norm'
 matched_cue_level: False 
 layernorm_first: True
-per_kernel_attn: True
 attn_constraints:
   slope: True
 hparas:                                   # Experiment hyper-parameters
-  valid_step: 500
+  valid_step: 5000
   epochs: 10
   optimizer: 'Adam'
   lr: 0.0001
@@ -57,5 +53,4 @@ hparas:                                   # Experiment hyper-parameters
   gradient_clip_val: 100 
   
 
-    
   

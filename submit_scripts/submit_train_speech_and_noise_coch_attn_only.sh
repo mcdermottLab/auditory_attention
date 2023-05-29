@@ -21,8 +21,7 @@ module add openmind/cudnn/11.5-v8.3.3.40
 module add openmind/cuda/11.3
 
 
-python train.py --config config/attentional_cue/attn_cue_speech_and_noise_coch_only.yaml\
+python train.py --config config/attentional_cue/attn_cue_speech_and_noise_coch_attn_only.yaml\
                  --gpus 4 --n_jobs 10 --mixed_precision  \
                  --exp_dir ./attn_cue_models/attn_cue_speech_and_noise_coch_attn_only\
-                --resume_training
                 

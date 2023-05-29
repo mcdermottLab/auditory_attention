@@ -49,11 +49,11 @@ model:
 
 hparas:                                   # Experiment hyper-parameters
   valid_step: 250
-  epochs: 500
+  epochs: 1000
   optimizer: 'Adam'
   lr: 0.0001
   eps: 0.00000001                         # 1e-8
-  gradient_clip_val: 10 
-  batch_size: 512                         # Gets divided by num gpus
+  gradient_clip_val: 20 
+  batch_size: 1028                         # Gets divided by num gpus
 
   

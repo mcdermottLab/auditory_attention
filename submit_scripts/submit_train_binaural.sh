@@ -3,16 +3,16 @@
 #SBATCH --job-name=cue_match_speech_and_noise
 #SBATCH --output=outLogs/train_binaural_attn_%j.out
 #SBATCH --error=outLogs/train_binaural_attn_%j.err
-#SBATCH --mem=300Gb
+#SBATCH --mem=600Gb
 #SBATCH -N 1
 ##SBATCH -w dgx002
 ## SBATCH -x node[100-115]
-#SBATCH --cpus-per-task=40
-#SBATCH --time=2-00:00:00
-#SBATCH --partition=mcdermott
-#SBATCH --gres=gpu:4 --constraint=60GB 
+#SBATCH --cpus-per-task=80
+#SBATCH --time=12:00:00
+#SBATCH --partition=multi-gpu
+#SBATCH --gres=gpu:8 --constraint=60GB 
 
-module add openmind/miniconda
+# module add openmind/miniconda
 export HDF5_USE_FILE_LOCKING=FALSE
 
 source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
@@ -22,8 +22,7 @@ module add openmind/cuda/11.3
 
 
 python3 train.py --config config/binaural_attn/dev_voice_and_loc_cue_001.yaml \
-                 --gpus 4 --n_jobs 10  \
-                 --exp_dir ./attn_cue_models/dev_binaural_cue_voiec_and_loc \
-                 --resume_training
+                 --gpus 8 --n_jobs 10  \
+                 --exp_dir ./attn_cue_models/dev_full_binaural_cue_voiec_and_loc \
                 
                 

@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH --job-name=cue_match_speech_and_noise
-#SBATCH --output=outLogs/attn_cue_match_speech_and_noise_per_kernel_attny_%j.out
-#SBATCH --error=outLogs/attn_cue_match_speech_and_noise_per_kernel_attny_%j.err
+#SBATCH --output=outLogs/attn_cue_match_speech_and_noise_per_kernel_attn_%j.out
+#SBATCH --error=outLogs/attn_cue_match_speech_and_noise_per_kernel_attn_%j.err
 #SBATCH --mem=250Gb
 #SBATCH -N 1
 ##SBATCH -w dgx002
@@ -23,6 +23,5 @@ module add openmind/cuda/11.3
 
 python train.py --config config/attentional_cue/attn_cue_speech_and_noise_per_kernel_attn.yaml\
                  --gpus 4 --n_jobs 10 \
-                 --exp_dir ./attn_cue_models/attn_cue_speech_and_noise_per_kernel_attny\
-                 --resume_training
+                 --exp_dir ./attn_cue_models/attn_cue_speech_and_noise_per_kernel_attn\
                 
