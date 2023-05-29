@@ -47,7 +47,7 @@ per_kernel_attn: True
 attn_constraints:
   slope: True
 hparas:                                   # Experiment hyper-parameters
-  valid_step: 500
+  valid_step: 1000
   epochs: 10
   optimizer: 'Adam'
   lr: 0.0001
