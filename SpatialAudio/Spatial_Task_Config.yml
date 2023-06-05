@@ -55,11 +55,4 @@ model:                                    # Model architecture
   padding: [0,0,0,0,0,0,0]
   pool_stride: [[2, 4], [1, 4], [1, 4], [1, 4], [1, 1], [1, 1], [1, 1]] 
   pool_size: [[8, 13], [8, 13], [1, 13], [1, 13], [1, 1], [1, 1], [1, 13]]
-  module: 'GRU'                        # 'LSTM'/'GRU'/'Transformer'
-  bidirection: False
-  rnn_dim: [512]
   dropout: [0.6]
-  layer_norm: [True]
-  proj: [True]      # Linear projection + Tanh after each rnn layer
-  sample_rate: [1]
-  sample_style: 'drop'                  # 'drop'/'concat'
