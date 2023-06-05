@@ -34,7 +34,6 @@ class SimpleAttentionalGain(nn.Module):
         ## account for no-cue examples - no gain scaling applied
         if cue_mask_ixs is not None:
             gain[cue_mask_ixs,:] = 1
-        print(f"{gain.shape=}")
         # Apply to mixture (element mult)
         mixture = torch.mul(mixture, gain)
         return mixture
@@ -77,7 +76,7 @@ class CNN2DExtractor(nn.Module):
         self.frequency_dim = 40
         self.n_layers = len(out_channels)
 
-        self.model_dict = OrderedDict()
+        self.model_dict = nn.ModuleDict()
         self.output_height = self.frequency_dim
         self.output_len = 20000 # softcode eventually
         self.norm_coch_rep = nn.LayerNorm([2, self.frequency_dim, self.output_len])
@@ -106,8 +105,6 @@ class CNN2DExtractor(nn.Module):
             if self.attn[idx] == 1:
                 self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nOut, global_avg_cue=global_avg_cue)
 
-        self.module_dict = nn.ModuleDict(self.model_dict)
-
         self.output_size = self.output_height * nOut * self.output_len
         self.fullyconnected = nn.Linear(self.output_size, fc_size)
         self.relufc = nn.ReLU()
@@ -134,7 +131,6 @@ class CNN2DExtractor(nn.Module):
             for idx in range(self.n_layers):
                 cue = self.model_dict[f'conv_block_{idx}'](cue)
                 attn = self.model_dict[f'conv_block_{idx}'](attn)
-                print(cue.shape, attn.shape)
                 if self.attn[idx] == 1:
                     attn = self.model_dict[f'attn{idx}'](cue, attn, cue_mask_ixs)
             out = attn
