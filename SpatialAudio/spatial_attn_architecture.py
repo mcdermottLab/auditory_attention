@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import torch.nn as nn
+from collections import OrderedDict
 from src.layers import conv2d_same
 from src.custom_modules import HannPooling2d
 
@@ -31,7 +32,9 @@ class SimpleAttentionalGain(nn.Module):
         # apply sigmoid & bias
         gain = self.bias + (1-self.bias) * torch.sigmoid(cue)
         ## account for no-cue examples - no gain scaling applied
-        gain[cue_mask_ixs,:] = 1 
+        if cue_mask_ixs is not None:
+            gain[cue_mask_ixs,:] = 1
+        print(f"{gain.shape=}")
         # Apply to mixture (element mult)
         mixture = torch.mul(mixture, gain)
         return mixture
@@ -74,10 +77,10 @@ class CNN2DExtractor(nn.Module):
         self.frequency_dim = 40
         self.n_layers = len(out_channels)
 
-        self.model_dict = nn.ModuleDict()
+        self.model_dict = OrderedDict()
         self.output_height = self.frequency_dim
         self.output_len = 20000 # softcode eventually
-        self.norm_coch_rep = nn.layerNorm([2, self.frequency_dim, self.output_len])
+        self.norm_coch_rep = nn.LayerNorm([2, self.frequency_dim, self.output_len])
         self.attn_block_in = SimpleAttentionalGain(self.frequency_dim, 2, global_avg_cue=global_avg_cue)
 
         for idx in range(self.n_layers):
@@ -89,21 +92,23 @@ class CNN2DExtractor(nn.Module):
                                   nn.ReLU(),
                                   HannPooling2d(stride=self.pool_stride[idx], pool_size=self.pool_size[idx], padding=self.pool_padding[idx]))
             self.model_dict[f'conv_block_{idx}'] = block
+            
+            # Compute output shapes using conv formula [(Height - Filter + 2Pad)/ Stride]+1
+            if self.padding[idx] == 'same':
+                pass
+            else:
+                self.output_height = int(np.floor((self.output_height - kernel[idx][0] + 2 * padding[idx]) / stride[idx][0]) + 1)
+                self.output_len = int(np.floor((self.output_len -  kernel[idx][1] + 2 * padding[idx]) / stride[idx][1]) + 1)
+            # pooling layers
+            self.output_height = int(np.floor((self.output_height - pool_size[idx][0] + 2 * pool_padding[idx][0]) / pool_stride[idx][0]) + 1)
+            self.output_len = int(np.floor((self.output_len - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
             # Attentional block:
             if self.attn[idx] == 1:
                 self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nOut, global_avg_cue=global_avg_cue)
 
-            # Compute output shapes using conv formula [(Height - Filter + 2Pad)/ Stride]+1
-            if self.padding[idx] == 'same':
-                self.output_height = int((self.output_height / stride[idx]) + 1)
-                self.output_len = int((self.output_len / stride[idx]) + 1)
-            else:
-                self.output_height = int(np.floor((self.output_height - kernel[idx][0] + 2 * padding[idx]) / stride[idx]) + 1)
-                self.output_len = int(np.floor((self.output_len -  kernel[idx][1] + 2 * padding[idx]) / stride[idx]) + 1)
-            # pooling layers
-            self.output_height = int(np.floor((self.output_height - pool_size[idx][0]) / pool_stride[idx][0]) + 1)
-            self.output_len = int(np.floor((self.output_len - pool_size[idx][1]) / pool_stride[idx][1]) + 1)
-        self.output_size = self.output_height * nOut
+        self.module_dict = nn.ModuleDict(self.model_dict)
+
+        self.output_size = self.output_height * nOut * self.output_len
         self.fullyconnected = nn.Linear(self.output_size, fc_size)
         self.relufc = nn.ReLU()
         self.dropout = nn.Dropout(dropout)
@@ -129,11 +134,12 @@ class CNN2DExtractor(nn.Module):
             for idx in range(self.n_layers):
                 cue = self.model_dict[f'conv_block_{idx}'](cue)
                 attn = self.model_dict[f'conv_block_{idx}'](attn)
+                print(cue.shape, attn.shape)
                 if self.attn[idx] == 1:
                     attn = self.model_dict[f'attn{idx}'](cue, attn, cue_mask_ixs)
             out = attn
 
-        out = out.view(out.size(0), 512*6*16) # B x FC size
+        out = out.view(out.size(0), self.output_size) # B x FC size
         out = self.fullyconnected(out)        
         out = self.relufc(out)
         out = self.dropout(out)        

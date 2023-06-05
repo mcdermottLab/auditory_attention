@@ -8,8 +8,8 @@ from pytorch_lightning import LightningModule
 import src.audio_transforms as at
 import src.audio_attention_transforms as aat
 import src.custom_modules as cm
-from src.binaural_attention_model import BinauralAttentionCNN
-from corpus.binaural_attention_h5 import BinauralAttentionDataset
+from binaural_attention_model import BinauralAttentionCNN
+from binaural_attention_h5 import BinauralAttentionDataset
 
 ## TO DO:  Import new dataset class; 
 
