@@ -1,5 +1,5 @@
 data:
-  num_classes: ['num_words', 'num_locs']                  # quarter semitone bins over 4 octaves [-2 : +2] + within note and silence 
+  num_classes: ['num_words', 'num_locs']
   task: 'location'  # can be 'location', 'word', or 'both'
   corpus:
     root:  
@@ -8,51 +8,56 @@ data:
 
   noise_kwargs: # these are unused in this model
     low_snr: 0
-    high_snr: 0 
-  audio:                                  # Attributes of audio feature
-    rep_type:  'cochlea_filt'
-    rep_kwargs:
-      sr: 20000
-      env_sr: 8000
-      n_channels: 50
-      low_lim: 40
-      use_pad: True
-      rep_on_gpu: True
-      impulse_len: 0.20
-      env_extraction_type: 'Half-wave Rectification'
-      downsampling_type: 'TorchTransformsResample'
-      downsampling_kwargs:
-        lowpass_filter_width: 64
-        rolloff: 0.9475937167399596
-        resampling_method: "kaiser_window"
-        beta: 14.769656459379492
-    compression_type: 'coch_p3'
-    compression_kwargs:
-      scale: 1
-      offset: 0.0000001   
-      clip_value: 5
-      power: 0.3
-  loader:
-    batch_size: 128
+    high_snr: 0
+
+audio:                                  # Attributes of audio feature
+rep_type:  'cochlea_filt'
+rep_kwargs:
+  sr: 50000
+  env_sr: 10000
+  n_channels: 40
+  low_lim: 40
+  use_pad: True
+  binaural: True
+  rep_on_gpu: False
+  center_crop: True
+  out_dur: 2  ## in seconds
+  impulse_len: 0.25
+  env_extraction_type: 'Half-wave Rectification'
+  downsampling_type: 'TorchTransformsResample'
+  downsampling_kwargs:
+    lowpass_filter_width: 64
+    rolloff: 0.9475937167399596
+    resampling_method: "kaiser_window"
+    beta: 14.769656459379492
+compression_type: 'coch_p3'
+compression_kwargs:
+  scale: 1
+  offset: 0.0000001   
+  clip_value: 5
+  power: 0.3
+
 
 hparas:                                   # Experiment hyper-parameters
-  valid_step: 60
+  valid_step: 250
   epochs: 500
   optimizer: 'Adam'
-  lr: 0.00001
+  lr: 0.0001
   eps: 0.00000001                         # 1e-8
-  lr_scheduler: 'fixed'                   # 'fixed'/'warmup'
-  curriculum: 0
-  class_weight_path:                      # No class weights for this task
+  gradient_clip_val: 10
+  batch_size: 512
   
   
 train_task: 'speech'
 
 model:                                    # Model architecture
-  cnn_dim: [32, 64, 128, 256, 512, 512, 512]                       
-  kernel:  [[2, 34], [2, 14], [5, 5], [5, 5], [2, 6], [2, 5], [2, 6]]
-  stride: [1,1,1,1,1,1,1]
-  padding: [0,0,0,0,0,0,0]
-  pool_stride: [[2, 4], [1, 4], [1, 4], [1, 4], [1, 1], [1, 1], [1, 1]] 
-  pool_size: [[8, 13], [8, 13], [1, 13], [1, 13], [1, 1], [1, 1], [1, 13]]
+  input_sr: 20000
+  out_channels: [32, 64, 128, 256, 512, 512, 512]                       
+  kernel:  [[2, 34], [2, 14], [5, 5], [5, 5], [6, 6], [5, 5], [6, 6]]
+  stride: [[1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1]]
+  padding: ['same', 'same', 'same', 'same', 'same', 'same', 'same']
+  pool_stride: [[2, 4], [2, 4], [1, 4], [1, 4], [1, 1], [1, 1], [2, 4]] 
+  pool_size: [[9, 13], [9, 13], [1, 13], [1, 13], [1, 1], [1, 1], [6, 13]]
+  pool_padding: [[4,6], [4,6], [0,6], [0,6], [0,0], [0,0], [3,6]]
+  attn: [1, 1, 1, 1, 1, 1, 1]
   dropout: [0.6]

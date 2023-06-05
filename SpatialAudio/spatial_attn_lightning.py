@@ -17,11 +17,6 @@ import src.custom_modules as cm
 # import psutil
 
 
-# def get_memory_usage():
-#     mem = psutil.virtual_memory()
-#     return mem.used / 1024 ** 3
-
-
 class AttnBiasConstraint(object):
     def __init__(self, min_val=0, max_val=1):
         self.min = min_val
@@ -67,18 +62,18 @@ class AttentionalTrackingModule(LightningModule):
         # Get audio transforms
 
         if self.matched_cue_level:
-        import src.audio_attention_transforms as aat
-            # from corpus.jsinV3_attn_cue_multi_source import \
-            #     jsinV3_attn_cue_multi_source
-            # self.train_val_dataset = jsinV3_attn_cue_multi_source
-            # # these transforms take cue, foreground, background as input 
-        self.audio_transforms = aat.AudioCompose([
-            aat.AudioToTensor(),
-            # aat.RMSNormalizeForegroundAndBackground(rms_level=0.1), # normalize so all signals at same level pre-mix
-            # aat.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
-            aat.RMSNormalizeMixtureAndMatchCueLevel(rms_level=0.1), # set cue to same level as target 
-            aat.UnsqueezeAudio(dim=0),
-        ])
+            import src.audio_attention_transforms as aat
+                # from corpus.jsinV3_attn_cue_multi_source import \
+                #     jsinV3_attn_cue_multi_source
+                # self.train_val_dataset = jsinV3_attn_cue_multi_source
+                # # these transforms take cue, foreground, background as input 
+            self.audio_transforms = aat.AudioCompose([
+                aat.AudioToTensor(),
+                # aat.RMSNormalizeForegroundAndBackground(rms_level=0.1), # normalize so all signals at same level pre-mix
+                # aat.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
+                aat.RMSNormalizeMixtureAndMatchCueLevel(rms_level=0.1), # set cue to same level as target 
+                aat.UnsqueezeAudio(dim=0),
+            ])
 
 
         # Check if test set is timit 
