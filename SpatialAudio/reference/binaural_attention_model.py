@@ -127,8 +127,8 @@ class BinauralAttentionCNN(nn.Module):
         self.dropout = nn.Dropout()
             
         if self.dual_task:
-            self.classificationLoc = nn.Linear(fc_size, num_Loc)
-            self.classificationWord = nn.Linear(fc_size. num_word)
+            self.classificationLoc = nn.Linear(fc_size, num_locs)
+            self.classificationWord = nn.Linear(fc_size, num_words)
         else:
             self.classification = nn.Linear(fc_size, num_classes)
             

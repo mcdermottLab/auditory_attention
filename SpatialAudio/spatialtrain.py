@@ -5,10 +5,13 @@ import pathlib
 from argparse import ArgumentParser
 import yaml
 import json
+import pickle
 
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.plugins import DDPPlugin
+from spatial_attn_lightning import BinauralAttentionModule #probably need to change this to the new name
 
 # get nodename 
 import socket
@@ -18,33 +21,37 @@ hostname = socket.gethostname()
 
 
 def run_train(args):
-    if (args.config.endswith(".json")):
-        with open(args.config, 'r') as file:
+    with open(args.config_dict, 'rb') as f:
+        model_config = pickle.load(f)
+
+    config_path = model_config[args.array_id]
+
+    if (config_path.endswith(".json")):
+        with open(config_path, 'r') as file:
             config = json.load(file)
-    elif (args.config.endswith(".yaml")):
-        config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
+    elif (config_path.endswith(".yaml")):
+        config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
     else:
         print("config file type not supported")
         print(args.config)
         return
-      
+
+    model_name = config['model_name']
+
     config['n_jobs'] = args.n_jobs
     if args.gpus > 0:
-        config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
-    else:
-        config['data']['loader']['batch_size'] = 1
-    
+        config['hparas']['batch_size'] = config['hparas']['batch_size'] // args.gpus
+
     checkpoint_dir = args.exp_dir / "checkpoints"
-    if args.ckpt_path != '':
-        ckpt_path = checkpoint_dir / args.ckpt_path
+    if args.resume_training:
+        ckpt_path = sorted(checkpoint_dir.glob("*.ckpt"))[-1]
+        model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)  
+
     else:
-        ckpt_path = None
-        
-    if  'dgx002' in hostname:
-        config['data']['corpus']['root'] = '/mnt/local-scratch/JSIN_v3.00'
-        
+        model = BinauralAttentionModule(config)
+
     callbacks = []
-    
+
     if isinstance(config['val_metric'], dict):
         for name, value in config['val_metric'].items():
             callbacks.append(ModelCheckpoint(
@@ -56,7 +63,7 @@ def run_train(args):
 #                 save_weights_only=True,
                 verbose=True,
             ))
-    
+
     else:
         callbacks.append(ModelCheckpoint(
             checkpoint_dir,
@@ -66,7 +73,7 @@ def run_train(args):
 #             save_weights_only=True,
             verbose=True,
         ))
-        
+ 
     train_checkpoint = ModelCheckpoint(
         checkpoint_dir,
         monitor="Losses/train_loss",
@@ -75,14 +82,14 @@ def run_train(args):
 #         save_weights_only=True,
         verbose=True,
     )
-    
+
     callbacks.append(train_checkpoint)
-   
+
     trainer = Trainer(
         precision=16 if args.mixed_precision else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
-    
+
        # log_every_n_steps = 10,
         detect_anomaly=False,
         num_nodes=args.num_nodes,
@@ -96,36 +103,6 @@ def run_train(args):
         callbacks=callbacks)
 
 
-    #if config['model_name'] == 'RNNT':
-    #    from src.giga_rnnt_lightning import RNNTModule
-    #    module = RNNTModule
-    #elif config['model_name'] == 'LAS':
-    #    if config['data']['corpus']['name'] == 'Librispeech':
-    #        from src.libri_las_lightning import LASModule
-    #    elif config['data']['corpus']['name'] == 'GigaSpeech':
-    #        from src.giga_las_lightning import LASModule
-    #    module = LASModule      
-    #elif config['model_name'] == 'wav2vec':
-    #    from src.wav2vec_lightning import wav2vecModule
-    #    module =wav2vecModule
-    #elif config['model_name'] == 'CochCNN':
-    #    from src.coch_word_rec_lightning import CochWordRecModule
-    #    module = CochWordRecModule
-    #elif config['model_name'] == 'CochMultiCNN':
-    #    from src.coch_multitask_lightning import CochMultiTaskModule
-    #    module = CochMultiTaskModule
-    #elif config['model_name'] == 'AttnTrackingControl':
-      #  from src.attentional_tracking_control_lightning import AttnTrackingControlModule
-     #   module = AttnTrackingControlModule
-    #elif config['model_name'] == 'AttnCNN' or 'AttnCNN' in config['model_name']:
-    from src.attn_tracking_lightning import AttentionalTrackingModule
-    module = AttentionalTrackingModule
-    
-    if ckpt_path:
-        model =  module.load_from_checkpoint(checkpoint_path=ckpt_path, config=config) 
-    else:
-        model = module(config)
-    
     trainer.fit(model)
 
 
@@ -144,12 +121,6 @@ def cli_main():
         type=str,
         help="Resume training from this checkpoint."
     )
-    # parser.add_argument(
-    #     "--global_stats_path",
-    #     default=pathlib.Path("global_stats.json"),
-    #     type=pathlib.Path,
-    #     help="Path to JSON file containing feature means and stddevs.",
-    # )
     parser.add_argument(
         "--num_nodes",
         default=1,
@@ -161,12 +132,6 @@ def cli_main():
         default=False,
         action='store_true',
         help="Use 16 bit precision in training. (Default: False)",
-    )
-    parser.add_argument(
-        "--dgx002_path",
-        default=False,
-        action='store_true',
-        help="use dgx002 jsin dataset",
     )
     parser.add_argument(
         "--gpus",

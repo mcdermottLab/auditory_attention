@@ -42,7 +42,7 @@ class SimpleAttentionalGain(nn.Module):
 class CNN2DExtractor(nn.Module):
     ''' CNN wrapper, includes relu and layer-norm if applied'''
 
-    def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout, fc_size = 512, global_avg_cue=False, num_classes={"num_words":998, "num_locs":504}, **kwargs):
+    def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout, fc_size=512, global_avg_cue=False, num_classes={"num_words":998, "num_locs":504}, **kwargs):
         super(CNN2DExtractor, self).__init__()
         # Setup
         print(f"{num_classes=}")
