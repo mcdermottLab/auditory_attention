@@ -79,8 +79,8 @@ class CNN2DExtractor(nn.Module):
         self.model_dict = nn.ModuleDict()
         self.output_height = self.frequency_dim
         self.output_len = 20000 # softcode eventually
-        self.norm_coch_rep = nn.LayerNorm([2, self.frequency_dim, self.output_len])
-        self.attn_block_in = SimpleAttentionalGain(self.frequency_dim, 2, global_avg_cue=global_avg_cue)
+        self.model_dict["norm_coch_rep"]= nn.LayerNorm([2, self.frequency_dim, self.output_len])
+        self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, 2, global_avg_cue=global_avg_cue)
 
         for idx in range(self.n_layers):
             nIn = 2 if idx == 0 else out_channels[idx - 1]
@@ -119,15 +119,15 @@ class CNN2DExtractor(nn.Module):
     def forward(self, cue=None, mixture=None, cue_mask_ixs=None):
          # pass cue through cnn & store reps
         if cue == None:
-            mixture = self.norm_coch_rep(mixture)
+            mixture = self.model_dict["norm_coch_rep"](mixture)
             for idx in range(self.n_layers):
                 mixture = self.model_dict[f'conv_block_{idx}'](mixture)
             out = mixture
 
         else:
-            cue = self.norm_coch_rep(cue)
-            mixture = self.norm_coch_rep(mixture)
-            attn = self.attn_block_in(cue, mixture, cue_mask_ixs)
+            cue = self.model_dict["norm_coch_rep"](cue)
+            mixture = self.model_dict["norm_coch_rep"](mixture)
+            attn = self.model_dict["attn_block_in"](cue, mixture, cue_mask_ixs)
             for idx in range(self.n_layers):
                 cue = self.model_dict[f'conv_block_{idx}'](cue)
                 attn = self.model_dict[f'conv_block_{idx}'](attn)

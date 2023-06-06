@@ -40,7 +40,6 @@ model_name: 'binaural_attn_cue_voice_and_loc'
 model:
   num_classes:                         # 998 words in cv vocab
     num_words: 998
-    num_locs: 504
   fc_size: 512
   global_avg_cue: False
   attn_constraints:
