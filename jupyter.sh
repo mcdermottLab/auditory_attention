@@ -2,13 +2,13 @@
 #SBATCH --job-name=jupyter_notebook
 #SBATCH --output=outLogs/notebook%j.out
 #SBATCH --error=outLogs/notebook%j.err
-#SBATCH --mem=8Gb
+#SBATCH --mem=6Gb
 #SBATCH -n 1 
 #SBATCH -N 1
 #SBATCH --time=6:00:00
 #SBATCH --partition=mcdermott
 #SBATCH --cpus-per-task=1
-#SBATCH -x dgx002
+#SBATCH -x node041
 module add openmind/miniconda
 
 

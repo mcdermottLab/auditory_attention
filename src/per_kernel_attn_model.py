@@ -69,7 +69,7 @@ class KernelAttentionalGain(nn.Module):
 
 
 class AuditoryCNN(nn.Module):
-    def __init__(self, num_classes=1000, fc_size=4096, global_avg=False, per_kernel_attn=False):
+    def __init__(self, num_classes=1000, fc_size=4096, global_avg=False, per_kernel_attn=False, **kwargs):
         super(AuditoryCNN, self).__init__()
 
         self.attn_fn = KernelAttentionalGain if per_kernel_attn else SimpleAttentionalGain

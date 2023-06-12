@@ -2,14 +2,15 @@ corpus:
   name: 'spatialized_commonvoice_gise_scenes'
   cue_type: "voice_and_location"
   task: "word"
-  root: '/om/user/imgriff/datasets/spatial_audio_pipeline/assets/spatial_attention_v1/'
+  root: '/om/user/imgriff/datasets/spatial_audio_pipeline/assets/spatial_attention_v1'
+  with_cue_free: False
 
 
 audio:                                  # Attributes of audio feature
   rep_type:  'cochlea_filt'
   rep_kwargs:
-    sr: 20000
-    env_sr: 8000
+    sr: 50000
+    env_sr: 10000
     n_channels: 40
     low_lim: 40
     use_pad: True
@@ -53,7 +54,7 @@ hparas:                                   # Experiment hyper-parameters
   optimizer: 'Adam'
   lr: 0.0001
   eps: 0.00000001                         # 1e-8
-  gradient_clip_val: 20 
-  batch_size: 1028                         # Gets divided by num gpus
+  gradient_clip_val: 100 
+  batch_size: 768                        # Gets divided by num gpus
 
   

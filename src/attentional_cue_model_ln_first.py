@@ -67,33 +67,37 @@ class KernelAttentionalGain(nn.Module):
 
 
 class AuditoryCNN(nn.Module):
-    def __init__(self, num_classes=1000, fc_size=4096, global_avg=False):
+    def __init__(self, num_classes=1000, fc_size=4096, input_width = 16000, global_avg=False):
         super(AuditoryCNN, self).__init__()
-
-        self.norm_coch_rep = nn.LayerNorm([1, 40, 16000])
+        layer_width = input_width
+        self.norm_coch_rep = nn.LayerNorm([1, 40, layer_width])
         self.attn_block_in = SimpleAttentionalGain(40, 1, global_avg=global_avg)
 
         self.conv0 = nn.Sequential(
-                    nn.LayerNorm([1, 40, 16000]),
+                    nn.LayerNorm([1, 40, layer_width]),
                     conv2d_same.create_conv2d_pad(1, 32, kernel_size = [2, 34], stride = [1, 1], padding = 'same'),
                     nn.ReLU(inplace = True),
                     HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
         )
         self.attn_block0 = SimpleAttentionalGain(20, 32, global_avg=global_avg)
 
+        layer_width = np.ceil(layer_width / 4).astype('int') # 4 is tmporal downsampling factor in pool (eg, stride[1] in last pool layer)
+
         self.conv1 = nn.Sequential(
-            nn.LayerNorm([32, 20, 4000]),
+            nn.LayerNorm([32, 20, layer_width]),
             conv2d_same.create_conv2d_pad(32, 64, kernel_size = [2, 14], stride = [1,1], padding = 'same'),
             nn.ReLU(inplace = True),
             HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
         )
         self.attn_block1 = SimpleAttentionalGain(10, 64, global_avg=global_avg)
 
+        layer_width = np.ceil(layer_width / 4).astype('int') # 4 is tmporal downsampling factor in pool (eg, stride[1] in last pool layer)
+
         self.conv2 = nn.Sequential(
-            nn.LayerNorm([64, 10, 1000]),
+            nn.LayerNorm([64, 10, layer_width]),
             conv2d_same.create_conv2d_pad(64, 256, kernel_size = [5, 5], stride = [1,1], padding = 'same'),
             nn.ReLU(inplace = True),
-            HannPooling2d(stride = [1, 4], pool_size = [1, 13], padding = [0, 6])
+            HannPooling2d(stride = [1, 4 if layer_width % 4 == 0 else 5], pool_size = [1, 13], padding = [0, 6])
         )
         self.attn_block2 = SimpleAttentionalGain(10, 256, global_avg=global_avg)
 

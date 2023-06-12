@@ -62,11 +62,11 @@ class BinauralAttentionCNN(nn.Module):
                 num_locs = num_classes['num_locs']
                 print('Model performing both location and word tasks')
 
-        self.norm_coch_rep = nn.LayerNorm([2, 40, 16000])
+        self.norm_coch_rep = nn.LayerNorm([2, 40, 20000])
         self.attn_block_in = SimpleAttentionalGain(40, 2, global_avg_cue=global_avg_cue)
 
         self.conv0 = nn.Sequential(
-                    nn.LayerNorm([2, 40, 16000]),
+                    nn.LayerNorm([2, 40, 20000]),
                     conv2d_same.create_conv2d_pad(2, 32, kernel_size = [2, 34], stride = [1, 1], padding = 'same'),
                     nn.ReLU(),
                     HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
@@ -74,7 +74,7 @@ class BinauralAttentionCNN(nn.Module):
         self.attn_block0 = SimpleAttentionalGain(20, 32, global_avg_cue=global_avg_cue)
 
         self.conv1 = nn.Sequential(
-            nn.LayerNorm([32, 20, 4000]),
+            nn.LayerNorm([32, 20, 5000]),
             conv2d_same.create_conv2d_pad(32, 64, kernel_size = [2, 14], stride = [1,1], padding = 'same'),
             nn.ReLU(),
             HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
@@ -82,10 +82,10 @@ class BinauralAttentionCNN(nn.Module):
         self.attn_block1 = SimpleAttentionalGain(10, 64, global_avg_cue=global_avg_cue)
 
         self.conv2 = nn.Sequential(
-            nn.LayerNorm([64, 10, 1000]),
+            nn.LayerNorm([64, 10, 1250]),
             conv2d_same.create_conv2d_pad(64, 256, kernel_size = [5, 5], stride = [1,1], padding = 'same'),
             nn.ReLU(),
-            HannPooling2d(stride = [1, 4], pool_size = [1, 13], padding = [0, 6])
+            HannPooling2d(stride = [1, 5], pool_size = [1, 13], padding = [0, 6])
         )
         self.attn_block2 = SimpleAttentionalGain(10, 256, global_avg_cue=global_avg_cue)
 

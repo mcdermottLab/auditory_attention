@@ -36,7 +36,7 @@ class SimpleAttentionalGain(nn.Module):
 
 
 class AuditoryCNN(nn.Module):
-    def __init__(self, num_classes=1000, fc_size=4096, global_avg=False):
+    def __init__(self, num_classes=1000, fc_size=4096, global_avg=False, **kwargs):
         super(AuditoryCNN, self).__init__()
 
         self.norm_coch_rep = nn.LayerNorm([1, 40, 16000])

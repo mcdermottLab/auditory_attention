@@ -131,6 +131,8 @@ class AttentionalTrackingModule(LightningModule):
         fc_attn_only = self.config.get('fc_attn_only', False) 
         coch_attn_only = self.config.get('coch_attn_only', False) 
         per_kernel_attn = self.config.get('per_kernel_attn', False) 
+        concat_arch = self.config.get('concat_arch', False)
+        channel_arch = self.config.get('channel_arch', False)
 
         if ln_first and not fc_attn_only:
             print('ln_first')
@@ -147,14 +149,22 @@ class AttentionalTrackingModule(LightningModule):
         if per_kernel_attn:
             print("Using attention per kernel")
             from src.per_kernel_attn_model import AuditoryCNN
+        elif concat_arch:
+            print("Using concat attention architecture")
+            from src.concat_rep_attn_arch import AuditoryCNN
+        elif channel_arch: 
+            print("Using dual channel architecture")
+            from src.dual_channel_attn_model import AuditoryCNN  
         # elif  :
         #     print("Using vanilla model")
         #     from src.attentional_cue_model import AuditoryCNN
         
         fc_size = self.data_config.get('fc_size', 4096)
         global_avg_cue = self.config.get('global_avg_cue', False)
+        input_width = int(self.audio_config['rep_kwargs']['env_sr'] * 2 ) # 2 second duration
         self.model = AuditoryCNN(self.data_config['num_words'],# vocab size
                                 fc_size=fc_size,
+                                input_width=input_width,
                                 global_avg=global_avg_cue) 
 
         # Add input rep to model or audio transforms

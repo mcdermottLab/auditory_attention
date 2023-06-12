@@ -3,6 +3,7 @@ import h5py
 import torch
 import glob
 import sys
+import os 
 # sys.path.append('/om4/group/mcdermott/user/imgriff/projects/End-to-end-ASR-Pytorch')
 # import src.audio_transforms as audio_transforms
 import pickle
@@ -11,22 +12,24 @@ import numpy as np
 
 class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
     # Makes a dataset using pre-paired speech and audioset background sounds
-    hdf5_glob = '*.hdf5_chunk000'
-
-
-    def __init__(self, root, cue_type, task, mode='train', **kwargs):
+    
+    def __init__(self, root, cue_type, task, mode='train', with_cue_free=False, **kwargs):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the 
         specified root directory. 
         """
+        self.hdf5_glob = '*.hdf5_chunk000' if with_cue_free else 'noise*.hdf5_chunk000' 
 
         if mode == 'train':
             self.all_hdf5_files = glob.glob(root + '/train/' + self.hdf5_glob)
+            # screen dead files 
+            self.all_hdf5_files = [fname for fname in self.all_hdf5_files  if os.path.getsize(fname) > 0]
         elif mode == 'val':
             self.all_hdf5_files = glob.glob(root + '/validation/' + self.hdf5_glob) 
         elif mode == 'test':
             self.all_hdf5_files = glob.glob(root + '/test/' + self.hdf5_glob) 
 
+        print(f"N {mode} files in concat dataset {len( self.all_hdf5_files)}")
         self.all_hdf5_datasets = [H5Dataset(h5_file, cue_type, task) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
@@ -35,7 +38,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         """
         Loads the mapping between the word IDX and human readable word map. 
         """
-        class_map = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_word_int_label_dict.pkl", "rb" )) 
+        class_map = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", "rb" )) 
         return class_map
 
 

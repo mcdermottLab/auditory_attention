@@ -308,7 +308,7 @@ class AudioToCochlearRep(torch.nn.Module):
         self.downsampling_op = self.downsampling(self.sr,
                                                  self.env_sr,
                                                  **self.downsampling_kwargs,
-                                                 dtype=torch.float32)
+                                                 )
         # Compression is applied as a separate transform to be consistent with Spectrograms
         # Define cochleagram
         self.Cochleagram = TimeDomainCochleagram(self.coch_filter_kwargs,
