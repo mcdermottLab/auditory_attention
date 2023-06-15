@@ -1,6 +1,6 @@
 
 from collections import namedtuple
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 import torch
 import torchmetrics
 from pytorch_lightning import LightningModule
@@ -56,10 +56,9 @@ class BinauralAttentionModule(LightningModule):
 
         self.audio_transforms = at.AudioCompose([
             at.AudioToTensor(),
-            # aat.RMSNormalizeForegroundAndBackground(rms_level=0.1), # normalize so all signals at same level pre-mix
-            # aat.CombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
-            # at.RMSNormalizesceneAndMatchCueLevel(rms_level=0.2), # set cue to same level as target 
-            at.UnsqueezeAudio(dim=0),
+            at.BinauralCombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
+            at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02), # 20 * np.log10(0.02/20e-6) = 60 dB SPL
+            at.UnsqueezeAudio(dim=0), 
         ])
 
         self.test_step = self._test_step
@@ -196,22 +195,28 @@ class BinauralAttentionModule(LightningModule):
         return fg_loss
 
     def _extract_labels(self, samples: List):
-        # 2 is harcoded - sample in samples is list of (cue, signal, label)
-        return torch.tensor([sample[2] for sample in samples]).type(torch.LongTensor)
+        # 3 is harcoded - sample in samples is list of (cue, foreground, background, label)
+        return torch.tensor([sample[3] for sample in samples]).type(torch.LongTensor)
 
     def get_cue_mask_ixs(self, cue: torch.tensor):
         cue_flat = cue.reshape(cue.shape[0], -1)
         mask_ixs = torch.argwhere(torch.sum(torch.abs(cue_flat), dim=1) == 0)
         return mask_ixs
 
-    def _extract_features(self, samples: List, sample_ix: int):
+    def _extract_features(self, samples: List, sample_ix: Union[int, list]):
         # hardcode none for bg noise here - scenes are pre-mixed
         if self.rep_on_gpu:
-            rep_features = [self.audio_transforms(sample[sample_ix], None)[0].squeeze() for sample in samples]
+            if isinstance(sample_ix, list):
+                rep_features = [self.audio_transforms(sample[sample_ix[0]], sample[sample_ix[1]])[0].squeeze() for sample in samples]
+            else:
+                rep_features = [self.audio_transforms(sample[sample_ix], None)[0].squeeze() for sample in samples]
             features = torch.nn.utils.rnn.pad_sequence(rep_features, batch_first=True)
         else:
             # are cochleagrams & need to transpose from CxFxT -> TxFxC for pad sequence
-            rep_features = [self.audio_transforms(sample[sample_ix], None)[0].transpose(0,2) for sample in samples]
+            if isinstance(sample_ix, list):
+                rep_features = [self.audio_transforms(sample[sample_ix[0]], sample[sample_ix[1]])[0].transpose(0,2) for sample in samples]
+            else:
+                rep_features = [self.audio_transforms(sample[sample_ix], None)[0].transpose(0,2) for sample in samples]
             features = torch.nn.utils.rnn.pad_sequence(rep_features, batch_first=True)
             features = features.transpose(1,3) # back to CxFxT for model
         return features
@@ -219,7 +224,7 @@ class BinauralAttentionModule(LightningModule):
     def _collate_fn(self, samples: List):
         cue_features = self._extract_features(samples, sample_ix=0)
         cue_mask_ixs = self.get_cue_mask_ixs(cue_features)
-        scene_features = self._extract_features(samples, sample_ix=1)
+        scene_features = self._extract_features(samples, sample_ix=[1,2])
         labels = self._extract_labels(samples)
         return cue_features, cue_mask_ixs, scene_features, labels
 

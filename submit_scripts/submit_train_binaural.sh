@@ -23,6 +23,6 @@ module add openmind/cuda/11.3
 
 python3 train.py --config config/binaural_attn/dev_voice_and_loc_cue_001.yaml \
                  --gpus 8 --n_jobs 10  \
-                 --exp_dir ./attn_cue_models/dev_full_binaural_cue_voiec_and_loc \
+                 --exp_dir ./attn_cue_models/binaural_word_task_cue_voiec_and_loc_v02 \
                 
                 

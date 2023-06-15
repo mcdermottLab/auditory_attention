@@ -28,8 +28,15 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
             self.all_hdf5_files = glob.glob(root + '/validation/' + self.hdf5_glob) 
         elif mode == 'test':
             self.all_hdf5_files = glob.glob(root + '/test/' + self.hdf5_glob) 
+        
 
-        print(f"N {mode} files in concat dataset {len( self.all_hdf5_files)}")
+        # read files to skip from a file
+        with open('/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02/bad_files.txt', 'r') as f:
+            files_to_skip = [line.strip() for line in f.readlines()]
+        # filter bad files from the dataset
+        self.all_hdf5_files = [fname for fname in self.all_hdf5_files if fname not in files_to_skip]
+
+        print(f"{len( self.all_hdf5_files)} files in {mode} concat dataset")
         self.all_hdf5_datasets = [H5Dataset(h5_file, cue_type, task) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
@@ -63,10 +70,10 @@ class H5Dataset(torch.utils.data.Dataset):
 
         # TO DO: Implement location and multi-task label handling
         if self.task == 'word':
-            self.label_key = 'label_word_int'
+            self.label_key = 'word_int'
 
         with h5py.File(self.file_path, 'r', swmr=True) as file:
-            self.dataset_len = len(file['signal'])
+            self.dataset_len = len(file['target'])
 
     def __getitem__(self, index):
         """
@@ -84,10 +91,11 @@ class H5Dataset(torch.utils.data.Dataset):
         cue = self.dataset[self.cue_key][index].T
         if np.isnan(cue).all():
             cue[:] = 0
-        scene = self.dataset['signal'][index].T
+        foreground = self.dataset['target'][index].T
+        background = self.dataset['bg_scene'][index].T
         # TO DO: Implement location and multi-task label handling
         label = self.dataset[self.label_key][index]
-        return cue, scene, label
+        return cue, foreground, background, label
 
     def __len__(self):
         return self.dataset_len

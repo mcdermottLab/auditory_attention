@@ -2,7 +2,7 @@ corpus:
   name: 'spatialized_commonvoice_gise_scenes'
   cue_type: "voice_and_location"
   task: "word"
-  root: '/om/user/imgriff/datasets/spatial_audio_pipeline/assets/spatial_attention_v1'
+  root: '/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
   with_cue_free: False
 
 
@@ -37,10 +37,13 @@ audio:                                  # Attributes of audio feature
 val_metric: 'ACC/val_acc'
 model_name: 'binaural_attn_cue_voice_and_loc'
 
+noise_kwargs: # parameters for background signal levels 
+  low_snr: -10
+  high_snr: 10
 
 model:
   num_classes:                         # 998 words in cv vocab
-    num_words: 998
+    num_words: 800
     # num_locs: 504
   fc_size: 512
   global_avg_cue: False
