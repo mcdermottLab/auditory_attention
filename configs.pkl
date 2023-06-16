@@ -1,0 +1,8 @@
+(lp0
+S'/om2/user/rphess/Auditory-Attention/config/binaural_attn/markitecture.yml'
+p1
+aS'/om2/user/rphess/Auditory-Attention/config/binaural_attn/Spatial_Task_Config.yml'
+p2
+aS'/om2/user/rphess/Auditory-Attention/config/binaural_attn/markitecture_mrk2.yml'
+p3
+a.

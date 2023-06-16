@@ -96,8 +96,8 @@ class CNN2DExtractor(nn.Module):
             if self.padding[idx] == 'same':
                 pass
             else:
-                self.output_height = int(np.floor((self.output_height - kernel[idx][0] + 2 * padding[idx]) / stride[idx][0]) + 1)
-                self.output_len = int(np.floor((self.output_len -  kernel[idx][1] + 2 * padding[idx]) / stride[idx][1]) + 1)
+                self.output_height = int(np.floor((self.output_height - kernel[idx][0] + 2 * padding[idx][0]) / stride[idx][0]) + 1)
+                self.output_len = int(np.floor((self.output_len -  kernel[idx][1] + 2 * padding[idx][1]) / stride[idx][1]) + 1)
             # pooling layers
             self.output_height = int(np.floor((self.output_height - pool_size[idx][0] + 2 * pool_padding[idx][0]) / pool_stride[idx][0]) + 1)
             self.output_len = int(np.floor((self.output_len - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)

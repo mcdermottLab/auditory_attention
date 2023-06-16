@@ -48,10 +48,10 @@ hparas:                                   # Experiment hyper-parameters
   lr: 0.0001
   eps: 0.00000001                         # 1e-8
   gradient_clip_val: 100 
-  batch_size: 768                        # Gets divided by num gpus
+  batch_size: 400                        # Gets divided by num gpus
 
 model:                                    # Model architecture
-  input_sr: 20000
+  input_sr: 10000
   out_channels: [32, 64, 256, 512, 512, 512, 512]                       
   kernel:  [[2, 34], [2, 14], [5, 5], [5, 5], [6, 6], [5, 5], [6, 6]]
   stride: [[1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1]]

@@ -29,20 +29,23 @@ def run_train(args):
     if (config_path.endswith(".json")):
         with open(config_path, 'r') as file:
             config = json.load(file)
-    elif (config_path.endswith(".yaml")):
+    elif (config_path.endswith(".yml")):
         config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
     else:
         print("config file type not supported")
-        print(args.config)
+        print(config_path)
         return
+
+    config_path = pathlib.Path(config_path)
 
     model_name = config['model_name']
 
-    config['n_jobs'] = args.n_jobs
+    config['num_workers'] = args.n_jobs
     if args.gpus > 0:
         config['hparas']['batch_size'] = config['hparas']['batch_size'] // args.gpus
 
-    checkpoint_dir = args.exp_dir / "checkpoints"
+    checkpoint_dir = args.exp_dir / f"{config_path.stem}/checkpoints"
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
     if args.resume_training:
         ckpt_path = sorted(checkpoint_dir.glob("*.ckpt"))[-1]
         model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)  
@@ -91,7 +94,7 @@ def run_train(args):
         max_epochs=config['hparas']['epochs'],
 
        # log_every_n_steps = 10,
-        detect_anomaly=False,
+        detect_anomaly=True,
         num_nodes=args.num_nodes,
         gpus=args.gpus,
         accelerator="gpu" if args.gpus > 0 else 'cpu',
@@ -146,6 +149,7 @@ def cli_main():
     type=int,
     help="Number of CPUs for dataloader. (Default: 0)",
     )
+    parser.add_argument('--resume_training', default=False, help='Resume training from checkpoint.')
     args = parser.parse_args()
 
     run_train(args)
