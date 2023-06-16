@@ -1,0 +1,69 @@
+corpus:
+  name: 'spatialized_commonvoice_gise_scenes'
+  cue_type: "voice_and_location"
+  task: "word"
+  root: '/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
+  with_cue_free: False
+
+
+audio:                                  # Attributes of audio feature
+  rep_type:  'cochlea_filt'
+  rep_kwargs:
+    sr: 50000
+    env_sr: 10000
+    n_channels: 40
+    low_lim: 40
+    use_pad: True
+    binaural: True
+    rep_on_gpu: True
+    center_crop: True
+    out_dur: 2  ## in seconds
+    impulse_len: 0.25
+    env_extraction_type: 'Half-wave Rectification'
+    downsampling_type: 'TorchTransformsResample'
+    downsampling_kwargs:
+      lowpass_filter_width: 64
+      rolloff: 0.9475937167399596
+      resampling_method: "kaiser_window"
+      beta: 14.769656459379492
+  compression_type: 'coch_p3'
+  compression_kwargs:
+    scale: 1
+    offset: 0.0000001   
+    clip_value: 5
+    power: 0.3
+
+
+val_metric: 'ACC/val_acc'
+model_name: 'binaural_attn_cue_voice_and_loc'
+
+noise_kwargs: # parameters for background signal levels 
+  low_snr: -10
+  high_snr: 10
+
+hparas:                                   # Experiment hyper-parameters
+  valid_step: 250
+  epochs: 1000
+  optimizer: 'Adam'
+  lr: 0.0001
+  eps: 0.00000001                         # 1e-8
+  gradient_clip_val: 100 
+  batch_size: 400                        # Gets divided by num gpus
+
+model:                                    # Model architecture
+  input_sr: 10000
+  out_channels: [32, 64, 128, 256, 512, 512, 512]                       
+  kernel:  [[2, 42], [2, 18], [6, 6], [6, 6], [8, 8], [6, 6], [8, 8]]
+  stride: [[1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1]]
+  padding: [[0,0], [0,0], [3,0], [3, 0], [3,0], [3,0], [3,0]]
+  pool_stride: [[2, 4], [2, 4], [1, 4], [1, 4], [1, 1], [1, 1], [2, 4]] 
+  pool_size: [[8, 16], [8, 16], [1, 16], [1, 16], [1, 1], [1, 1], [8, 16]]
+  pool_padding: [[3,0], [3,0], [0,0], [0,0], [0,0], [0,0], [4,0]]
+  attn: [1, 1, 1, 1, 1, 1, 1]
+  num_classes:                         # 998 words in cv vocab
+    num_words: 800
+  fc_size: 512
+  global_avg_cue: False
+  dropout: 0.5
+  attn_constraints:
+    slope: True
