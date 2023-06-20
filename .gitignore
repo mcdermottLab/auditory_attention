@@ -133,3 +133,6 @@ corpus/jsinV3AttnTrackVal_v1.py
 
 # h5 file
 *.h5
+
+# checkpoint file
+*.ckpt
