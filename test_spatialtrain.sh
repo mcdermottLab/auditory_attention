@@ -5,10 +5,10 @@
 #SBATCH --mem=300Gb
 #SBATCH -N 1
 #SBATCH --cpus-per-task=40
-#SBATCH --time=48:00:00
+#SBATCH --time=24:00:00
 #SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:4 --constraint=60GB 
-#SBATCH --array=0-2
+#SBATCH --array=0
 
 source /etc/profile.d/modules.sh
 module use /cm/shared/modulefiles
@@ -21,7 +21,7 @@ module add openmind/cudnn/11.5-v8.3.3.40
 module add openmind/cuda/11.3
 
 
-python3 spatialtrain.py --config_list configs.pkl --job_id $SLURM_ARRAY_TASK_ID\
+python3 spatialtrain.py --config_list loc_loc.pkl --job_id $SLURM_ARRAY_TASK_ID\
                  --gpus 4 --n_jobs 10  \
                  --exp_dir attn_cue_models \
 

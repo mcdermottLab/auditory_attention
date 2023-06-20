@@ -1,6 +1,7 @@
 
 from collections import namedtuple
 from typing import List, Tuple, Optional, Union
+import numpy as np
 import torch
 import torchmetrics
 from pytorch_lightning import LightningModule
@@ -50,6 +51,7 @@ class BinauralAttentionModule(LightningModule):
         self.corpora_config = config['corpus']
         self.model_config = config['model']
         self.hparas_config = config['hparas']
+        self.multi_task = self.corpora_config['task'] == 'word_and_location'
 
         # set dataset as attribute
         self.dataset = BinauralAttentionDataset 
@@ -87,10 +89,16 @@ class BinauralAttentionModule(LightningModule):
         self.loss_fn = torch.nn.CrossEntropyLoss()
 
         # Set up metrics
-        self.train_acc = torchmetrics.Accuracy()
-        self.valid_acc = torchmetrics.Accuracy()
-        self.test_acc = torchmetrics.Accuracy()
-        self.test_confusion = torchmetrics.Accuracy()
+        if self.multi_task:
+            self.train_acc = torch.nn.ModuleDict({'word':torchmetrics.Accuracy(), 'location':torchmetrics.Accuracy()})
+            self.valid_acc = torch.nn.ModuleDict({'word':torchmetrics.Accuracy(), 'location':torchmetrics.Accuracy()})
+            self.test_acc = torch.nn.ModuleDict({'word':torchmetrics.Accuracy(), 'location':torchmetrics.Accuracy()})
+            self.test_confusion = torch.nn.ModuleDict({'word': torchmetrics.Accuracy(), 'location': torchmetrics.Accuracy()})
+        else:
+            self.train_acc = torchmetrics.Accuracy()
+            self.valid_acc = torchmetrics.Accuracy()
+            self.test_acc = torchmetrics.Accuracy()
+            self.test_confusion = torchmetrics.Accuracy()
         self.accuracy = {'train': self.train_acc,
                          'val': self.valid_acc,
                          'test': self.test_acc,
@@ -115,13 +123,26 @@ class BinauralAttentionModule(LightningModule):
         cue_features, cue_mask_ixs, scene_features, labels = batch
 
         # self() is self.forward()
-        outputs = self(cue_features, scene_features, cue_mask_ixs) 
-        loss = self.loss_fn(outputs, labels)
-        self.accuracy[step_type](outputs, labels)
-        self.log(f"Losses/{step_type}_loss", loss.detach(), on_step=True, on_epoch=False)        
-        self.log(f"ACC/{step_type}_acc", self.accuracy[step_type], on_step=False, on_epoch=True)
+        outputs = self(cue_features, scene_features, cue_mask_ixs)
+        if self.multi_task:
+            word, location = outputs
+            word_label, location_label = labels
+            print(labels)
+            word_loss = self.loss_fn(word, word_label)
+            loc_loss = self.loss_fn(location, location_label)
+            loss = word_loss + loc_loss
+            self.accuracy[step_type]['word'](word, word_label) # word accuracy
+            self.accuracy[step_type]['location'](location, location_label) # location accuracy
+            self.log(f"Losses/{step_type}_loss", loss.detach(), on_step=True, on_epoch=False)
+            self.log(f"ACC/{step_type}_word_acc", self.accuracy[step_type]['word'], on_step=False, on_epoch=True)
+            self.log(f"ACC/{step_type}_location_acc", self.accuracy[step_type]['location'], on_step=False, on_epoch=True)
+        else:
+            loss = self.loss_fn(outputs, labels)
+            self.accuracy[step_type](outputs, labels)
+            self.log(f"Losses/{step_type}_loss", loss.detach(), on_step=True, on_epoch=False)
+            self.log(f"ACC/{step_type}_acc", self.accuracy[step_type], on_step=False, on_epoch=True)
         return loss
-    
+
     def on_before_zero_grad(self, *args, **kwargs):
         for module in self.attn_modules:
             module.apply(self.bias_constraint)
@@ -130,7 +151,7 @@ class BinauralAttentionModule(LightningModule):
 
     def configure_optimizers(self):
         return [self.optimizer]
-        
+
     def forward(self, cue: torch.tensor, scene: torch.tensor, cue_mask_ixs: torch.tensor):
         outputs = self.model(cue, scene, cue_mask_ixs)
         # Outputs here are logits
@@ -195,8 +216,8 @@ class BinauralAttentionModule(LightningModule):
         return fg_loss
 
     def _extract_labels(self, samples: List):
-        # 3 is harcoded - sample in samples is list of (cue, foreground, background, label)
-        return torch.tensor([sample[3] for sample in samples]).type(torch.LongTensor)
+        # idx=3 is harcoded - sample in samples is list of (cue, foreground, background, label)
+        return torch.tensor(np.array([sample[3] for sample in samples])).type(torch.LongTensor)
 
     def get_cue_mask_ixs(self, cue: torch.tensor):
         cue_flat = cue.reshape(cue.shape[0], -1)
@@ -222,6 +243,7 @@ class BinauralAttentionModule(LightningModule):
         return features
 
     def _collate_fn(self, samples: List):
+        samples = [sample for sample in samples if sample[0] is not None]
         cue_features = self._extract_features(samples, sample_ix=0)
         cue_mask_ixs = self.get_cue_mask_ixs(cue_features)
         scene_features = self._extract_features(samples, sample_ix=[1,2])

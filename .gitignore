@@ -130,3 +130,6 @@ result
 *.swp
 eg_gen_architecture.py
 corpus/jsinV3AttnTrackVal_v1.py
+
+# h5 file
+*.h5

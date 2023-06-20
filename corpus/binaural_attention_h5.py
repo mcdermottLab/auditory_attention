@@ -50,7 +50,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
 
 
 class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path, cue_type, task):
+    def __init__(self, path, cue_type, task, skip_negative_elev=True):
         """
         Builds a pytorch hdf5 dataset
         Args:
@@ -60,6 +60,7 @@ class H5Dataset(torch.utils.data.Dataset):
         self.file_path = path
         self.dataset = None
         self.task = task
+        self.skip_negative_elev = skip_negative_elev
 
         if cue_type == 'voice_and_location':
             self.cue_key = 'voice_cue_target_loc'
@@ -68,12 +69,18 @@ class H5Dataset(torch.utils.data.Dataset):
         elif cue_type == "location":
             self.cue_key = "loc_cue"
 
-        # TO DO: Implement location and multi-task label handling
         if self.task == 'word':
             self.label_key = 'word_int'
+        if self.task == 'location':
+            self.label_key = ('label_loc_target_azim', 'label_loc_target_elev')
+        if self.task == 'word_and_location':
+            self.label_key = ('word_int', 'label_loc_target_azim', 'label_loc_target_elev')
 
         with h5py.File(self.file_path, 'r', swmr=True) as file:
             self.dataset_len = len(file['target'])
+
+    def azim_elev_to_label(self, azim, elev):
+            return np.array(((elev / 10) * 72) + (azim / 5) + 1, dtype=np.int64)
 
     def __getitem__(self, index):
         """
@@ -93,8 +100,22 @@ class H5Dataset(torch.utils.data.Dataset):
             cue[:] = 0
         foreground = self.dataset['target'][index].T
         background = self.dataset['bg_scene'][index].T
-        # TO DO: Implement location and multi-task label handling
-        label = self.dataset[self.label_key][index]
+
+        if self.skip_negative_elev and self.dataset['label_loc_target_elev'][index] < 0:
+            return None, None, None, None
+
+        if self.task == 'word':
+            label = self.dataset[self.label_key][index]
+        elif self.task == 'location':
+            azim = self.dataset[self.label_key[0]][index]
+            elev = self.dataset[self.label_key[1]][index]
+            label = self.azim_elev_to_label(azim, elev)
+        else:
+            azim = self.dataset[self.label_key[1]][index]
+            elev = self.dataset[self.label_key[2]][index]
+            word = self.dataset[self.label_key[0]][index]
+            loc = self.azim_elev_to_label(azim, elev)
+            label = (word, loc)
         return cue, foreground, background, label
 
     def __len__(self):
