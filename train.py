@@ -5,8 +5,9 @@ import pathlib
 from argparse import ArgumentParser
 import yaml
 import json
+import os
 
-from pytorch_lightning import Trainer
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.plugins import DDPPlugin
 
@@ -18,6 +19,9 @@ hostname = socket.gethostname()
 
 
 def run_train(args):
+
+    seed_everything(args.random_seed)
+
     if (args.config.endswith(".json")):
         with open(args.config, 'r') as file:
             config = json.load(file)
@@ -128,7 +132,8 @@ def run_train(args):
     
     if args.resume_training or ckpt_path:
         if ckpt_path is None:
-            ckpt_path = sorted(checkpoint_dir.glob("*.ckpt"))[-1]
+            ckpt_path = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)[-1]
+        print(f"Loading checkpoint from {ckpt_path}")
         model = module.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)  
     else:
         model = module(config)
@@ -192,6 +197,12 @@ def cli_main():
         default=False,
         action='store_true',
         help="Continue training from checkpoint",
+    )
+    parser.add_argument(
+        "--random_seed",
+        default=0,
+        type=int,
+        help="random seed value",
     )
     args = parser.parse_args()
 
