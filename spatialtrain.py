@@ -3,6 +3,7 @@
 
 import pathlib
 from argparse import ArgumentParser
+import os
 import yaml
 import json
 import pickle
@@ -23,6 +24,8 @@ hostname = socket.gethostname()
 def run_train(args):
     with open(args.config_list, 'rb') as f:
         model_config = pickle.load(f)
+
+    seed_everything(args.random_seed)
 
     config_path = model_config[args.job_id]
 
@@ -46,10 +49,11 @@ def run_train(args):
 
     checkpoint_dir = args.exp_dir / f"{config_path.stem}/checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
-    if args.resume_training:
-        ckpt_path = sorted(checkpoint_dir.glob("*.ckpt"))[-1]
-        model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)  
 
+    if args.resume_training:
+        ckpt_path = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)[-1]
+        model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
+        print('Resuming training from checkpoint: ', ckpt_path)
     else:
         model = BinauralAttentionModule(config)
 
@@ -63,7 +67,7 @@ def run_train(args):
                 monitor=value,
                 mode="max",
                 save_top_k=1,
-#                 save_weights_only=True,
+                save_weights_only=True,
                 verbose=True,
             ))
 
@@ -73,16 +77,16 @@ def run_train(args):
             monitor=f"{config['val_metric']}",
             mode="max" if 'ACC' in config['val_metric'] else "min",
             save_top_k=1,
-#             save_weights_only=True,
+            save_weights_only=True,
             verbose=True,
         ))
- 
+
     train_checkpoint = ModelCheckpoint(
         checkpoint_dir,
         monitor="Losses/train_loss",
         mode="min",
         save_top_k=1,
-#         save_weights_only=True,
+        save_weights_only=True,
         verbose=True,
     )
 
@@ -149,6 +153,7 @@ def cli_main():
     type=int,
     help="Number of CPUs for dataloader. (Default: 0)",
     )
+    parser.add_argument('--random_seed', default=0, type=int, help='Random seed for dataset.')
     parser.add_argument('--resume_training', default=False, help='Resume training from checkpoint.')
     args = parser.parse_args()
 

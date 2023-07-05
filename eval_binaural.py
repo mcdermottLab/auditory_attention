@@ -9,48 +9,12 @@ import pickle
 from pytorch_lightning import Trainer, seed_everything
 # from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger
-from src.attn_tracking_lightning import AttentionalTrackingModule
-# from src.attentional_tracking_control_lightning import AttnTrackingControlModule
-# from src.attn_rove_rms_lightning import AttnRoveRMSModule
+from src.spatial_attn_lightning import AttentionalTrackingModule
 
 
 seed_everything(1)
 
 def run_eval(args):
-    
-    
-    # with open(args.eval_cond_file, 'rb') as f:
-    #     eval_conditions = pickle.load(f)
-        
-    # model_name, snr, num_bg_talkers = eval_conditions[args.array_id]
-    
-#     model_name = "MultiDistractorAttnCNN"
-# # if "AttnCNN" in model_name:
-#     config_name = "config/attentional_cue/attn_cue_high_snr_lr_1e-4_bs_64.yaml"
-#     if model_name == "AttnCNN":
-#         checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_bs_64_lr_1e-4/checkpoints/epoch=1-step=120790.ckpt"
-
-#     elif model_name == "AttnCNNConstrained":
-#         checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_pos_slope_bs_64_lr_1e-4/checkpoints/epoch=0-step=65000-v1.ckpt"
-
-#     elif model_name == "AttnCNNPosSlope":
-#         checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_pos_slope_bs_64_lr_1e-4/checkpoints/epoch=1-step=95791.ckpt"
-
-#     elif model_name == "AttnCNNOnlyNorm":
-#         checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_bs_64_lr_1e-4/checkpoints/epoch=1-step=135791.ckpt"
-            
-#     elif model_name == "AttnTrackingControl":
-#         config_name = "config/attentional_cue/attn_tracking_control_high_snr.yaml"
-#         checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/multi_talker_control/jsin_precombined_gammatone_40_channels_20kHz_on_gpu_1e-4lr/checkpoints/epoch=5-step=741324.ckpt"
-        
-#     elif model_name == "AudiosetBackground":
-#         config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64_constrained_slope_noise_only.yaml"
-#         checkpoint_path = "/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_audset_bg_fully_constrained_bs_64_lr_1e-4/checkpoints/epoch=1-step=140791.ckpt"
-        
-#     elif model_name == "MultiDistractorAttnCNN":
-#         config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64_constrained_slope_multi_distractor.yaml"
-#         checkpoint_path = "/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_multi_distractor_w_audioset_bs_64_lr_1e-4/checkpoints/epoch=0-step=70000.ckpt"
-    
     model_name = args.model_name
     checkpoint_path = args.ckpt_path
     config = yaml.load(open(args.config_name, 'r'), Loader=yaml.FullLoader)
@@ -110,7 +74,7 @@ def run_eval(args):
         accelerator="gpu" if args.gpus > 0 else 'cpu',
         logger=logger
     )
-    
+
     # load model checkpoint 
     print(checkpoint_path)
     if model_name == 'AttnTrackingControl':
@@ -140,7 +104,7 @@ def cli_main():
     )
     parser.add_argument(
         "--model_name",
-        default='MultiDistractorAttnCNN',
+        default='BinauralAttn_Word_Task_Both_Cue',
         type=str,
         help="Name of model to use in file name.",
     )
@@ -154,13 +118,13 @@ def cli_main():
         "--num_nodes",
         default=1,
         type=int,
-        help="Number of nodes to use for evaluation. (Default: 1)",
+        help="Number of nodes to use for training. (Default: 1)",
     )
     parser.add_argument(
         "--gpus",
         default=1,
         type=int,
-        help="Number of GPUs per node to use for evaluation. (Default: 1)",
+        help="Number of GPUs per node to use for training. (Default: 1)",
     )
     parser.add_argument(
         "--n_jobs",
@@ -179,25 +143,7 @@ def cli_main():
         default=False,
         action='store_true',
         help="get target-distractor confusions",
-    )
-    parser.add_argument(
-        "--harmonic",
-        default=False,
-        action='store_true',
-        help="run using harmonic speech",
     )  
-    parser.add_argument(
-        "--whispered",
-        default=False,
-        action='store_true',
-        help="run using whispered speech",
-    )    
-    parser.add_argument(
-        "--inharmonic",
-        default=False,
-        action='store_true',
-        help="run using inharmonic speech",
-    )    
     parser.add_argument(
         "--clean_targets",
         default=False,

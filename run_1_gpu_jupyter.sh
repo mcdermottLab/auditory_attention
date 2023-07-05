@@ -4,10 +4,10 @@
 #SBATCH --error=outLogs/notebook%j.err
 #SBATCH --mem=60Gb
 #SBATCH --cpus-per-task=10
-#SBATCH --time=3:00:00
-#SBATCH --partition=normal
+#SBATCH --time=4:00:00
+#SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:1
-#SBATCH -x node112
+#SBATCH -x node084
 source ~/.bashrc
 
 module add openmind/miniconda

@@ -13,7 +13,7 @@ import numpy as np
 class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
     # Makes a dataset using pre-paired speech and audioset background sounds
     
-    def __init__(self, root, cue_type, task, mode='train', with_cue_free=False, **kwargs):
+    def __init__(self, root, cue_type, task, skip_negative_elev=False, mode='train', with_cue_free=False, **kwargs):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the 
         specified root directory. 
@@ -31,13 +31,13 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         
 
         # read files to skip from a file
-        with open('/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02/bad_files.txt', 'r') as f:
-            files_to_skip = [line.strip() for line in f.readlines()]
+        with open('/om/scratch/Wed/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02/bad_files.txt', 'r') as f:
+            files_to_skip = [line.strip().split('/')[-1] for line in f.readlines()]
         # filter bad files from the dataset
-        self.all_hdf5_files = [fname for fname in self.all_hdf5_files if fname not in files_to_skip]
+        self.all_hdf5_files = [fname for fname in self.all_hdf5_files if fname.split('/')[-1] not in files_to_skip]
 
         print(f"{len( self.all_hdf5_files)} files in {mode} concat dataset")
-        self.all_hdf5_datasets = [H5Dataset(h5_file, cue_type, task) for h5_file in self.all_hdf5_files]
+        self.all_hdf5_datasets = [H5Dataset(h5_file, cue_type, task, skip_negative_elev) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
 
@@ -50,7 +50,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
 
 
 class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path, cue_type, task, skip_negative_elev=True):
+    def __init__(self, path, cue_type, task, skip_negative_elev=False):
         """
         Builds a pytorch hdf5 dataset
         Args:
@@ -111,9 +111,9 @@ class H5Dataset(torch.utils.data.Dataset):
             elev = self.dataset[self.label_key[1]][index]
             label = self.azim_elev_to_label(azim, elev)
         else:
+            word = self.dataset[self.label_key[0]][index]
             azim = self.dataset[self.label_key[1]][index]
             elev = self.dataset[self.label_key[2]][index]
-            word = self.dataset[self.label_key[0]][index]
             loc = self.azim_elev_to_label(azim, elev)
             label = (word, loc)
         return cue, foreground, background, label

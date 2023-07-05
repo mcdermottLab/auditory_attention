@@ -1,14 +1,14 @@
 #!/bin/bash
-#SBATCH --job-name=cue_match_speech_and_noise
+#SBATCH --job-name=train_binaural_attn
 #SBATCH --output=outLogs/train_binaural_attn_%A_%a.out
 #SBATCH --error=outLogs/train_binaural_attn_%A_%a.err
-#SBATCH --mem=300Gb
+#SBATCH --mem=800Gb
 #SBATCH -N 1
-#SBATCH --cpus-per-task=40
-#SBATCH --time=24:00:00
-#SBATCH --partition=mcdermott
-#SBATCH --gres=gpu:4 --constraint=60GB 
-#SBATCH --array=0
+#SBATCH --cpus-per-task=80
+#SBATCH --time=12:00:00
+#SBATCH --partition=multi-gpu
+#SBATCH --gres=gpu:8 --constraint=60GB 
+#SBATCH --array=6
 
 source /etc/profile.d/modules.sh
 module use /cm/shared/modulefiles
@@ -21,7 +21,7 @@ module add openmind/cudnn/11.5-v8.3.3.40
 module add openmind/cuda/11.3
 
 
-python3 spatialtrain.py --config_list loc_loc.pkl --job_id $SLURM_ARRAY_TASK_ID\
-                 --gpus 4 --n_jobs 10  \
+python3 spatialtrain.py --config_list most_tasks_06_26.pkl --job_id $SLURM_ARRAY_TASK_ID\
+                 --gpus 8 --n_jobs 10  --resume_training True --random_seed 5\
                  --exp_dir attn_cue_models \
 

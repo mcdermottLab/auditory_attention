@@ -1,0 +1,16 @@
+(lp0
+S'/om2/user/rphess/Auditory-Attention/config/binaural_attn/both_task_both_cue.yml'
+p1
+aS'/om2/user/rphess/Auditory-Attention/config/binaural_attn/both_task_location_cue.yml'
+p2
+aS'/om2/user/rphess/Auditory-Attention/config/binaural_attn/both_task_voice_cue.yml'
+p3
+aS'/om2/user/rphess/Auditory-Attention/config/binaural_attn/location_task_voice_cue.yml'
+p4
+aS'/om2/user/rphess/Auditory-Attention/config/binaural_attn/markitecture.yml'
+p5
+aS'/om2/user/rphess/Auditory-Attention/config/binaural_attn/word_task_location_cue.yml'
+p6
+aS'/om2/user/rphess/Auditory-Attention/config/binaural_attn/word_task_voice_cue.yml'
+p7
+a.

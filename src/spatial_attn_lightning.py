@@ -126,8 +126,8 @@ class BinauralAttentionModule(LightningModule):
         outputs = self(cue_features, scene_features, cue_mask_ixs)
         if self.multi_task:
             word, location = outputs
-            word_label, location_label = labels
-            print(labels)
+            word_label = labels[:,0]
+            location_label = labels[:,1]
             word_loss = self.loss_fn(word, word_label)
             loc_loss = self.loss_fn(location, location_label)
             loss = word_loss + loc_loss
@@ -164,6 +164,7 @@ class BinauralAttentionModule(LightningModule):
         return self._step(batch, batch_idx, "val")
 
     def _test_step(self, batch, batch_idx):
+        # TODO - re-write the test step to make sure we get this right
         bg_labels = None
         if  self.audioset_bg_test or self.n_test_talkers and not self.matched_cue_level:
             signal, fg_cue, fg_labels = batch
@@ -258,7 +259,8 @@ class BinauralAttentionModule(LightningModule):
             batch_size=self.hparas_config['batch_size'],
             num_workers=self.config['num_workers'], 
             collate_fn=self._collate_fn,
-            pin_memory=True
+            pin_memory=True,
+            shuffle=True,
         )
         return dataloader
 

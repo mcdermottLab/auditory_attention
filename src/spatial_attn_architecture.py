@@ -117,7 +117,7 @@ class CNN2DExtractor(nn.Module):
             self.classification = nn.Linear(fc_size, num_classes)
 
     def forward(self, cue=None, mixture=None, cue_mask_ixs=None):
-         # pass cue through cnn & store reps
+        # pass cue through cnn & store reps
         if cue == None:
             mixture = self.model_dict["norm_coch_rep"](mixture)
             for idx in range(self.n_layers):
