@@ -3,7 +3,7 @@
 #SBATCH --job-name=cue_match_speech_and_noise
 #SBATCH --output=outLogs/train_binaural_attn_%j.out
 #SBATCH --error=outLogs/train_binaural_attn_%j.err
-#SBATCH --mem=600Gb
+#SBATCH --mem=800Gb
 #SBATCH -N 1
 ##SBATCH -w dgx002
 ## SBATCH -x node[100-115]
@@ -24,5 +24,7 @@ module add openmind/cuda/11.3
 python3 train.py --config config/binaural_attn/dev_voice_and_loc_cue_001.yaml \
                  --gpus 8 --n_jobs 10  \
                  --exp_dir ./attn_cue_models/binaural_word_task_cue_voiec_and_loc_v02 \
+                 --resume_training \
+                 --random_seed 22
                 
                 

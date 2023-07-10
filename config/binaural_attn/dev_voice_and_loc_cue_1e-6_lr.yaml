@@ -2,7 +2,7 @@ corpus:
   name: 'spatialized_commonvoice_gise_scenes'
   cue_type: "voice_and_location"
   task: "word"
-  root: '/om/scratch/Wed/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
+  root: '/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
   with_cue_free: False
 
 
@@ -55,7 +55,7 @@ hparas:                                   # Experiment hyper-parameters
   valid_step: 250
   epochs: 1000
   optimizer: 'Adam'
-  lr: 0.0001
+  lr: 0.000001
   eps: 0.00000001                         # 1e-8
   gradient_clip_val: 100 
   batch_size: 768                        # Gets divided by num gpus
