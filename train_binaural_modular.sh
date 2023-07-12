@@ -5,9 +5,9 @@
 #SBATCH --mem=800Gb
 #SBATCH -N 1
 #SBATCH --cpus-per-task=80
-#SBATCH --time=12:00:00
+#SBATCH --time=11:05:00
 #SBATCH --partition=multi-gpu
-#SBATCH --gres=gpu:8 --constraint=60GB 
+#SBATCH --gres=gpu:a100:8 --constraint=60GB 
 #SBATCH --array=6
 
 source /etc/profile.d/modules.sh
@@ -22,6 +22,6 @@ module add openmind/cuda/11.3
 
 
 python3 spatialtrain.py --config_list most_tasks_06_26.pkl --job_id $SLURM_ARRAY_TASK_ID\
-                 --gpus 8 --n_jobs 10  --resume_training True --random_seed 5\
+                 --gpus 8 --n_jobs 10 --resume_training True --random_seed 0\
                  --exp_dir attn_cue_models \
 

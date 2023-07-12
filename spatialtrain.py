@@ -155,6 +155,7 @@ def cli_main():
     )
     parser.add_argument('--random_seed', default=0, type=int, help='Random seed for dataset.')
     parser.add_argument('--resume_training', default=False, help='Resume training from checkpoint.')
+    parser.add_argument('--negative_elevs', default=False, help='Use negative elevations in training.')
     args = parser.parse_args()
 
     run_train(args)

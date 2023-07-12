@@ -31,7 +31,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         
 
         # read files to skip from a file
-        with open('/om/scratch/Wed/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02/bad_files.txt', 'r') as f:
+        with open('/om/scratch/Tue/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02/bad_files.txt', 'r') as f:
             files_to_skip = [line.strip().split('/')[-1] for line in f.readlines()]
         # filter bad files from the dataset
         self.all_hdf5_files = [fname for fname in self.all_hdf5_files if fname.split('/')[-1] not in files_to_skip]
@@ -61,6 +61,10 @@ class H5Dataset(torch.utils.data.Dataset):
         self.dataset = None
         self.task = task
         self.skip_negative_elev = skip_negative_elev
+        # if self.skip_negative_elev:
+        #     print("Skipping negative elevations")
+        # else:
+        #     print("Including negative elevations")
 
         if cue_type == 'voice_and_location':
             self.cue_key = 'voice_cue_target_loc'
@@ -80,7 +84,10 @@ class H5Dataset(torch.utils.data.Dataset):
             self.dataset_len = len(file['target'])
 
     def azim_elev_to_label(self, azim, elev):
+        if self.skip_negative_elev:
             return np.array(((elev / 10) * 72) + (azim / 5) + 1, dtype=np.int64)
+        else:
+            return np.array((((elev + 30) / 10) * 72) + (azim / 5), dtype=np.int64)
 
     def __getitem__(self, index):
         """

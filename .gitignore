@@ -136,3 +136,6 @@ corpus/jsinV3AttnTrackVal_v1.py
 
 # checkpoint file
 *.ckpt
+.vscode/settings.json
+attn_cue_models/lightning_logs/*
+lightning_logs/*

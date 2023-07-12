@@ -5,7 +5,7 @@
 #SBATCH --mem=60Gb
 #SBATCH --cpus-per-task=10
 #SBATCH --time=4:00:00
-#SBATCH --partition=mcdermott
+#SBATCH --partition=normal
 #SBATCH --gres=gpu:1
 #SBATCH -x node084
 source ~/.bashrc

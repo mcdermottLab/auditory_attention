@@ -2,7 +2,7 @@ corpus:
   name: 'spatialized_commonvoice_gise_scenes'
   cue_type: "voice"
   task: "location"
-  root: '/om/scratch/Wed/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
+  root: '/om/scratch/Tue/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
   with_cue_free: False
 
 
@@ -48,7 +48,7 @@ hparas:                                   # Experiment hyper-parameters
   lr: 0.0001
   eps: 0.00000001                         # 1e-8
   gradient_clip_val: 100 
-  batch_size: 768                        # Gets divided by num gpus
+  batch_size: 384                        # Gets divided by num gpus
 
 model:                                    # Model architecture
   input_sr: 10000
@@ -61,7 +61,7 @@ model:                                    # Model architecture
   pool_padding: [[4,6], [4,6], [0,6], [0,6], [0,0], [0,0], [3,6]]
   attn: [1, 1, 1, 1, 1, 1, 1]
   num_classes:                         # 998 words in cv vocab
-    num_locs: 505
+    num_locs: 720
   fc_size: 512
   global_avg_cue: False
   dropout: 0.6
