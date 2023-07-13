@@ -32,7 +32,8 @@ class SimpleAttentionalGain(nn.Module):
         # apply sigmoid & bias
         gain = self.bias + (1-self.bias) * torch.sigmoid(cue)
         ## account for no-cue examples - no gain scaling applied
-        gain[cue_mask_ixs,:] = 1 
+        if cue_mask_ixs is not None:
+            gain[cue_mask_ixs,:] = 1 
         # Apply to mixture (element mult)
         mixture = torch.mul(mixture, gain)
         return mixture

@@ -6,8 +6,8 @@
 #SBATCH --cpus-per-task=10
 #SBATCH --time=3:00:00
 #SBATCH --partition=normal
-#SBATCH --gres=gpu:1
-
+#SBATCH --gres=gpu:a100:1
+#SBATCH -x node073
 
 module add openmind/miniconda
 module add openmind/cudnn/11.5-v8.3.3.40
