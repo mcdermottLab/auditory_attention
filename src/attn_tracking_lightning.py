@@ -317,11 +317,11 @@ class AttentionalTrackingModule(LightningModule):
         # self() is self.forward()  
         fg_outputs = self(fg_cue, signal) 
         fg_loss = self.loss_fn(fg_outputs, fg_labels)
-        model_guess = fg_outputs.log_softmax(-1).argmax(-1) 
+        model_confidence, model_guess = fg_outputs.softmax(-1).max(-1) # returns value, index
         self.accuracy["test"](fg_outputs, fg_labels)
         self.log(f"ACC/test_fg_acc", self.accuracy["test"], on_step=True, on_epoch=False)
         self.log(f"pred_word_ix", model_guess, on_step=True, on_epoch=False)
-
+        self.log(f"model_confidence", model_confidence, on_step=True, on_epoch=False)
         return fg_loss
 
     def train_dataloader(self):
