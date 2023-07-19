@@ -28,8 +28,15 @@ def run_eval(args):
         config['corpus']['root'] = cv_eval_h5_path
         config['loader']['num_workers'] = args.n_jobs
         config['loader']['batch_size'] = 32
-    config['data']['loader']['num_workers'] = args.n_jobs
-    config['data']['loader']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
+    elif 'Binaural' in model_name:
+        config['hparas']['batch_size'] = 1
+        config['num_workers'] = args.n_jobs
+        config['data'] = {}
+        config['data']['corpus'] = {}
+        config['audio']['rep_kwargs']['center_crop'] = False
+    else:
+        config['data']['loader']['num_workers'] = args.n_jobs
+        config['data']['loader']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
     config['corpora_name'] = 'TIMIT'
     config['data']['corpus']['clean_targets'] = args.clean_targets
     snr = 'clean' if args.clean_targets else '0dB_SNR'
@@ -53,6 +60,10 @@ def run_eval(args):
             config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/attn_task_dataframes/timit_attn_stim_for_model_all_targets.pdpkl'
             snr = ''
         task_name = "_"
+
+    if "Binaural" in model_name:
+        config['corpus']['root'] = config['data']['corpus']['root']
+        config['corpus']['clean_targets'] = config['data']['corpus']['clean_targets']
     
     log_name = f"TIMIT{task_name}attn_task_{snr}_all_targets_{model_name}"
 
@@ -90,7 +101,11 @@ def run_eval(args):
     elif model_name == "AttnRoveRMSCNN":
         model = AttnRoveRMSModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
     else:
-        model = AttentionalTrackingModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)  
+        if "Binaural" in model_name:
+            from src.binaural_attn_lightning import BinauralAttentionModule
+            model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
+        else:
+            model = AttentionalTrackingModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)  
     # evaluate model  
     trainer.test(model)
 

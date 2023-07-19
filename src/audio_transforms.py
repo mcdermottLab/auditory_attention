@@ -710,3 +710,28 @@ class BinauralCombineWithRandomDBSNR(torch.nn.Module):
         signal_in_noise = torch.add(foreground_wav, background_wav)
 
         return signal_in_noise, None
+
+
+class DuplicateChannel(torch.nn.Module):
+    """
+    Duplicates the input channel to the number of output channels.
+
+    Args:
+        num_output_channels (int): the number of output channels
+        dim (int): the axis to duplicate along
+
+    Returns:
+        foreground_wav, background_wav
+    """
+
+    def __init__(self, num_output_channels=2, dim=1):
+        super(DuplicateChannel, self).__init__()
+        self.num_output_channels = num_output_channels
+
+    def forward(self, foreground_wav, background_wav):
+        if foreground_wav is not None:
+            foreground_wav = foreground_wav.repeat(self.num_output_channels, dim=dim)
+        if background_wav is not None:
+            background_wav = background_wav.repeat(self.num_output_channels, dim=dim)
+        return foreground_wav, background_wav
+        

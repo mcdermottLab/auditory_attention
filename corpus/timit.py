@@ -229,3 +229,74 @@ class TIMIT_CV_Compat_Prepaired(Dataset):
     
     def __len__(self):
         return self.dataset_len
+
+
+
+class TIMIT_Binaural_Compat_Prepaired(Dataset):
+    def __init__(self, root, mode='test', demo=False, clean_targets=False, **kwargs):
+        """
+        Builds a pytorch dataset from a pandas dataframe that has cues and mixtures pre-cut
+        Args:
+            root (str): location of the pd dataframe
+        """
+        self.path = root
+        self.dataset = pd.read_pickle(self.path)
+        self.demo = demo 
+        self.dataset_len = self.dataset.shape[0]
+        self.upsample = T.Resample(20_000, 50_000, dtype=torch.float32)
+
+        if clean_targets:
+            self.target_signals = self.dataset.signal
+        else:
+            self.target_signals = self.dataset.mixture_signal
+        self.class_remap, self.cv_class_map = self.get_class_map()
+
+    def get_class_map(self):
+        """
+        Loads the mapping between the word IDX and human readable word map. 
+        """
+        word_and_speaker_encodings = pickle.load( open( "/om2/user/imgriff/projects/Auditory-Attention/word_and_speaker_encodings_jsinv3.pckl", "rb" )) 
+        # key is int, val is word
+        wsn_class_map = word_and_speaker_encodings['word_idx_to_word']
+        # key is word, val is int
+        cv_class_map = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", "rb" )) 
+        # map wsn class int key to cv class int value 
+        class_remap = {ix:(cv_class_map[word] if word in cv_class_map else 0) for ix, word in wsn_class_map.items()}
+        class_map = {ix:word for word,ix in cv_class_map.items()}
+        return class_remap, class_map
+
+    def __getitem__(self, index):
+        """
+        Gets components of the pd dataframe that are used for testings
+        Cues and mixtures are prepaired, so we just need to transform
+        the signals.  
+        Args: 
+            index (int): index into the pd dataframe
+        Returns:
+            [cue, mixture, None, target_word_int] : the training audio (signal) post preprocessing
+              which may combine the foreground and background speech, the training audio cue 
+              post processing, and the target word idx. 
+        """
+        mixture = self.target_signals[index].astype('float32') # pre-mixed target and distractor 
+        mixture = self.upsample(torch.from_numpy(mixture)).numpy()
+        print(f"{mixture.shape=} after upsample")
+        target_word_int = self.dataset.word_int[index].astype('int')  # target word label
+        # map to cv vocab
+        target_word_int = self.class_remap[target_word_int]
+
+        cue = self.dataset.cue_signal[index].astype('float32')        # pre selected cue 
+        cue = self.upsample(torch.from_numpy(cue)).numpy()
+
+        # reshape to binaural compat (2,-1)
+        cue = np.repeat(cue[np.newaxis,:], 2, axis=0)
+        mixture = np.repeat(mixture[np.newaxis,:], 2, axis=0)
+
+        if self.demo:
+            target = self.dataset.signal[index]
+            distractor = self.dataset.distractor_signal[index]
+            return target, distractor, mixture, cue, target_word_int
+
+        return cue, mixture, None, target_word_int
+    
+    def __len__(self):
+        return self.dataset_len

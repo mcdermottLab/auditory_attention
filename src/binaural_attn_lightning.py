@@ -51,6 +51,10 @@ class BinauralAttentionModule(LightningModule):
         self.model_config = config['model']
         self.hparas_config = config['hparas']
 
+        # corpora params 
+        self.corpora_name = config.get('corpora_name', False)
+        self.run_timit = self.corpora_name == 'TIMIT'
+
         # set dataset as attribute
         self.dataset = BinauralAttentionDataset 
 
@@ -62,6 +66,14 @@ class BinauralAttentionModule(LightningModule):
         ])
 
         self.test_step = self._test_step
+        
+        # format attrs for TIMIT test 
+        if self.run_timit:
+            self.test_step = self.test_timit 
+            self.audio_transforms = at.AudioCompose([
+                at.AudioToTensor(),
+                at.UnsqueezeAudio(dim=0),
+            ])
 
         # Init Model
         fc_attn_only = self.model_config.get('fc_attn_only', False) 
@@ -183,15 +195,15 @@ class BinauralAttentionModule(LightningModule):
         return fg_loss
 
     def test_timit(self, batch, batch_idx):
-        signal, fg_cue, fg_labels = batch
+        cue_features, cue_mask_ixs, scene_features, labels = batch
         # self() is self.forward()  
-        fg_outputs = self(fg_cue, signal) 
-        fg_loss = self.loss_fn(fg_outputs, fg_labels)
-        model_guess = fg_outputs.log_softmax(-1).argmax(-1) 
-        self.accuracy["test"](fg_outputs, fg_labels)
+        fg_outputs = self(cue_features, scene_features, cue_mask_ixs) 
+        fg_loss = self.loss_fn(fg_outputs, labels)
+        model_confidence, model_guess = fg_outputs.softmax(-1).max(-1) # returns value, index
+        self.accuracy["test"](fg_outputs, labels)
         self.log(f"ACC/test_fg_acc", self.accuracy["test"], on_step=True, on_epoch=False)
         self.log(f"pred_word_ix", model_guess, on_step=True, on_epoch=False)
-
+        self.log(f"model_confidence", model_confidence, on_step=True, on_epoch=False)
         return fg_loss
 
     def _extract_labels(self, samples: List):
@@ -252,7 +264,13 @@ class BinauralAttentionModule(LightningModule):
         return dataloader
 
     def test_dataloader(self): # dumy placeholder for now - fix 
-        dataset = self.dataset(**self.corpora_config, mode='test')
+        if self.run_timit:
+            from corpus.timit import TIMIT_Binaural_Compat_Prepaired
+            dataset = TIMIT_Binaural_Compat_Prepaired(**self.corpora_config, mode='test')
+                                        # clean_targets = self.corpora_config.get('clean_targets', False))
+        else:
+            dataset = self.dataset(**self.corpora_config, mode='test')
+            
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=self.hparas_config['batch_size'],
