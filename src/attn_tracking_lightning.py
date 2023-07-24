@@ -155,6 +155,9 @@ class AttentionalTrackingModule(LightningModule):
         elif channel_arch: 
             print("Using dual channel architecture")
             from src.dual_channel_attn_model import AuditoryCNN  
+        if config['model_name'] == "ModernCNN":
+            print('Using ModernCNN')
+            from src.build_architecture import DynamicCNN as AuditoryCNN
         # elif  :
         #     print("Using vanilla model")
         #     from src.attentional_cue_model import AuditoryCNN
@@ -162,10 +165,14 @@ class AttentionalTrackingModule(LightningModule):
         fc_size = self.data_config.get('fc_size', 4096)
         global_avg_cue = self.config.get('global_avg_cue', False)
         input_width = int(self.audio_config['rep_kwargs']['env_sr'] * 2 ) # 2 second duration
-        self.model = AuditoryCNN(self.data_config['num_words'],# vocab size
-                                fc_size=fc_size,
-                                input_width=input_width,
-                                global_avg=global_avg_cue) 
+
+        if config['model_name'] == "ModernCNN":
+            self.model = AuditoryCNN(**self.config['model'])
+        else:
+            self.model = AuditoryCNN(self.data_config['num_words'],# vocab size
+                                    fc_size=fc_size,
+                                    input_width=input_width,
+                                    global_avg=global_avg_cue) 
 
         # Add input rep to model or audio transforms
         if self.config['data']['audio']['rep_kwargs']['rep_on_gpu']:
@@ -239,13 +246,12 @@ class AttentionalTrackingModule(LightningModule):
         if batch is None:
             return None
         mixture, cue, labels = batch
+
         # self() is self.forward()
         outputs = self(cue, mixture) 
         
         loss = self.loss_fn(outputs, labels)
-        # calc accuracy
-        # loss = loss[~torch.isnan(loss)]
-        # loss = loss[~torch.isinf(loss)]
+        # calc accuracys
         self.accuracy[step_type](outputs, labels)
 
         self.log(f"Losses/{step_type}_loss", loss.detach().item(), on_step=True, on_epoch=False)        
@@ -262,7 +268,7 @@ class AttentionalTrackingModule(LightningModule):
         return [self.optimizer]
         
     def forward(self, cue: torch.Tensor, mixture: torch.Tensor):
-        outputs = self.model(cue, mixture)
+        outputs = self.model(cue, mixture, None)
         # Outputs here are logits
         return outputs
 
