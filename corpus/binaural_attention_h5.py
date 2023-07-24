@@ -31,8 +31,8 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         
 
         # read files to skip from a file
-        with open('/om/scratch/Tue/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02/bad_files.txt', 'r') as f:
-            files_to_skip = [line.strip().replace('Fri', "Tue") for line in f.readlines()]
+        with open('/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02/bad_files.txt', 'r') as f:
+            files_to_skip = [line.strip().replace('Fri', "Fri") for line in f.readlines()]
         # filter bad files from the dataset
         self.all_hdf5_files = [fname for fname in self.all_hdf5_files if fname not in files_to_skip]
 
