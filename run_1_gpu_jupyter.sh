@@ -4,10 +4,10 @@
 #SBATCH --error=outLogs/notebook%j.err
 #SBATCH --mem=60Gb
 #SBATCH --cpus-per-task=10
-#SBATCH --time=4:00:00
+#SBATCH --time=1:30:00
 #SBATCH --partition=normal
-#SBATCH --gres=gpu:1
-#SBATCH -x node084
+#SBATCH --gres=gpu:a100:1
+#SBATCH -x node055
 source ~/.bashrc
 
 module add openmind/miniconda
@@ -18,5 +18,5 @@ source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
 
 
-export LC_ALL=C; unset XDG_RUNTIME_DIR && jupyter notebook --no-browser --ip='0.0.0.0' --port=1492
+export LC_ALL=C; unset XDG_RUNTIME_DIR && jupyter notebook --no-browser --ip='0.0.0.0' --port=1493
 

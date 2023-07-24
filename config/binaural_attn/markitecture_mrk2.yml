@@ -2,7 +2,7 @@ corpus:
   name: 'spatialized_commonvoice_gise_scenes'
   cue_type: "voice"
   task: "word"
-  root: '/om/scratch/Wed/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
+  root: '/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
   with_cue_free: False
 
 

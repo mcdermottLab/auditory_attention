@@ -138,12 +138,8 @@ class H5Dataset(torch.utils.data.Dataset):
             word = self.dataset[self.label_key[0]][start:end]
             azim = self.dataset[self.label_key[1]][start:end]
             elev = self.dataset[self.label_key[2]][start:end]
-            loc = []
-            for azim, elev in zip(azim, elev):
-                loc.append(self.azim_elev_to_label(azim, elev))
-            label = []
-            for word, loc in zip(word, loc):
-                label = (word, loc)
+            loc = self.azim_elev_to_label(azim, elev)
+            label = np.stack((word, loc), axis=1)
         return cue, foreground, background, label
 
     def __len__(self):

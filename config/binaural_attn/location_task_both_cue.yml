@@ -2,7 +2,7 @@ corpus:
   name: 'spatialized_commonvoice_gise_scenes'
   cue_type: "voice_and_location"
   task: "location"
-  root: '/om/scratch/Wed/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
+  root: '/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
   with_cue_free: False
 
 
@@ -61,7 +61,7 @@ model:                                    # Model architecture
   pool_padding: [[4,6], [4,6], [0,6], [0,6], [0,0], [0,0], [3,6]]
   attn: [1, 1, 1, 1, 1, 1, 1]
   num_classes:                         # 998 words in cv vocab
-    num_locs: 505
+    num_locs: 720
   fc_size: 512
   global_avg_cue: False
   dropout: 0.6

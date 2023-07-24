@@ -42,7 +42,7 @@ class SimpleAttentionalGain(nn.Module):
 class CNN2DExtractor(nn.Module):
     ''' CNN wrapper, includes relu and layer-norm if applied'''
 
-    def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout, fc_size=512, global_avg_cue=False, num_classes={"num_words":998, "num_locs":504}, **kwargs):
+    def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout, fc_size=512, global_avg_cue=False, num_classes={"num_words":998, "num_locs":504}, double_size=False, **kwargs):
         super(CNN2DExtractor, self).__init__()
         # Setup
         print(f"{num_classes=}")
@@ -86,21 +86,27 @@ class CNN2DExtractor(nn.Module):
             nIn = 2 if idx == 0 else out_channels[idx - 1]
             nOut = out_channels[idx]
             # Convolutional block:
-            block = nn.Sequential(nn.LayerNorm([nIn, self.output_height, self.output_len]),
-                                  conv2d_same.create_conv2d_pad(nIn, nOut, self.kernel[idx], stride=self.stride[idx], padding=self.padding[idx]),
-                                  nn.ReLU(),
-                                  HannPooling2d(stride=self.pool_stride[idx], pool_size=self.pool_size[idx], padding=self.pool_padding[idx]))
+            if self.pool_stride[idx] != -1:
+                block = nn.Sequential(nn.LayerNorm([nIn, self.output_height, self.output_len]),
+                                    conv2d_same.create_conv2d_pad(nIn, nOut, self.kernel[idx], stride=self.stride[idx], padding=self.padding[idx]),
+                                    nn.ReLU(),
+                                    HannPooling2d(stride=self.pool_stride[idx], pool_size=self.pool_size[idx], padding=self.pool_padding[idx]))
+            else:
+                block = nn.Sequential(nn.LayerNorm([nIn, self.output_height, self.output_len]),
+                                    conv2d_same.create_conv2d_pad(nIn, nOut, self.kernel[idx], stride=self.stride[idx], padding=self.padding[idx]),
+                                    nn.ReLU())
             self.model_dict[f'conv_block_{idx}'] = block
-            
+
             # Compute output shapes using conv formula [(Height - Filter + 2Pad)/ Stride]+1
             if self.padding[idx] == 'same':
                 pass
             else:
                 self.output_height = int(np.floor((self.output_height - kernel[idx][0] + 2 * padding[idx][0]) / stride[idx][0]) + 1)
                 self.output_len = int(np.floor((self.output_len -  kernel[idx][1] + 2 * padding[idx][1]) / stride[idx][1]) + 1)
-            # pooling layers
-            self.output_height = int(np.floor((self.output_height - pool_size[idx][0] + 2 * pool_padding[idx][0]) / pool_stride[idx][0]) + 1)
-            self.output_len = int(np.floor((self.output_len - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
+            if self.pool_stride[idx] != -1:
+                # pooling layers
+                self.output_height = int(np.floor((self.output_height - pool_size[idx][0] + 2 * pool_padding[idx][0]) / pool_stride[idx][0]) + 1)
+                self.output_len = int(np.floor((self.output_len - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
             # Attentional block:
             if self.attn[idx] == 1:
                 self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nOut, global_avg_cue=global_avg_cue)
