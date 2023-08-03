@@ -1,6 +1,7 @@
 # Following is originally copied from PyTorch RNN-T ASR Example:
 # https://github.com/pytorch/audio/tree/820b383b3b21fc06e91631a5b1e6ea1557836216/examples/asr/librispeech_emformer_rnnt
 
+import h5py
 import numpy as np
 import os
 import pandas as pd
@@ -9,14 +10,15 @@ import pickle
 import scipy.stats as stats
 import soundfile as sf
 import soxr
-import src.spatial_attn_lightning as attn_tracking_lightning
+#! change below to spatial_attn_lighting if want to use with modular 
+import src.binaural_attn_lightning as attn_tracking_lightning
 import torch
 import yaml
 
 from argparse import ArgumentParser
 from pytorch_lightning import Trainer, seed_everything
 
-
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 seed_everything(1)
 
 def mass_spatialize(words, ir):
@@ -166,7 +168,7 @@ def run_eval(args):
     config['noise_kwargs']['high_snr'] = 0
 
     idx = args.location_idx
-    # re_run_mapping = pickle.load(open('/om2/user/rphess/Auditory-Attention/rerun_dict.pkl', 'rb'))
+    # re_run_mapping = pickle.load(open('/om2/user/rphess/Auditory-Attention/rerun_dict_3.pkl', 'rb'))
     loc_dict = pickle.load(open('/om2/user/rphess/Auditory-Attention/speaker_room_0_elev_conditions.pkl', 'rb'))
     target_loc = loc_dict[idx][0]
     distract_loc = loc_dict[idx][1]
@@ -178,27 +180,25 @@ def run_eval(args):
     model = attn_tracking_lightning.BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).cuda()
     audio_transforms = model.audio_transforms
 
+    new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
+    only14_manifest = new_room_manifest[new_room_manifest['src_dist'] == 1.4]
     ir_dict = dict()
     for loc in ['target', 'distractor', 'cue']:
-        data_list = []
         if loc == 'target':
             coords = target_loc
         elif loc == 'distractor':
             coords = distract_loc
         else:
-            coords = [0, 0]
-        for ear in ['r', 'l']:
-            base_fn = f'{coords[1]}elev_{coords[0]}az_2.47x2.60y2.00z_{ear}.wav'
-            if coords[1] >= 0:
-                fn = os.path.join('/om/user/francl/Room_Simulator_20181115_Rebuild/room_HRIRs/', base_fn)
-            else:
-                fn = os.path.join('/om/user/francl/Room_Simulator_20181115_Rebuild/room_HRIRs/neg_elevs/', base_fn)
-            assert os.path.exists(fn)
-            brir, sr_src = sf.read(fn)
-            sr = 50000
-            brir = soxr.resample(brir.astype(np.float32), sr_src, sr)
-            data_list.append(brir)
-        ir_dict[loc] = np.stack(data_list).T
+            coords = target_loc
+        df_row = only14_manifest[(only14_manifest['src_azim'] == coords[0]) & (only14_manifest['src_elev'] == coords[1])]
+        h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{df_row["index_room"].values[0]}.hdf5'
+        index_brir = df_row['index_brir'].values[0]
+        sr_src = df_row['sr'].values[0]
+        with h5py.File(h5_fn, 'r') as f:
+            brir = f['brir'][index_brir]
+        sr = 50000
+        brir = soxr.resample(brir.astype(np.float32), sr_src, sr)
+        ir_dict[loc] = brir
 
     tar_brir = torch.from_numpy(ir_dict['target'])
     tar_brir = torch.flip(tar_brir, dims=[0])
@@ -256,15 +256,17 @@ def run_eval(args):
 
             cue = mass_spatialize(cue.cuda(), cue_brir.cuda()).cpu()
             cue = np.array(cue[:, :, 12500:137500])
+            #! delete the .squeeze(0) below if want to use modular
             cue = audio_transforms(cue, None)[0].squeeze(0)
 
             fg = mass_spatialize(fg.cuda(), tar_brir.cuda()).cpu()
             fg = np.array(fg[:, :, 12500:137500])
             bg = mass_spatialize(distractor_signal.cuda(), dist_brir.cuda()).cpu()
             bg = np.array(bg[:, :, 12500:137500])
+            #! delete the .squeeze(0) below as well
             scene = audio_transforms(fg, bg)[0].squeeze(0)
 
-            out = model.forward(cue.cuda(), scene.cuda(), None)
+            out = model.forward(cue.cuda(), scene.cuda(), cue_mask_ixs=None)
             softmax_outputs = torch.nn.functional.softmax(out, dim=-1)
             result = int(torch.argmax(softmax_outputs, dim=-1).cpu())
             results.append(label == result)

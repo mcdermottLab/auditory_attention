@@ -9,7 +9,7 @@ import pickle
 from pytorch_lightning import Trainer, seed_everything
 # from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger
-from src.attn_tracking_lightning import AttentionalTrackingModule
+# from src.attn_tracking_lightning import AttentionalTrackingModule
 # from src.attentional_tracking_control_lightning import AttnTrackingControlModule
 # from src.attn_rove_rms_lightning import AttnRoveRMSModule
 
@@ -18,46 +18,25 @@ seed_everything(1)
 
 def run_eval(args):
     
-    
-    # with open(args.eval_cond_file, 'rb') as f:
-    #     eval_conditions = pickle.load(f)
-        
-    # model_name, snr, num_bg_talkers = eval_conditions[args.array_id]
-    
-#     model_name = "MultiDistractorAttnCNN"
-# # if "AttnCNN" in model_name:
-#     config_name = "config/attentional_cue/attn_cue_high_snr_lr_1e-4_bs_64.yaml"
-#     if model_name == "AttnCNN":
-#         checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_bs_64_lr_1e-4/checkpoints/epoch=1-step=120790.ckpt"
 
-#     elif model_name == "AttnCNNConstrained":
-#         checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_pos_slope_bs_64_lr_1e-4/checkpoints/epoch=0-step=65000-v1.ckpt"
-
-#     elif model_name == "AttnCNNPosSlope":
-#         checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_pos_slope_bs_64_lr_1e-4/checkpoints/epoch=1-step=95791.ckpt"
-
-#     elif model_name == "AttnCNNOnlyNorm":
-#         checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_pilot_no_pretrain_norm_at_input_bs_64_lr_1e-4/checkpoints/epoch=1-step=135791.ckpt"
-            
-#     elif model_name == "AttnTrackingControl":
-#         config_name = "config/attentional_cue/attn_tracking_control_high_snr.yaml"
-#         checkpoint_path = "/om2/user/jcruse/projects/End-to-end-ASR-Pytorch/multi_talker_control/jsin_precombined_gammatone_40_channels_20kHz_on_gpu_1e-4lr/checkpoints/epoch=5-step=741324.ckpt"
-        
-#     elif model_name == "AudiosetBackground":
-#         config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64_constrained_slope_noise_only.yaml"
-#         checkpoint_path = "/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_audset_bg_fully_constrained_bs_64_lr_1e-4/checkpoints/epoch=1-step=140791.ckpt"
-        
-#     elif model_name == "MultiDistractorAttnCNN":
-#         config_name = "config/attentional_cue/attn_cue_lr_1e-4_bs_64_constrained_slope_multi_distractor.yaml"
-#         checkpoint_path = "/om2/user/imgriff/projects/End-to-end-ASR-Pytorch/attn_cue_models/attn_cue_jsin_multi_distractor_w_audioset_bs_64_lr_1e-4/checkpoints/epoch=0-step=70000.ckpt"
-    
     model_name = args.model_name
     checkpoint_path = args.ckpt_path
     config = yaml.load(open(args.config_name, 'r'), Loader=yaml.FullLoader)
     
     config['matched_cue_level'] = False
-    config['data']['loader']['num_workers'] = args.n_jobs
-    config['data']['loader']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
+    if 'cv' in model_name:
+        config['corpus']['root'] = cv_eval_h5_path
+        config['loader']['num_workers'] = args.n_jobs
+        config['loader']['batch_size'] = 32
+    elif 'Binaural' in model_name:
+        config['hparas']['batch_size'] = 1
+        config['num_workers'] = args.n_jobs
+        config['data'] = {}
+        config['data']['corpus'] = {}
+        config['audio']['rep_kwargs']['center_crop'] = False
+    else:
+        config['data']['loader']['num_workers'] = args.n_jobs
+        config['data']['loader']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
     config['corpora_name'] = 'TIMIT'
     config['data']['corpus']['clean_targets'] = args.clean_targets
     snr = 'clean' if args.clean_targets else '0dB_SNR'
@@ -81,6 +60,10 @@ def run_eval(args):
             config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/attn_task_dataframes/timit_attn_stim_for_model_all_targets.pdpkl'
             snr = ''
         task_name = "_"
+
+    if "Binaural" in model_name:
+        config['corpus']['root'] = config['data']['corpus']['root']
+        config['corpus']['clean_targets'] = config['data']['corpus']['clean_targets']
     
     log_name = f"TIMIT{task_name}attn_task_{snr}_all_targets_{model_name}"
 
@@ -113,12 +96,8 @@ def run_eval(args):
     
     # load model checkpoint 
     print(checkpoint_path)
-    if model_name == 'AttnTrackingControl':
-        model = AttnTrackingControlModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)    
-    elif model_name == "AttnRoveRMSCNN":
-        model = AttnRoveRMSModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
-    else:
-        model = AttentionalTrackingModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)  
+    from src.spatial_attn_lightning import BinauralAttentionModule
+    model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
     # evaluate model  
     trainer.test(model)
 
@@ -154,13 +133,13 @@ def cli_main():
         "--num_nodes",
         default=1,
         type=int,
-        help="Number of nodes to use for evaluation. (Default: 1)",
+        help="Number of nodes to use for training. (Default: 1)",
     )
     parser.add_argument(
         "--gpus",
         default=1,
         type=int,
-        help="Number of GPUs per node to use for evaluation. (Default: 1)",
+        help="Number of GPUs per node to use for training. (Default: 1)",
     )
     parser.add_argument(
         "--n_jobs",
@@ -204,7 +183,7 @@ def cli_main():
         action='store_true',
         help="run without distractors",
     )   
-
+    
     args = parser.parse_args()
 
     run_eval(args)

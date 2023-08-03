@@ -49,7 +49,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
 
 
 class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path, cue_type, task, batch_size, skip_negative_elev=False):
+    def __init__(self, path, cue_type, task, batch_size, skip_negative_elev=False, clean_percentage=0.0):
         """
         Builds a pytorch hdf5 dataset
         Args:
@@ -61,6 +61,8 @@ class H5Dataset(torch.utils.data.Dataset):
         self.task = task
         self.batch_size = batch_size
         self.skip_negative_elev = skip_negative_elev
+        self.clean_percentage = clean_percentage
+        self.batch_ixs = np.arange(self.batch_size)
         # if self.skip_negative_elev:
         #     print("Skipping negative elevations")
         # else:
@@ -122,6 +124,11 @@ class H5Dataset(torch.utils.data.Dataset):
             cue[:] = 0
         foreground = self.dataset['target'][start:end].transpose((0, 2, 1))
         background = self.dataset['bg_scene'][start:end].transpose((0, 2, 1))
+
+        if self.clean_percentage > 0.0:
+            num_clean = int(self.clean_percentage * self.batch_size)
+            clean_idx = np.random.choice(self.batch_ixs, num_clean, replace=False)
+            background[clean_idx, :, :] = 0
 
         # if self.skip_negative_elev and self.dataset['label_loc_target_elev'][start:end] < 0:
         #     return None, None, None, None

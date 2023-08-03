@@ -53,6 +53,9 @@ class BinauralAttentionModule(LightningModule):
         self.hparas_config = config['hparas']
         self.multi_task = self.corpora_config['task'] == 'word_and_location'
 
+        self.corpora_name = config.get('corpora_name', False)
+        self.run_timit = self.corpora_name == 'TIMIT'
+
         # set dataset as attribute
         self.dataset = BinauralAttentionDataset 
 
@@ -63,6 +66,13 @@ class BinauralAttentionModule(LightningModule):
         ])
 
         self.test_step = self._test_step
+
+        if self.run_timit:
+            self.test_step = self.test_timit 
+            self.audio_transforms = at.AudioCompose([
+                at.AudioToTensor(),
+                at.UnsqueezeAudio(dim=0),
+            ])
 
         # Init Model
         fc_attn_only = self.model_config.get('fc_attn_only', False) 
@@ -204,43 +214,43 @@ class BinauralAttentionModule(LightningModule):
         return fg_loss
 
     def test_timit(self, batch, batch_idx):
-        signal, fg_cue, fg_labels = batch
+        cue_features, cue_mask_ixs, scene_features, labels = batch
         # self() is self.forward()  
-        fg_outputs = self(fg_cue, signal) 
-        fg_loss = self.loss_fn(fg_outputs, fg_labels)
-        model_guess = fg_outputs.log_softmax(-1).argmax(-1) 
-        self.accuracy["test"](fg_outputs, fg_labels)
+        fg_outputs = self(cue_features, scene_features, cue_mask_ixs) 
+        fg_loss = self.loss_fn(fg_outputs, labels)
+        model_confidence, model_guess = fg_outputs.softmax(-1).max(-1) # returns value, index
+        self.accuracy["test"](fg_outputs, labels)
         self.log(f"ACC/test_fg_acc", self.accuracy["test"], on_step=True, on_epoch=False)
         self.log(f"pred_word_ix", model_guess, on_step=True, on_epoch=False)
-
+        self.log(f"model_confidence", model_confidence, on_step=True, on_epoch=False)
         return fg_loss
 
     def _extract_labels(self, samples: List):
         # idx=3 is harcoded - sample in samples is list of (cue, foreground, background, label)
-        return torch.tensor(np.array([sample[3] for sample in samples])).type(torch.LongTensor).squeeze()
+        return torch.tensor([sample[3] for sample in samples]).type(torch.LongTensor)
 
     def get_cue_mask_ixs(self, cue: torch.tensor):
         cue_flat = cue.reshape(cue.shape[0], -1)
         mask_ixs = torch.argwhere(torch.sum(torch.abs(cue_flat), dim=1) == 0)
         return mask_ixs
 
-    # def _extract_features(self, samples: List, sample_ix: Union[int, list]):
-    #     # hardcode none for bg noise here - scenes are pre-mixed
-    #     if self.rep_on_gpu:
-    #         if isinstance(sample_ix, list):
-    #             rep_features = [self.audio_transforms(sample[sample_ix[0]], sample[sample_ix[1]])[0].squeeze() for sample in samples]
-    #         else:
-    #             rep_features = [self.audio_transforms(sample[sample_ix], None)[0].squeeze() for sample in samples]
-    #         features = torch.nn.utils.rnn.pad_sequence(rep_features, batch_first=True)
-    #     else:
-    #         # are cochleagrams & need to transpose from CxFxT -> TxFxC for pad sequence
-    #         if isinstance(sample_ix, list):
-    #             rep_features = [self.audio_transforms(sample[sample_ix[0]], sample[sample_ix[1]])[0].transpose(0,2) for sample in samples]
-    #         else:
-    #             rep_features = [self.audio_transforms(sample[sample_ix], None)[0].transpose(0,2) for sample in samples]
-    #         features = torch.nn.utils.rnn.pad_sequence(rep_features, batch_first=True)
-    #         features = features.transpose(1,3) # back to CxFxT for model
-    #     return features.squeeze(0)
+    def _extract_features(self, samples: List, sample_ix: Union[int, list]):
+        # hardcode none for bg noise here - scenes are pre-mixed
+        if self.rep_on_gpu:
+            if isinstance(sample_ix, list):
+                rep_features = [self.audio_transforms(sample[sample_ix[0]], sample[sample_ix[1]])[0].squeeze() for sample in samples]
+            else:
+                rep_features = [self.audio_transforms(sample[sample_ix], None)[0].squeeze() for sample in samples]
+            features = torch.nn.utils.rnn.pad_sequence(rep_features, batch_first=True)
+        else:
+            # are cochleagrams & need to transpose from CxFxT -> TxFxC for pad sequence
+            if isinstance(sample_ix, list):
+                rep_features = [self.audio_transforms(sample[sample_ix[0]], sample[sample_ix[1]])[0].transpose(0,2) for sample in samples]
+            else:
+                rep_features = [self.audio_transforms(sample[sample_ix], None)[0].transpose(0,2) for sample in samples]
+            features = torch.nn.utils.rnn.pad_sequence(rep_features, batch_first=True)
+            features = features.transpose(1,3) # back to CxFxT for model
+        return features
 
     def _collate_fn(self, samples: List):
         samples = samples[0]
@@ -248,6 +258,13 @@ class BinauralAttentionModule(LightningModule):
         cue_mask_ixs = None
         scene_features = self.audio_transforms(samples[1], samples[2])[0]
         labels = torch.from_numpy(samples[3]).type(torch.LongTensor)
+        return cue_features, cue_mask_ixs, scene_features, labels
+
+    def test_collate_fn(self, samples: List):
+        cue_features = self._extract_features(samples, sample_ix=0)
+        cue_mask_ixs = self.get_cue_mask_ixs(cue_features)
+        scene_features = self._extract_features(samples, sample_ix=[1,2])
+        labels = self._extract_labels(samples)
         return cue_features, cue_mask_ixs, scene_features, labels
 
     def train_dataloader(self):
@@ -273,13 +290,19 @@ class BinauralAttentionModule(LightningModule):
         )
         return dataloader
 
-    def test_dataloader(self): # dumy placeholder for now - fix 
-        dataset = self.dataset(**self.corpora_config, batch_size=self.hparas_config['batch_size'], mode='test')
+    def test_dataloader(self): # dumy placeholder no longer - fixed
+        if self.run_timit:
+            from corpus.timit import TIMIT_Binaural_Compat_Prepaired
+            dataset = TIMIT_Binaural_Compat_Prepaired(**self.corpora_config, mode='test')
+                                        # clean_targets = self.corpora_config.get('clean_targets', False))
+        else:
+            dataset = self.dataset(**self.corpora_config, mode='test')
+
         dataloader = torch.utils.data.DataLoader(
             dataset,
-            batch_size=1,
+            batch_size=self.hparas_config['batch_size'],
             num_workers=self.config['num_workers'],
-            collate_fn=self._collate_fn)
+            collate_fn=self.test_collate_fn)
         self.test_loader_len = len(dataset)
         print("Test set length = ", self.test_loader_len)
         return dataloader

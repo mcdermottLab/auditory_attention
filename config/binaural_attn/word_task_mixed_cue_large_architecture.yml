@@ -1,7 +1,7 @@
 corpus:
   name: 'spatialized_commonvoice_gise_scenes'
   cue_type: "mixed"
-  task: "word_and_location"
+  task: "word"
   root: '/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
   with_cue_free: False
 
@@ -34,9 +34,7 @@ audio:                                  # Attributes of audio feature
     power: 0.3
 
 
-val_metric:
-  val_acc: 'ACC/val_word_acc'
-  loc_acc: 'ACC/val_location_acc'
+val_metric: 'ACC/val_acc'
 model_name: 'binaural_attn_cue_voice_and_loc'
 
 noise_kwargs: # parameters for background signal levels 
@@ -50,21 +48,20 @@ hparas:                                   # Experiment hyper-parameters
   lr: 0.0001
   eps: 0.00000001                         # 1e-8
   gradient_clip_val: 100 
-  batch_size: 768                        # Gets divided by num gpus
+  batch_size: 464                        # Gets divided by num gpus
 
 model:                                    # Model architecture
   input_sr: 10000
-  out_channels: [32, 64, 256, 512, 512, 512, 512]                       
-  kernel:  [[2, 34], [2, 14], [5, 5], [5, 5], [6, 6], [5, 5], [6, 6]]
-  stride: [[1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1]]
-  padding: ['same', 'same', 'same', 'same', 'same', 'same', 'same']
-  pool_stride: [[2, 4], [2, 4], [1, 5], [1, 4], [1, 1], [1, 1], [2, 4]] 
-  pool_size: [[9, 13], [9, 13], [1, 13], [1, 13], [1, 1], [1, 1], [6, 13]]
-  pool_padding: [[4,6], [4,6], [0,6], [0,6], [0,0], [0,0], [3,6]]
-  attn: [1, 1, 1, 1, 1, 1, 1]
+  out_channels: [32, 32, 64, 64, 256, 256, 512, 512, 512, 512, 512, 512, 512, 512]                       
+  kernel:  [[2, 34], [2, 34], [2, 14], [2, 14], [5, 5], [5, 5], [5, 5], [5, 5], [6, 6], [6, 6], [5, 5], [5, 5], [6, 6], [6, 6]]
+  stride: [[1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1]]
+  padding: ['same', 'same', 'same', 'same', 'same', 'same', 'same', 'same', 'same', 'same', 'same', 'same', 'same', 'same']
+  pool_stride: [-1, [2, 4], -1, [2, 4], -1, [1, 5], -1, [1, 4], -1, [1, 1], -1, [1, 1], -1, [2, 4]] 
+  pool_size: [-1, [9, 13], -1, [9, 13], -1, [1, 13], -1, [1, 13], -1, [1, 1], -1, [1, 1], -1, [6, 13]]
+  pool_padding: [-1, [4,6], -1, [4,6], -1, [0,6], -1, [0,6], -1, [0,0], -1, [0,0], -1, [3,6]]
+  attn: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
   num_classes:                         # 998 words in cv vocab
     num_words: 800
-    num_locs: 720
   fc_size: 512
   global_avg_cue: False
   dropout: 0.6
