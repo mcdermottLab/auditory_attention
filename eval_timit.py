@@ -9,7 +9,7 @@ import pickle
 from pytorch_lightning import Trainer, seed_everything
 # from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import CSVLogger
-from src.attn_tracking_lightning import AttentionalTrackingModule
+# from src.attn_tracking_lightning import AttentionalTrackingModule
 # from src.attentional_tracking_control_lightning import AttnTrackingControlModule
 # from src.attn_rove_rms_lightning import AttnRoveRMSModule
 
@@ -96,16 +96,8 @@ def run_eval(args):
     
     # load model checkpoint 
     print(checkpoint_path)
-    if model_name == 'AttnTrackingControl':
-        model = AttnTrackingControlModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)    
-    elif model_name == "AttnRoveRMSCNN":
-        model = AttnRoveRMSModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
-    else:
-        if "Binaural" in model_name:
-            from src.binaural_attn_lightning import BinauralAttentionModule
-            model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
-        else:
-            model = AttentionalTrackingModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)  
+    from src.spatial_attn_lightning import BinauralAttentionModule
+    model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config)
     # evaluate model  
     trainer.test(model)
 

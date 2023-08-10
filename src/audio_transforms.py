@@ -21,12 +21,10 @@ downsampling_reps = {'SincWithKaiserWindow': chcochleagram.downsampling.SincWith
 def ch_demean(x, dim=0):
     '''
     Helper function to mean-subtract tensor.
-
     Args
     ----
     x (tensor): tensor to be mean-subtracted
     dim (int): kwarg for torch.mean (dim along which to compute mean)
-
     Returns
     -------
     x_demean (tensor): mean-subtracted tensor
@@ -54,12 +52,10 @@ def ch_global_demean(x):
 def ch_rms(x, dim=0):
     '''
     Helper function to compute RMS amplitude of a tensor.
-
     Args
     ----
     x (tensor): tensor for which RMS amplitude should be computed
     dim (int): kwarg for torch.mean (dim along which to compute mean)
-
     Returns
     -------
     rms_x (tensor): root-mean-square amplitude of x
@@ -71,12 +67,10 @@ def ch_rms(x, dim=0):
 def ch_global_rms(x):
     '''
     Helper function to compute RMS amplitude of a tensor.
-
     Args
     ----
     x (tensor): tensor for which RMS amplitude should be computed
     dim (int): kwarg for torch.mean (dim along which to compute mean)
-
     Returns
     -------
     rms_x (tensor): root-mean-square amplitude of x
@@ -89,10 +83,8 @@ class AudioCompose(torch.nn.Module):
     """
     Composes several foreground/background audio transforms together (based off of
         torchvision.transforms.Compose)
-
     Args:
         transforms (list of audio_function transfrom torch.nn.Modules): list of transforms to compose.
-
     """
 
     def __init__(self, transforms):
@@ -183,6 +175,7 @@ class AudioToAudioRepresentation(torch.nn.Module):
         rep_type (str): the type of representation to build
     """
     def __init__(self, rep_type, rep_kwargs, compression_type, compression_kwargs):
+        print(rep_type, rep_kwargs, compression_type, compression_kwargs)
         super(AudioToAudioRepresentation, self).__init__()
         self.rep_type = rep_type
         self.rep_kwargs = rep_kwargs
@@ -368,10 +361,8 @@ class AudioToCochlearRep(torch.nn.Module):
 class AudioToTensor(torch.nn.Module):
     """
     Convert the foreground and background sounds to tensors
-
     Args:
         None
-
     Returns:
         foreground_wav, background_wav
     """
@@ -395,10 +386,8 @@ class AudioToTensor(torch.nn.Module):
 class UnsqueezeAudio(torch.nn.Module):
     """
     Adds a channel dimension (useful for mel-spectrograms as inputs)
-
     Args:
         None
-
     Returns:
         foreground_wav, background_wav
     """
@@ -418,10 +407,8 @@ class FilterNoneSpeech(torch.nn.Module):
     """
     Filter out speech audio samples that are all zeros.
     Useful for removing speech 'null' classes.
-
     Args:
         None
-
     Returns:
         foreground_wav, background_wav if passes filtering
         None if should be removed
@@ -442,10 +429,8 @@ class FilterNanMusic(torch.nn.Module):
     """
     Filter out music audio samples that are nans.
     Useful for removing music 'null' classes.
-
     Args:
         None
-
     Returns:
         foreground_wav, background_wav if passes filtering
         None if should be removed
@@ -512,10 +497,8 @@ class CenterCropForegroundRandomCropBackground(torch.nn.Module):
 class RMSNormalizeForegroundAndBackground(torch.nn.Module):
     """
     RMS normalize the foreground and background sounds
-
     Args:
         rms_normalization (float): The rms level to set the sound to
-
     Returns:
         foreground_wav, background_wav
     """
@@ -598,15 +581,12 @@ class BinauralRMSNormalizeForegroundAndBackground(torch.nn.Module):
 class CombineWithRandomDBSNR(torch.nn.Module):
     """
     Takes two signals and combines them at a specified dB SNR level.
-
     Args:
         low_snr (float): the low end for the range of dB SNR to draw from
         high_snr (float): the high end for the range of db SNR to draw from
         rms_level (float): the end RMS value for the combined sound
-
     Returns:
         signal_in_noise, None
-
     """
     def __init__(self, low_snr=-10, high_snr=10):
         self.low_snr=low_snr
@@ -657,7 +637,6 @@ class CombineWithRandomDBSNR(torch.nn.Module):
 class BinauralCombineWithRandomDBSNR(torch.nn.Module):
     """
     Takes two signals and combines them at a specified dB SNR level.
-
     Args:
         low_snr (float): the low end for the range of dB SNR to draw from
         high_snr (float): the high end for the range of db SNR to draw from

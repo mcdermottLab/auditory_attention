@@ -63,6 +63,9 @@ def get_padding_value(padding, kernel_size, **kwargs) -> Tuple[Tuple, bool]:
         elif padding == 'valid':
             # 'VALID' padding, same as padding=0
             padding = 0
+        elif padding == 'valid_time':
+            padding = get_padding(kernel_size, **kwargs)
+            padding[1] = 0
         else:
             # Default to PyTorch style 'same'-ish symmetric padding
             padding = get_padding(kernel_size, **kwargs)

@@ -248,7 +248,7 @@ class BinauralAttentionModule(LightningModule):
             num_workers=self.config['num_workers'], 
             collate_fn=self._collate_fn,
             pin_memory=True,
-            shuffle=False 
+            shuffle=True
         )
         return dataloader
 
