@@ -125,7 +125,6 @@ class BinauralAttentionModule(LightningModule):
         if batch is None:
             return None
         cue_features, cue_mask_ixs, scene_features, labels = batch
-
         # self() is self.forward()
         outputs = self(cue_features, scene_features, cue_mask_ixs) 
         loss = self.loss_fn(outputs, labels)
@@ -241,7 +240,7 @@ class BinauralAttentionModule(LightningModule):
         return cue_features, cue_mask_ixs, scene_features, labels
 
     def train_dataloader(self):
-        dataset = self.dataset(**self.corpora_config, mode='train')
+        dataset = self.dataset(**self.corpora_config, mode='train', run_mono= not self.audio_config['rep_kwargs']['binaural'])
         print(f"len training set = {len(dataset)}")
         dataloader = torch.utils.data.DataLoader(
             dataset,
@@ -254,7 +253,7 @@ class BinauralAttentionModule(LightningModule):
         return dataloader
 
     def val_dataloader(self):
-        dataset = self.dataset(**self.corpora_config, mode='val')
+        dataset = self.dataset(**self.corpora_config, mode='val', run_mono= not self.audio_config['rep_kwargs']['binaural'])
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=self.hparas_config['batch_size'],

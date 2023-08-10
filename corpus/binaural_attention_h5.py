@@ -13,7 +13,7 @@ import numpy as np
 class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
     # Makes a dataset using pre-paired speech and audioset background sounds
     
-    def __init__(self, root, cue_type, task, mode='train', with_cue_free=False, **kwargs):
+    def __init__(self, root, cue_type, task, mode='train', with_cue_free=False, run_mono=False, **kwargs):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the 
         specified root directory. 
@@ -37,7 +37,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         self.all_hdf5_files = [fname for fname in self.all_hdf5_files if fname not in files_to_skip]
 
         print(f"{len( self.all_hdf5_files)} files in {mode} concat dataset")
-        self.all_hdf5_datasets = [H5Dataset(h5_file, cue_type, task) for h5_file in self.all_hdf5_files]
+        self.all_hdf5_datasets = [H5Dataset(h5_file, cue_type, task, run_mono) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
 
@@ -50,7 +50,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
 
 
 class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path, cue_type, task):
+    def __init__(self, path, cue_type, task, run_mono):
         """
         Builds a pytorch hdf5 dataset
         Args:
@@ -60,6 +60,7 @@ class H5Dataset(torch.utils.data.Dataset):
         self.file_path = path
         self.dataset = None
         self.task = task
+        self.run_mono = run_mono
 
         if cue_type == 'voice_and_location':
             self.cue_key = 'voice_cue_target_loc'
@@ -81,20 +82,25 @@ class H5Dataset(torch.utils.data.Dataset):
         Args: 
             index (int): index into the hdf5 file
         Returns:
-            [signal, target] : the training audio (signal) containing the preprocessing
-              which may combine the foreground and background speech, and the target idx
-              specified by target_keys. 
+            [cue, foreground, background, label] : The training cue audio, foreground and background to be combined,
+            and the label for the foreground. 
         """
         if self.dataset is None:
             self.dataset = h5py.File(self.file_path, 'r', swmr=True)
 
-        cue = self.dataset[self.cue_key][index].T
+        cue = self.dataset[self.cue_key][index].T # [channel, time] after transpose
         if np.isnan(cue).all():
             cue[:] = 0
-        foreground = self.dataset['target'][index].T
-        background = self.dataset['bg_scene'][index].T
+        foreground = self.dataset['target'][index].T  # [channel, time] after transpose
+        background = self.dataset['bg_scene'][index].T  # [channel, time] after transpose
         # TO DO: Implement location and multi-task label handling
         label = self.dataset[self.label_key][index]
+        if self.run_mono:
+            # average l & r channels
+            cue = cue.mean(0).reshape(1, -1)
+            foreground = foreground.mean(0).reshape(1, -1)
+            background = background.mean(0).reshape(1, -1)
+
         return cue, foreground, background, label
 
     def __len__(self):
