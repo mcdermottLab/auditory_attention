@@ -175,7 +175,6 @@ class AudioToAudioRepresentation(torch.nn.Module):
         rep_type (str): the type of representation to build
     """
     def __init__(self, rep_type, rep_kwargs, compression_type, compression_kwargs):
-        print(rep_type, rep_kwargs, compression_type, compression_kwargs)
         super(AudioToAudioRepresentation, self).__init__()
         self.rep_type = rep_type
         self.rep_kwargs = rep_kwargs

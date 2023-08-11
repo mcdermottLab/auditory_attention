@@ -28,6 +28,8 @@ def run_train(args):
     seed_everything(args.random_seed)
 
     config_path = model_config[args.job_id]
+    config_path = config_path.split("/Auditory-Attention/")[-1]
+    print(config_path)
 
     if (config_path.endswith(".json")):
         with open(config_path, 'r') as file:
@@ -36,7 +38,6 @@ def run_train(args):
         config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
     else:
         print("config file type not supported")
-        print(config_path)
         return
 
     config_path = pathlib.Path(config_path)
@@ -50,9 +51,10 @@ def run_train(args):
 
     checkpoint_dir = args.exp_dir / f"{config_path.stem}/checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    ckpt_paths = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)
 
-    if args.resume_training:
-        ckpt_path = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)[-1]
+    if args.resume_training and len(ckpt_paths) != 0:
+        ckpt_path = ckpt_paths[-1]
         model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
         print('Resuming training from checkpoint: ', ckpt_path)
     else:
@@ -110,15 +112,6 @@ def run_train(args):
         gradient_clip_val=config['hparas']['gradient_clip_val'],
         profiler=None,
         callbacks=callbacks)
-
-    if 'commonvoice' in args.config:
-        from src.cv_word_lightning import CommonVoiceWordRec
-        print('CommonVoice Task')
-        module = CommonVoiceWordRec
-    
-    elif 'binaural' in args.config:
-        from src.binaural_attn_lightning import BinauralAttentionModule
-        module = BinauralAttentionModule
 
     trainer.fit(model)
     

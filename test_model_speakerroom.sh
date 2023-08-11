@@ -22,6 +22,6 @@ module add openmind/cuda/11.3
 python3 eval_binaural.py --config config/binaural_attn/dev_voice_and_loc_cue_001.yaml \
                  --ckpt_path attn_cue_models/binaural_word_task_cue_voiec_and_loc_v02/checkpoints/epoch=0-step=1750-v2.ckpt \
                  --model_name word_task_voice_loc_cue --location_idx $SLURM_ARRAY_TASK_ID \
-                 --gpus 1 --n_jobs 1 --exp_dir binaural_eval/word_task_voice_loc_cue_-9dB/ \
-                 --snr -9
+                 --gpus 1 --n_jobs 1 --exp_dir binaural_eval/word_task_voice_loc_cue_9dB/ \
+                 --snr 9
 

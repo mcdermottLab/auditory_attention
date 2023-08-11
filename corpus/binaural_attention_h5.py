@@ -8,6 +8,7 @@ import os
 # import src.audio_transforms as audio_transforms
 import pickle
 import numpy as np
+from pathlib import Path
 
 
 class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
@@ -19,9 +20,9 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         specified root directory. 
         """
         self.hdf5_glob = '*.hdf5_chunk000' if with_cue_free else 'noise*.hdf5_chunk000' 
-
+        print(root)
         if mode == 'train':
-            self.all_hdf5_files = glob.glob(root + '/train/' + self.hdf5_glob)
+            self.all_hdf5_files = list(Path(root).glob(f"train/{self.hdf5_glob}"))
             # screen dead files 
             self.all_hdf5_files = [fname for fname in self.all_hdf5_files  if os.path.getsize(fname) > 0]
         elif mode == 'val':
@@ -29,11 +30,13 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         elif mode == 'test':
             self.all_hdf5_files = glob.glob(root + '/test/' + self.hdf5_glob) 
 
-        # read files to skip from a file
-        with open(root + '/bad_files.txt', 'r') as f:
-            files_to_skip = [line.strip().split('/')[-1] for line in f.readlines()]
+        # # read files to skip from a file
+        # with open(root + '/bad_files.txt', 'r') as f:
+        #     files_to_skip = [line.strip().split('/')[-1] for line in f.readlines()]
+        files_to_skip = np.load("/om2/user/imgriff/projects/Auditory-Attention/bad_train_file_names.npy")
         # filter bad files from the dataset
-        self.all_hdf5_files = [fname for fname in self.all_hdf5_files if fname.split('/')[-1] not in files_to_skip]
+        
+        self.all_hdf5_files = [fname for fname in self.all_hdf5_files if Path(fname).stem not in files_to_skip]
 
         print(f"{len( self.all_hdf5_files)} files in {mode} concat dataset")
         self.all_hdf5_datasets = [H5Dataset(h5_file, cue_type, task, batch_size, run_mono, skip_negative_elev) for h5_file in self.all_hdf5_files]
@@ -72,7 +75,7 @@ class H5Dataset(torch.utils.data.Dataset):
         if cue_type == 'voice_and_location':
             self.cue_key = 'voice_cue_target_loc'
         elif cue_type == 'voice':
-            self.cue_key = "voice_cue_center_loc"
+            self.cue_key = "voice_cue_rand_loc"
         elif cue_type == "location":
             self.cue_key = "loc_cue"
         elif cue_type == "mixed":
@@ -113,7 +116,7 @@ class H5Dataset(torch.utils.data.Dataset):
             cut1 = start + (self.batch_size // 3)
             cut2 = start + ((self.batch_size // 3) * 2)
             loc_cue = self.dataset['loc_cue']
-            voice_cue = self.dataset['voice_cue_center_loc']
+            voice_cue = self.dataset['voice_cue_rand_loc']
             both_cue = self.dataset['voice_cue_target_loc']
             cues1 = loc_cue[start:cut1].transpose((0, 2, 1))
             cues2 = voice_cue[cut1:cut2].transpose((0, 2, 1))
