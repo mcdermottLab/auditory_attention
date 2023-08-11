@@ -163,8 +163,8 @@ def run_eval(args):
     config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
     config['num_workers'] = args.n_jobs
     config['hparas']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
-    config['noise_kwargs']['low_snr'] = 0
-    config['noise_kwargs']['high_snr'] = 0
+    config['noise_kwargs']['low_snr'] = args.snr
+    config['noise_kwargs']['high_snr'] = args.snr
 
     idx = args.location_idx
     # re_run_mapping = pickle.load(open('/om2/user/rphess/Auditory-Attention/rerun_dict_3.pkl', 'rb'))
@@ -322,6 +322,12 @@ def cli_main():
     )
     parser.add_argument(
         "--n_jobs",
+        default=0,
+        type=int,
+        help="Number of CPUs for dataloader. (Default: 0)",
+    )
+    parser.add_argument(
+        "--snr",
         default=0,
         type=int,
         help="Number of CPUs for dataloader. (Default: 0)",
