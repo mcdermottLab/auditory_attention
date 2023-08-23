@@ -4,9 +4,9 @@
 #SBATCH --error=outLogs/notebook%j.err
 #SBATCH --mem=16Gb
 #SBATCH --cpus-per-task=1
-#SBATCH --time=1:00:00
+#SBATCH --time=2:00:00
 #SBATCH --partition=normal
-#SBATCH --gres=gpu:1 
+#SBATCH --gres=gpu:1 --constraint=20GB
 #SBATCH -x node073
 
 module add openmind/miniconda
