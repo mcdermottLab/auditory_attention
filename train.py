@@ -3,16 +3,13 @@
 
 import pathlib
 from argparse import ArgumentParser
-import os
 import yaml
 import json
-import pickle
+import os
 
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.plugins import DDPPlugin
-from src.spatial_attn_lightning import BinauralAttentionModule #probably need to change this to the new name
 
 # get nodename 
 import socket
@@ -25,44 +22,50 @@ def run_train(args):
 
     seed_everything(args.random_seed)
 
-    with open(args.config_list, 'rb') as f:
-        model_config = pickle.load(f)
-
-    config_path = model_config[args.job_id]
-    config_path = config_path.split("/Auditory-Attention/")[-1]
-    print(config_path)
-
-    if (config_path.endswith(".json")):
-        with open(config_path, 'r') as file:
+    if (args.config.endswith(".json")):
+        with open(args.config, 'r') as file:
             config = json.load(file)
-    elif (config_path.endswith(".yml")):
-        config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
+    elif (args.config.endswith(".yaml")):
+        config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
     else:
         print("config file type not supported")
+        print(args.config)
         return
+      
+    if 'data' in config.keys():
+        config['data']['loader']['num_workers'] = args.n_jobs
+        if args.gpus > 0:
+            config['data']['loader']['batch_size'] = config['data']['loader']['batch_size'] // args.gpus
+        else:
+            config['data']['loader']['batch_size'] = 1
 
-    config_path = pathlib.Path(config_path)
+    elif 'binaural' in args.config:
+        config['num_workers'] = args.n_jobs
+        if args.gpus > 0:
+            config['hparas']['batch_size'] = config['hparas']['batch_size'] // args.gpus
+        else:
+            config['hparas']['batch_size'] = 1
 
-    config['corpus']['clean_percentage'] = args.clean_percentage
-    model_name = config['model_name']
-
-    config['num_workers'] = args.n_jobs
-    if args.gpus > 0:
-        config['hparas']['batch_size'] = config['hparas']['batch_size'] // args.gpus
-
-    checkpoint_dir = args.exp_dir / f"{config_path.stem}/checkpoints"
-    checkpoint_dir.mkdir(parents=True, exist_ok=True)
-    ckpt_paths = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)
-
-    if args.resume_training and len(ckpt_paths) != 0:
-        ckpt_path = ckpt_paths[-1]
-        model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
-        print('Resuming training from checkpoint: ', ckpt_path)
     else:
-        model = BinauralAttentionModule(config)
+        config['loader']['num_workers'] = args.n_jobs
+        if args.gpus > 0:
+            config['loader']['batch_size'] = config['loader']['batch_size'] // args.gpus
+        else:
+            config['data']['loader']['batch_size'] = 1
 
+    
+    checkpoint_dir = args.exp_dir / "checkpoints"
+
+    if args.ckpt_path != '':
+        ckpt_path = checkpoint_dir / args.ckpt_path
+    else:
+        ckpt_path = None
+        
+    # if  'dgx002' in hostname:
+    #     config['data']['corpus']['root'] = '/mnt/local-scratch/JSIN_v3.00'
+        
     callbacks = []
-
+    
     if isinstance(config['val_metric'], dict):
         for name, value in config['val_metric'].items():
             callbacks.append(ModelCheckpoint(
@@ -71,10 +74,10 @@ def run_train(args):
                 monitor=value,
                 mode="max",
                 save_top_k=1,
-                save_weights_only=True,
+#                 save_weights_only=True,
                 verbose=True,
             ))
-
+    
     else:
         callbacks.append(ModelCheckpoint(
             checkpoint_dir,
@@ -84,7 +87,7 @@ def run_train(args):
             save_weights_only=True,
             verbose=True,
         ))
-
+        
     train_checkpoint = ModelCheckpoint(
         checkpoint_dir,
         monitor="Losses/train_loss",
@@ -93,15 +96,15 @@ def run_train(args):
         save_weights_only=True,
         verbose=True,
     )
-
+    
     callbacks.append(train_checkpoint)
-
+   
     trainer = Trainer(
         precision=32, # if args.mixed_precision else 32,
         # precision=16,# 16 if 'binaural' in args.config else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
-
+    
        # log_every_n_steps = 10,
         detect_anomaly=True,
         num_nodes=args.num_nodes,
@@ -114,13 +117,33 @@ def run_train(args):
         profiler=None,
         callbacks=callbacks)
 
+    if 'commonvoice' in args.config:
+        from src.cv_word_lightning import CommonVoiceWordRec
+        print('CommonVoice Task')
+        module = CommonVoiceWordRec
+    
+    elif 'binaural' in args.config:
+        from src.binaural_attn_lightning import BinauralAttentionModule
+        module = BinauralAttentionModule
+
+    else:
+        from src.attn_tracking_lightning import AttentionalTrackingModule
+        module = AttentionalTrackingModule
+    
+    if args.resume_training or ckpt_path:
+        if ckpt_path is None:
+            ckpt_path = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)[-1]
+        print(f"Loading checkpoint from {ckpt_path}")
+        model = module.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)  
+    else:
+        model = module(config)
+        
     trainer.fit(model)
     
 
 def cli_main():
     parser = ArgumentParser()
-    parser.add_argument('--config_list', type=str, help='Path to list of config files.')
-    parser.add_argument('--job_id', type=int, help='Index into the config list specifying which one to use.')
+    parser.add_argument('--config', type=str, help='Path to experiment config.')
     parser.add_argument(
         "--exp_dir",
         default=pathlib.Path("./exp"),
@@ -133,6 +156,12 @@ def cli_main():
         type=str,
         help="Resume training from this checkpoint."
     )
+    # parser.add_argument(
+    #     "--global_stats_path",
+    #     default=pathlib.Path("global_stats.json"),
+    #     type=pathlib.Path,
+    #     help="Path to JSON file containing feature means and stddevs.",
+    # )
     parser.add_argument(
         "--num_nodes",
         default=1,
@@ -146,6 +175,12 @@ def cli_main():
         help="Use 16 bit precision in training. (Default: False)",
     )
     parser.add_argument(
+        "--dgx002_path",
+        default=False,
+        action='store_true',
+        help="use dgx002 jsin dataset",
+    )
+    parser.add_argument(
         "--gpus",
         default=4,
         type=int,
@@ -157,10 +192,18 @@ def cli_main():
     type=int,
     help="Number of CPUs for dataloader. (Default: 0)",
     )
-    parser.add_argument('--random_seed', default=0, type=int, help='Random seed for dataset.')
-    parser.add_argument('--resume_training', default=False, help='Resume training from checkpoint.')
-    parser.add_argument('--negative_elevs', default=False, help='Use negative elevations in training.')
-    parser.add_argument('--clean_percentage', default=0.0, type=float, help='Percentage of clean speech data to use in training.')
+    parser.add_argument(
+        "--resume_training",
+        default=False,
+        action='store_true',
+        help="Continue training from checkpoint",
+    )
+    parser.add_argument(
+        "--random_seed",
+        default=0,
+        type=int,
+        help="random seed value",
+    )
     args = parser.parse_args()
 
     run_train(args)

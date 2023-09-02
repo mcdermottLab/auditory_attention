@@ -4,6 +4,7 @@ corpus:
   task: "word"
   root: '/om/scratch/Mon/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
   with_cue_free: False
+  mono_sanity_check: True
 
 
 audio:                                  # Attributes of audio feature
@@ -35,7 +36,7 @@ audio:                                  # Attributes of audio feature
 
 
 val_metric: 'ACC/val_acc'
-model_name: 'binaural_attn_cue_voice_and_loc'
+model_name: 'copy_channel_sanity_check_cue_voice'
 
 noise_kwargs: # parameters for background signal levels 
   low_snr: -10

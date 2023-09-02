@@ -14,7 +14,8 @@ from pathlib import Path
 class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
     # Makes a dataset using pre-paired speech and audioset background sounds
     
-    def __init__(self, root, cue_type, task, batch_size=1, skip_negative_elev=False, mode='train', with_cue_free=False, run_mono=False, **kwargs):
+    def __init__(self, root, cue_type, task, batch_size=1, skip_negative_elev=False, mode='train',
+                 with_cue_free=False, run_mono=False, mono_sanity_check=False, clean_percentage=0.0, **kwargs):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the
         specified root directory. 
@@ -39,7 +40,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         self.all_hdf5_files = [fname for fname in self.all_hdf5_files if Path(fname).stem not in files_to_skip]
 
         print(f"{len( self.all_hdf5_files)} files in {mode} concat dataset")
-        self.all_hdf5_datasets = [H5Dataset(h5_file, cue_type, task, batch_size, run_mono, skip_negative_elev) for h5_file in self.all_hdf5_files]
+        self.all_hdf5_datasets = [H5Dataset(h5_file, cue_type, task, batch_size, run_mono, skip_negative_elev, mono_sanity_check, clean_percentage) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
 
@@ -52,7 +53,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
 
 
 class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path, cue_type, task, batch_size, run_mono, skip_negative_elev=False, clean_percentage=0.0):
+    def __init__(self, path, cue_type, task, batch_size, run_mono, skip_negative_elev=False, mono_sanity_check=False, clean_percentage=0.0):
         """
         Builds a pytorch hdf5 dataset
         Args:
@@ -65,6 +66,7 @@ class H5Dataset(torch.utils.data.Dataset):
         self.run_mono = run_mono
         self.batch_size = batch_size
         self.skip_negative_elev = skip_negative_elev
+        self.mono_sanity_check = mono_sanity_check
         self.clean_percentage = clean_percentage
         self.batch_ixs = np.arange(self.batch_size)
         # if self.skip_negative_elev:
@@ -158,6 +160,12 @@ class H5Dataset(torch.utils.data.Dataset):
             cue = cue.mean(1).reshape(self.batch_size, -1)
             foreground = foreground.mean(1).reshape(self.batch_size, -1)
             background = background.mean(1).reshape(self.batch_size, -1)
+            
+        if self.mono_sanity_check:
+            # use only left channel for both channels
+            cue[:,1,:] = cue[:,0,:]
+            foreground[:,1,:] = foreground[:,0,:]
+            background[:,1,:] = background[:,0,:]
             
         return cue, foreground, background, label
 
