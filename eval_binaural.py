@@ -10,7 +10,6 @@ import pickle
 import scipy.stats as stats
 import soundfile as sf
 import soxr
-import src.binaural_attn_lightning as attn_tracking_lightning
 import torch
 import yaml
 
@@ -165,7 +164,7 @@ def run_eval(args):
     config['hparas']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
     config['noise_kwargs']['low_snr'] = args.snr
     config['noise_kwargs']['high_snr'] = args.snr
-
+    config['corpus']['cue_type'] = "voice_and_location"
     idx = args.location_idx
     # re_run_mapping = pickle.load(open('/om2/user/rphess/Auditory-Attention/rerun_dict_3.pkl', 'rb'))
     loc_dict = pickle.load(open('/om2/user/rphess/Auditory-Attention/speaker_room_0_elev_conditions.pkl', 'rb'))
@@ -176,7 +175,17 @@ def run_eval(args):
     print(log_name)
 
     experiment_dir = args.exp_dir
-    model = attn_tracking_lightning.BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).cuda()
+
+    # Get model module dynamically
+    # If using config that specifies architecture, use spatial_attn_lightning
+    # TO DO: clean up and make one module for both
+    if 'kernel' in config['model']:
+        from src.spatial_attn_lightning import BinauralAttentionModule 
+    else:
+        from src.binaural_attn_lightning import BinauralAttentionModule
+    
+
+    model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).cuda()
     audio_transforms = model.audio_transforms
 
     new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
@@ -255,15 +264,15 @@ def run_eval(args):
 
             cue = mass_spatialize(cue.cuda(), cue_brir.cuda()).cpu()
             cue = np.array(cue[:, :, 12500:137500])
-            #! delete the .squeeze(0) below if want to use modular
-            cue = audio_transforms(cue, None)[0].squeeze(0)
+            #! Force cue to batch, channel, time format
+            cue = audio_transforms(cue, None)[0].view(-1, 2, 125000)
 
             fg = mass_spatialize(fg.cuda(), tar_brir.cuda()).cpu()
             fg = np.array(fg[:, :, 12500:137500])
             bg = mass_spatialize(distractor_signal.cuda(), dist_brir.cuda()).cpu()
             bg = np.array(bg[:, :, 12500:137500])
-            #! delete the .squeeze(0) below as well
-            scene = audio_transforms(fg, bg)[0].squeeze(0)
+            #! Force scene to batch, channel, time format
+            scene = audio_transforms(fg, bg)[0].view(-1, 2, 125000)
 
             out = model.forward(cue.cuda(), scene.cuda(), cue_mask_ixs=None)
             softmax_outputs = torch.nn.functional.softmax(out, dim=-1)
