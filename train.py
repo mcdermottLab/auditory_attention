@@ -20,8 +20,6 @@ hostname = socket.gethostname()
 
 def run_train(args):
 
-    seed_everything(args.random_seed)
-
     if (args.config.endswith(".json")):
         with open(args.config, 'r') as file:
             config = json.load(file)
@@ -134,8 +132,10 @@ def run_train(args):
         if ckpt_path is None:
             ckpt_path = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)[-1]
         print(f"Loading checkpoint from {ckpt_path}")
+        seed_everything(int(os.path.getatime(ckpt_path)))
         model = module.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)  
     else:
+        seed_everything(123)
         model = module(config)
         
     trainer.fit(model)
