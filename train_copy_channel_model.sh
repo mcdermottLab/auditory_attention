@@ -24,6 +24,6 @@ source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
 which python3
 python3 spatialtrain.py --config_list copy_channel_model_8_25_2023.pkl --job_id $SLURM_ARRAY_TASK_ID\
-                 --gpus 8 --n_jobs 10 --resume_training True --random_seed 0 --clean_percentage 0.1\
+                 --gpus 8 --n_jobs 10 --resume_training True --random_seed 1 --clean_percentage 0.1\
                  --exp_dir attn_cue_models \
 
