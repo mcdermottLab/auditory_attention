@@ -138,7 +138,7 @@ wav2vec_1e-5_lr_exp
 word_rec
 lightning_logs
 behavioral_experiments
-
+results_figs
 
 # swap file
 *.swp
@@ -156,14 +156,5 @@ corpus/jsinV3AttnTrackVal_v1.py
 *.tar
 *.txt
 tests/sample_data/gigaspeech_words-10k.vocab
-
-# h5 file
-*.h5
-
-# checkpoint file
-*.ckpt
-.vscode/settings.json
-attn_cue_models/lightning_logs/*
-lightning_logs/*
-
-binaural_eval/*
+*.out
+*.err
