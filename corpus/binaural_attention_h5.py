@@ -60,7 +60,7 @@ class H5Dataset(torch.utils.data.Dataset):
             path (str): location of the hdf5 dataset
             task (str): string indicating label keys to return 
         """
-        self.file_path = path
+        self.file_path = Path(path).as_posix()
         self.dataset = None
         self.task = task
         self.run_mono = run_mono
@@ -74,10 +74,15 @@ class H5Dataset(torch.utils.data.Dataset):
         # else:
         #     print("Including negative elevations")
 
+        if "v02" in self.file_path:
+            self.voice_key = "voice_cue_rand_loc"
+        elif "v03" in self.file_path:
+            self.voice_key = "voice_cue_center_loc"
+
         if cue_type == 'voice_and_location':
             self.cue_key = 'voice_cue_target_loc'
         elif cue_type == 'voice':
-            self.cue_key = "voice_cue_rand_loc"
+            self.cue_key = self.voice_key
         elif cue_type == "location":
             self.cue_key = "loc_cue"
         elif cue_type == "mixed":
@@ -118,7 +123,7 @@ class H5Dataset(torch.utils.data.Dataset):
             cut1 = start + (self.batch_size // 3)
             cut2 = start + ((self.batch_size // 3) * 2)
             loc_cue = self.dataset['loc_cue']
-            voice_cue = self.dataset['voice_cue_rand_loc']
+            voice_cue = self.dataset[self.voice_key]
             both_cue = self.dataset['voice_cue_target_loc']
             cues1 = loc_cue[start:cut1].transpose((0, 2, 1))
             cues2 = voice_cue[cut1:cut2].transpose((0, 2, 1))

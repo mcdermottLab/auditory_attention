@@ -4,7 +4,7 @@
 #SBATCH --error=outLogs/eval_binaural_model_rerun_%A_%a.err
 #SBATCH --mem=8Gb
 #SBATCH --cpus-per-task=1
-#SBATCH --time=30:00
+#SBATCH --time=1:00:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:1 --constraint=20GB
 #SBATCH --array=0-360
@@ -20,8 +20,8 @@ module add openmind/cuda/11.3
 
 
 python3 eval_binaural.py --config config/binaural_attn/word_task_mixed_cue_large_architecture.yml \
-                 --ckpt_path attn_cue_models/word_task_mixed_cue_large_architecture/checkpoints/epoch=0-step=2000-v12.ckpt \
+                 --ckpt_path attn_cue_models/word_task_mixed_cue_large_architecture/checkpoints/epoch=0-step=2000-v2.ckpt \
                  --model_name word_task_mixed_cue_large_architecture --location_idx $SLURM_ARRAY_TASK_ID \
-                 --gpus 1 --n_jobs 1 --exp_dir binaural_eval/word_task_mixed_cue_large_architecture_0dB/ \
+                 --gpus 1 --n_jobs 1 --exp_dir binaural_eval/test_voice_cue_only_word_task_mixed_cue_large_architecture_0dB/ \
                  --snr 0
 
