@@ -127,7 +127,6 @@ class H5Dataset(torch.utils.data.Dataset):
             both_cue = self.dataset['voice_cue_target_loc']
             cues1 = loc_cue[start:cut1].transpose((0, 2, 1))
             cues2 = voice_cue[cut1:cut2].transpose((0, 2, 1))
-            cues2[:,1,:] = cues2[:,0,:] # make left and right channel same
             cues3 = both_cue[cut2:end].transpose((0, 2, 1))
             cue = np.concatenate((cues1, cues2, cues3), axis=0)
         else:
