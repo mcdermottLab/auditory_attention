@@ -23,25 +23,25 @@ hostname = socket.gethostname()
 
 def run_train(args):
 
-    seed_everything(args.random_seed)
+    if args.config != "":
+        config_path = args.config
+        
+    else:
+        with open(args.config_list, 'rb') as f:
+            model_config = pickle.load(f)
+        config_path = model_config[args.job_id]
+        config_path = config_path.split("/Auditory-Attention/")[-1]
 
-    with open(args.config_list, 'rb') as f:
-        model_config = pickle.load(f)
-
-    config_path = model_config[args.job_id]
-    config_path = config_path.split("/Auditory-Attention/")[-1]
     print(config_path)
 
     if (config_path.endswith(".json")):
         with open(config_path, 'r') as file:
             config = json.load(file)
-    elif (config_path.endswith(".yml")):
+    elif (config_path.endswith(".yml")) or (config_path.endswith(".yaml")):
         config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
     else:
         print("config file type not supported")
         return
-
-    config_path = pathlib.Path(config_path)
 
     config['corpus']['clean_percentage'] = args.clean_percentage
     model_name = config['model_name']
@@ -50,13 +50,14 @@ def run_train(args):
     if args.gpus > 0:
         config['hparas']['batch_size'] = config['hparas']['batch_size'] // args.gpus
 
+    config_path = pathlib.Path(config_path)
     checkpoint_dir = args.exp_dir / f"{config_path.stem}/checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     ckpt_paths = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)
 
     if args.resume_training and len(ckpt_paths) != 0:
-        seed_everything(int(os.path.getatime(ckpt_path)))
         ckpt_path = ckpt_paths[-1]
+        seed_everything(int(os.path.getatime(ckpt_path)))
         model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
         print('Resuming training from checkpoint: ', ckpt_path)
     else:
@@ -121,6 +122,7 @@ def run_train(args):
 
 def cli_main():
     parser = ArgumentParser()
+    parser.add_argument('--config', default='', type=str, help='Path to experiment config.')
     parser.add_argument('--config_list', type=str, help='Path to list of config files.')
     parser.add_argument('--job_id', type=int, help='Index into the config list specifying which one to use.')
     parser.add_argument(
