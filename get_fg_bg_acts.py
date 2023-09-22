@@ -5,7 +5,6 @@ import pathlib
 import numpy as np 
 from argparse import ArgumentParser
 
-sys.path.append('../')
 from src.attn_tracking_lightning import AttentionalTrackingModule
 from corpus.jsinV3_attn_tracking_multi_talker_background import jsinV3_attn_tracking_multi_talker_background
 import src.audio_transforms as at

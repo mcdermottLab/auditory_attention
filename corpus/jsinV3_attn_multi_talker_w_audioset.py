@@ -1,3 +1,4 @@
+from re import L
 import h5py
 import torch
 import glob
@@ -8,14 +9,15 @@ import pickle
 import numpy as np
 
 
-class jsinV3_attn_tracking_multi_talker_background(torch.utils.data.ConcatDataset):
+class jsinV3_attn_multi_talker_w_audioset(torch.utils.data.ConcatDataset):
     # Makes a dataset using pre-paired speech and audioset background sounds
     # Works with hdf5 files for the jsinv3 dataset, located at the following on openmind
     # /om4/group/mcdermott/projects/ibmHearingAid/assets/data/datasets/JSIN_v3.00/nStim_20000/2000ms/rms_0.1/noiseSNR_-10_10/stimSR_20000/reverb_none/noise_all/JSIN_all_v3/subsets'
     hdf5_glob = 'JSIN_all__run_*.h5'
     target_keys = ['signal/word_int']
 
-    def __init__(self, root, mode='train', download=False, transform=None, n_talkers=1, noise_only=None, demo=False, **kwargs):
+    def __init__(self, root, mode='train', download=False, transform=None,
+                 n_talkers=1, noise_only=None, with_audioset=False, demo=False):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the 
         specified root directory. 
@@ -30,7 +32,7 @@ class jsinV3_attn_tracking_multi_talker_background(torch.utils.data.ConcatDatase
         elif mode == 'test':
             self.all_hdf5_files = glob.glob(root + '/valid_*/' + self.hdf5_glob)[1:] # Use the others 
 
-        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys, n_talkers, demo) for h5_file in self.all_hdf5_files]
+        self.all_hdf5_datasets = [H5Dataset(h5_file, transform, self.target_keys, n_talkers, with_audioset, demo) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
 
@@ -44,7 +46,7 @@ class jsinV3_attn_tracking_multi_talker_background(torch.utils.data.ConcatDatase
 
 
 class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path, transform, target_keys, n_talkers, demo):
+    def __init__(self, path, transform, target_keys, n_talkers, with_audioset, demo):
         """
         Builds a pytorch hdf5 dataset
         Args:
@@ -52,11 +54,18 @@ class H5Dataset(torch.utils.data.Dataset):
         """
         self.file_path = path
         self.dataset = None
-        self.transform = transform[0]
-        self.bg_transform = transform[1]
+        self.coch_transform = transform[0] # has cochleagram transform after rms normalization & fg-bg combination
+        self.mix_transform = transform[1] # rms normalizes and combines signals at random SNR without cochleagram
+
         self.target_keys = target_keys
         self.n_talkers = n_talkers
-        print(self.n_talkers)
+
+        if isinstance(n_talkers, (list, tuple)):
+            self.get_bg_talker_ixs = self.get_random_n_talker_ixs
+        else:
+            self.get_bg_talker_ixs = self.get_talker_ixs
+
+        self.with_audioset = with_audioset
         self.demo = demo
         # TODO: implement chunking the hdf5 file so that we can shuffle the data
         # TODO: implement shuffling the audioset and the speech separately
@@ -64,6 +73,22 @@ class H5Dataset(torch.utils.data.Dataset):
         with h5py.File(self.file_path, 'r', swmr=True) as file:
             self.dataset_len = len(file['sources']['signal']['signal'])
 
+    def get_talker_ixs(self, background_ixs):
+        '''Randomly choose fixed number of talkers'''
+        talker_ixs = np.random.choice(background_ixs, size=self.n_talkers, replace=False)
+        if self.n_talkers > 1:
+            talker_ixs = np.sort(talker_ixs)
+        return talker_ixs
+
+    def get_random_n_talker_ixs(self, background_ixs):
+        '''Randomly choose number of talkers from provided upper and lower bounds.
+        Add one to high as upper bound of np.random.randint is not inclusive
+        '''
+        n_talkers = np.random.randint(low=self.n_talkers[0], high=self.n_talkers[1]+1) 
+        talker_ixs = np.random.choice(background_ixs, size=n_talkers, replace=False)
+        talker_ixs = np.sort(talker_ixs)
+        return talker_ixs 
+        
     def __getitem__(self, index):
         """
         Gets components of the hdf5 file that are used for training
@@ -83,6 +108,9 @@ class H5Dataset(torch.utils.data.Dataset):
         speakers = self.dataset['sources']['signal']['speaker_int']
         signals = self.dataset['sources']['signal']['signal'] 
 
+        # get audioset noise
+        noise = self.dataset['sources']['noise']['signal'][index]
+
         # Get foreground
         foreground = signals[index]
         talker = speakers[index]
@@ -95,27 +123,24 @@ class H5Dataset(torch.utils.data.Dataset):
         assert cue_ix != index, "Cue excerpt cannot be the same as foreground!"
         fg_cue = signals[cue_ix]
 
-        # get background
+        # get background talkers
         background_ixs = np.where(speakers[:] != talker)[0]
-        background_ix = np.random.choice(background_ixs, size=self.n_talkers, replace=False)
-        background_ix = np.sort(background_ix)
-        assert index not in background_ix, "Background talker same as target talker!"
-            
-        #print(background_ix)
-        assert (np.diff(background_ix) > 0).all(), "Background indices not ascending"
-        background = signals[background_ix, :].squeeze()
-#         print(background.shape)
-#         print(foreground.shape)
+        talker_ixs = self.get_bg_talker_ixs(background_ixs)
+        assert index not in talker_ixs, "Background talker same as target talker!"
+        assert (np.diff(talker_ixs) > 0).all(), "Background indices not ascending"
+        background_talkers = signals[talker_ixs, :]
         # Transforms will take in the signal and the noise source for this dataset
-        # If no transform, just return the speech with no background
-        if self.transform is not None:
-            if self.n_talkers > 1:
-                # hack to use  transforms to RMS normalize all background samples - to numpy for mixtures
-                background = [self.bg_transform(bg, None)[0].squeeze().numpy() for bg in background]
-                background = np.sum(background, axis=0)
-            #print(background.shape)
-            signal, _ = self.transform(foreground, background)
-            fg_cue, _ = self.transform(fg_cue, None)
+        # mix talkers at random SNRs:
+        for ix, talker in enumerate(background_talkers):
+            if ix == 0:
+                background_talkers = self.mix_transform(talker, None)[0].squeeze().numpy() # [0] to select signal. mix_transform returns fg, bg pairs - here bg is none 
+            else:
+                background_talkers = self.mix_transform(talker, background_talkers)[0].squeeze().numpy() # [0] to select signal. mix_transform returns fg, bg pairs - here bg is none 
+        # mix audioset and talkers 
+        background = self.mix_transform(background_talkers, noise)[0].squeeze().numpy() # [0] to select signal. mix_transform returns fg, bg pairs - here bg is none 
+        # get cochleagrams of target in noise and of cue 
+        signal, _ = self.coch_transform(foreground, background)
+        fg_cue, _ = self.coch_transform(fg_cue, None)
             
         if len(self.target_keys) == 1:
             target_paths = self.target_keys[0].split('/')
@@ -125,7 +150,7 @@ class H5Dataset(torch.utils.data.Dataset):
 
         # If there are multiple keys, our target has them explicitly listed
         else:
-            target = {}
+            fg_target = {}
             for target_key in self.target_keys:
                 target_paths = target_key.split('/')
                 fg_target[target_key] = self.dataset['sources'][target_paths[0]][target_paths[1]][index]
