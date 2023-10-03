@@ -9,6 +9,8 @@ from src.attn_tracking_lightning import AttentionalTrackingModule
 from corpus.jsinV3_attn_tracking_multi_talker_background import jsinV3_attn_tracking_multi_talker_background
 import src.audio_transforms as at
 
+from tqdm import tqdm
+
 def get_activations(args):
     # Get config for model
     config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
@@ -17,13 +19,25 @@ def get_activations(args):
     # Set audio transforms  
     snr_lim = 0
     audio_config = config['data']['audio']
-    audio_transforms = at.AudioCompose([
-                at.AudioToTensor(),
-                at.CombineWithRandomDBSNR(low_snr=-snr_lim, high_snr=snr_lim), 
-                at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
-                at.UnsqueezeAudio(dim=0),
-                at.AudioToAudioRepresentation(**audio_config),
-    ])
+
+    IIR_COCH = not audio_config['rep_kwargs']['rep_on_gpu']
+
+    if IIR_COCH:
+        audio_transforms = at.AudioCompose([
+                    at.AudioToTensor(),
+                    at.CombineWithRandomDBSNR(low_snr=-snr_lim, high_snr=snr_lim), 
+                    at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
+                    at.UnsqueezeAudio(dim=0),
+                    at.AudioToAudioRepresentation(**audio_config),
+            ])
+    else:
+        audio_transforms = at.AudioCompose([
+                    at.AudioToTensor(),
+                    at.CombineWithRandomDBSNR(low_snr=-snr_lim, high_snr=snr_lim), 
+                    at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
+                    at.UnsqueezeAudio(dim=0),
+            ])   
+
     bg_combine_transforms = at.AudioCompose([
             at.AudioToTensor(),
             at.CombineWithRandomDBSNR(low_snr=-snr_lim, high_snr=snr_lim), 
@@ -58,13 +72,24 @@ def get_activations(args):
 
     def get_activation(name):
         def hook(model, input, output):
+            if isinstance(output, tuple):
+                cue, mixture = output
+                output = mixture
             activations[name] = output.detach()
         return hook
 
     n_activations = args.n_activations
 
     # set hooks for time_average layers & make SigmoidLayers
-    conv_modules = {name:module for name, module in model.model.named_children() if 'conv' in name or 'relufc' in name}
+    if IIR_COCH:
+        conv_modules = {name:module for name, module in model.model.named_children() if 'conv' in name or 'relufc' in name}
+    else:
+        get_name = lambda name: 'cochleagram' if name == '0' else 'model' 
+        modules = {get_name(name):module for name, module in model.model.named_children()}
+        model_modules = modules['model']
+        cochleagram = modules['cochleagram']  
+        conv_modules = {name:module for name, module in model_modules.named_children() if 'conv' in name or 'relufc' in name}
+        conv_modules['cochleagram'] = cochleagram
 
     # dicts to store activations
     fg_reps = {}
@@ -74,8 +99,8 @@ def get_activations(args):
     # register hooks 
     for name, module in conv_modules.items():
         print(name)
-        if 'relufc' in name:
-            module.register_forward_hook(get_activation(name)) # [2] is relu 
+        if 'relufc' in name or 'cochleagram' in name:
+            module.register_forward_hook(get_activation(name))
         else:
             module[2].register_forward_hook(get_activation(name)) # [2] is relu 
         # lists to save acts in per-layer
@@ -93,19 +118,20 @@ def get_activations(args):
 
     # get activations 
     with torch.no_grad():
-        for ix, batch in tqdm(enumerate(dataloader),  total = n_activations):
+        for ix, batch in enumerate(tqdm(dataloader, total=n_activations)):
             foreground, background, mixture, fg_cue, fg_target = batch
             
             # convert to cochleagrams
-            foreground, _ = cochgram_transforms(foreground, None)
-            background, _ = cochgram_transforms(background, None)
-            foreground = foreground.squeeze(0)
-            background = background.squeeze(0)
+            if IIR_COCH:
+                foreground, _ = cochgram_transforms(foreground, None)
+                background, _ = cochgram_transforms(background, None)
+                foreground = foreground.squeeze(0)
+                background = background.squeeze(0)
 
-            # save inputs
-            mixture_reps['cochleagram'].append(mixture.view(1,-1))
-            fg_reps['cochleagram'].append(foreground.view(1,-1))
-            bg_reps['cochleagram'].append(background.view(1,-1))
+                # save inputs
+                mixture_reps['cochleagram'].append(mixture.view(1,-1))
+                fg_reps['cochleagram'].append(foreground.view(1,-1))
+                bg_reps['cochleagram'].append(background.view(1,-1))
 
             # send to device
             foreground, background, mixture = foreground.cuda(), background.cuda(), mixture.cuda()
@@ -115,7 +141,7 @@ def get_activations(args):
             model(fg_cue, mixture)
                 
             for layer in mixture_reps.keys():
-                if layer == 'cochleagram':
+                if layer == 'cochleagram' and IIR_COCH:
                     continue 
                 mixture_reps[layer].append(activations[layer].view(1,-1).cpu())
                     
@@ -123,7 +149,7 @@ def get_activations(args):
             model(fg_cue, foreground)
                 
             for layer in fg_reps.keys():
-                if layer == 'cochleagram':
+                if layer == 'cochleagram' and IIR_COCH:
                     continue 
                 fg_reps[layer].append(activations[layer].view(1,-1).cpu())
                     
@@ -131,7 +157,7 @@ def get_activations(args):
             model(fg_cue, background)
                 
             for layer in bg_reps.keys():
-                if layer == 'cochleagram':
+                if layer == 'cochleagram' and IIR_COCH:
                     continue 
                 bg_reps[layer].append(activations[layer].view(1,-1).cpu())
             

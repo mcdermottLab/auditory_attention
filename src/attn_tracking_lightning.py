@@ -268,7 +268,7 @@ class AttentionalTrackingModule(LightningModule):
         return [self.optimizer]
         
     def forward(self, cue: torch.Tensor, mixture: torch.Tensor):
-        outputs = self.model(cue, mixture, None)
+        outputs = self.model(cue, mixture)
         # Outputs here are logits
         return outputs
 

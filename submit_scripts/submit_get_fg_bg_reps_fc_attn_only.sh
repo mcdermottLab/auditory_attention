@@ -6,6 +6,7 @@
 #SBATCH --cpus-per-task=10
 #SBATCH --time=3:00:00
 #SBATCH --partition=normal
+#SBATCH --gres=gpu:1
 
 
 
@@ -18,8 +19,8 @@ source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
 # print path to current directory
 
-python3 get_fg_bg_acts.py --config "./config/attentional_cue/attn_cue_speech_and_noise_fc_attn_only.yaml" \
-                               --model_dir "./attn_cue_models/attn_cue_speech_and_noise_fc_attn_only" \
+python3 get_fg_bg_acts.py --config "./config/attentional_cue/attn_cue_match_target_speech_and_noise_fc_attn_only.yaml" \
+                               --model_dir "./attn_cue_models/attn_cue_match_target_speech_and_noise_fc_attn_only" \
                                --ckpt "checkpoints/epoch=0-step=36000.ckpt" \
                                --n_activations 100 \
                                --n_jobs 10 
