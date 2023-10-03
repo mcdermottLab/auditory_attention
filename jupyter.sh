@@ -2,8 +2,8 @@
 #SBATCH --job-name=jupyter_notebook
 #SBATCH --output=outLogs/notebook_%j.out
 #SBATCH --error=outLogs/notebook_%j.err
-#SBATCH --mem=4Gb 
-#SBATCH --time=5:00:00
+#SBATCH --mem=6Gb 
+#SBATCH --time=6:00:00
 #SBATCH --partition=mcdermott
 #SBATCH --cpus-per-task=1
 #SBATCH -x node104

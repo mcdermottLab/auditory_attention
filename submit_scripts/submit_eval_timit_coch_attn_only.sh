@@ -16,5 +16,5 @@ source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
 python3 eval_timit.py --gpus 1 --n_jobs 10 --exp_dir "attn_cue_models/attn_timit_task" \
                       --model_name "coch_attn_only" \
-                      --config_name "config/attentional_cue/attn_cue_speech_and_noise_coch_only.yaml" \
-                      --ckpt_path "attn_cue_models/attn_cue_speech_and_noise_coch_attn_only/checkpoints/epoch=1-step=20349.ckpt"
+                      --config_name "config/attentional_cue/attn_cue_match_target_speech_and_noise_coch_attn_only.yaml" \
+                      --ckpt_path "attn_cue_models/attn_cue_match_target_speech_and_noise_coch_attn_only/checkpoints/epoch=1-step=20349.ckpt"
