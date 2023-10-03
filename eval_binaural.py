@@ -164,7 +164,7 @@ def run_eval(args):
     config['hparas']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
     config['noise_kwargs']['low_snr'] = args.snr
     config['noise_kwargs']['high_snr'] = args.snr
-    config['corpus']['cue_type'] = "voice"
+    config['corpus']['cue_type'] = args.cue_type
     idx = args.location_idx
     # re_run_mapping = pickle.load(open('/om2/user/rphess/Auditory-Attention/rerun_dict_3.pkl', 'rb'))
     loc_dict = pickle.load(open('/om2/user/rphess/Auditory-Attention/speaker_room_0_elev_conditions.pkl', 'rb'))
@@ -174,7 +174,7 @@ def run_eval(args):
     log_name = f"/bin_attn_task_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}"
     print(log_name)
 
-    experiment_dir = args.exp_dir
+    experiment_dir = pathlib.Path(args.exp_dir) / f"test_{args.cue_type}_{model_name}_{args.snr}dB"
 
     # Get model module dynamically
     # If using config that specifies architecture, use spatial_attn_lightning
@@ -340,6 +340,12 @@ def cli_main():
         default=0,
         type=int,
         help="Number of CPUs for dataloader. (Default: 0)",
+    )
+    parser.add_argument(
+        "--cue_type",
+        default='voice_and_location',
+        type=str,
+        help="Type of cue to use in evaluation. One of `voice_and_location`, `voice`, `location` (Default: `voice_and_location`)",
     )
 
 
