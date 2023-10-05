@@ -165,6 +165,8 @@ def run_eval(args):
     config['noise_kwargs']['low_snr'] = args.snr
     config['noise_kwargs']['high_snr'] = args.snr
     config['corpus']['cue_type'] = args.cue_type
+    cue_type = config['corpus']['cue_type']
+    print(config['corpus']['cue_type'])
     idx = args.location_idx
     # re_run_mapping = pickle.load(open('/om2/user/rphess/Auditory-Attention/rerun_dict_3.pkl', 'rb'))
     loc_dict = pickle.load(open('/om2/user/rphess/Auditory-Attention/speaker_room_0_elev_conditions.pkl', 'rb'))
@@ -197,7 +199,7 @@ def run_eval(args):
         elif loc == 'distractor':
             coords = distract_loc
         elif loc == 'cue':
-            coords = [0, 0]
+            coords = [0, 0] if cue_type == 'voice_only' else target_loc
         df_row = only14_manifest[(only14_manifest['src_azim'] == coords[0]) & (only14_manifest['src_elev'] == coords[1])]
         h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{df_row["index_room"].values[0]}.hdf5'
         index_brir = df_row['index_brir'].values[0]
