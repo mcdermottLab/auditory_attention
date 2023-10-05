@@ -183,15 +183,15 @@ class BinauralAttentionModule(LightningModule):
         return fg_loss
 
     def test_timit(self, batch, batch_idx):
-        signal, fg_cue, fg_labels = batch
+        cue_features, cue_mask_ixs, scene_features, labels = batch
         # self() is self.forward()  
-        fg_outputs = self(fg_cue, signal) 
-        fg_loss = self.loss_fn(fg_outputs, fg_labels)
-        model_guess = fg_outputs.log_softmax(-1).argmax(-1) 
-        self.accuracy["test"](fg_outputs, fg_labels)
+        fg_outputs = self(cue_features, scene_features, cue_mask_ixs) 
+        fg_loss = self.loss_fn(fg_outputs, labels)
+        model_confidence, model_guess = fg_outputs.softmax(-1).max(-1) # returns value, index
+        self.accuracy["test"](fg_outputs, labels)
         self.log(f"ACC/test_fg_acc", self.accuracy["test"], on_step=True, on_epoch=False)
         self.log(f"pred_word_ix", model_guess, on_step=True, on_epoch=False)
-
+        self.log(f"model_confidence", model_confidence, on_step=True, on_epoch=False)
         return fg_loss
 
     def _extract_labels(self, samples: List):
