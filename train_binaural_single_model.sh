@@ -23,7 +23,7 @@ source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 #module add openmind/cuda/12.3
 
 which python3
-python3 spatialtrain.py --config config/binaural_attn/word_task_mixed_cue_large_architecture_v03.yml \
+python3 spatialtrain.py --config config/binaural_attn/word_task_mixed_cue_large_architecture_v04.yml \
                  --gpus 8 --n_jobs 12 --resume_training True --clean_percentage 0.1\
                  --exp_dir attn_cue_models \
 

@@ -118,23 +118,35 @@ class H5Dataset(torch.utils.data.Dataset):
         end = start + self.batch_size
         if self.dataset is None:
             self.dataset = h5py.File(self.file_path, 'r', swmr=True)
-
+        # Updates on 10/11/2023 - use "both_cue" for 2/3 of mixed cue training
+        # Will use different backgrounds for voice-only condition cue type
         if self.cue_key == 'mixed_cue':
             cut1 = start + (self.batch_size // 3)
             cut2 = start + ((self.batch_size // 3) * 2)
             loc_cue = self.dataset['loc_cue']
-            voice_cue = self.dataset[self.voice_key]
+            # voice_cue = self.dataset[self.voice_key]
             both_cue = self.dataset['voice_cue_target_loc']
-            cues1 = loc_cue[start:cut1].transpose((0, 2, 1))
-            cues2 = voice_cue[cut1:cut2].transpose((0, 2, 1))
-            cues3 = both_cue[cut2:end].transpose((0, 2, 1))
-            cue = np.concatenate((cues1, cues2, cues3), axis=0)
+            cues1 = loc_cue[start:cut1].transpose((0, 2, 1)) # start to cut 2
+            # cues2 = voice_cue[cut1:cut2].transpose((0, 2, 1))
+            cues2_and_3 = both_cue[cut1:end].transpose((0, 2, 1))
+            # first 1/3 location, last 2/3 both
+            cue = np.concatenate((cues1, cues2_and_3), axis=0)
+
+            # get backgrounds for mixed cue condition
+            bg_1_and_2 = self.dataset['bg_scene'][start:cut2].transpose((0, 2, 1))
+            bg_3 = self.dataset['bg_scene_co_located'][cut2:end].transpose((0, 2, 1))
+            # first 2/3 normal, last 1/3 co-located
+            background = np.concatenate((bg_1_and_2, bg_3), axis=0) 
+        elif self.cue_key == 'voice':
+            cue = self.dataset[self.cue_key][start:end].transpose((0, 2, 1))
+            background = self.dataset['bg_scene_co_located'][start:end].transpose((0, 2, 1))
         else:
             cue = self.dataset[self.cue_key][start:end].transpose((0, 2, 1))
+            background = self.dataset['bg_scene'][start:end].transpose((0, 2, 1))
+
         if np.isnan(cue).all():
             cue[:] = 0
         foreground = self.dataset['target'][start:end].transpose((0, 2, 1))
-        background = self.dataset['bg_scene'][start:end].transpose((0, 2, 1))
 
         if self.clean_percentage > 0.0:
             num_clean = int(self.clean_percentage * self.batch_size)

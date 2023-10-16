@@ -62,7 +62,7 @@ class SaddlerSWCWordRecTest(torch.utils.data.Dataset):
             word_and_speaker_encodings = pickle.load( open( "/om2/user/imgriff/projects/Auditory-Attention/word_and_speaker_encodings_jsinv3.pckl", "rb" )) 
             class_map = word_and_speaker_encodings['word_idx_to_word']
         elif self.label_type == "CV":
-            class_map = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_word_int_label_dict.pkl", "rb" )) 
+            class_map = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", "rb" )) 
         word_2_class = {v:k for k,v in class_map.items()}
         return class_map, word_2_class
 
