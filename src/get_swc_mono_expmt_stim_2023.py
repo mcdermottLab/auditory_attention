@@ -107,6 +107,9 @@ def main(args):
         # read condition dict from pickle
         cond_ix_dict = pickle.load(f)
     
+    with open("human_saddler_attn_expmt_word_key.pkl", "rb") as f :
+        word_key_dict = pickle.load(f)
+
     # drop columns with distractor in name
     unique_manifest = manifest[[col for col in manifest.columns if 'distractor' not in col]]
     # drop "gender_cond_td" column from manifest
@@ -114,15 +117,15 @@ def main(args):
     # drop duplicate rows from manifest
     unique_manifest = unique_manifest.drop_duplicates().reset_index(drop=True)
 
-
+    # get vocabulary and distractor stimuli from full manifest
     fn_pkl_dst = '/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl'
-    word_dict = pickle.load(open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", 'rb'))
-    words = list(word_dict.keys())
+    vocab_dict = pickle.load(open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", 'rb'))
+    words = list(vocab_dict.keys())
     words = [word.replace("'", "") for word in words]
     manifest_all_words = pd.read_pickle(fn_pkl_dst)
     # filter out words not in 'words' list
     manifest_all_words = manifest_all_words[manifest_all_words['word'].isin(words)]
-    unique_manifest['word_int'] = unique_manifest['word'].map(word_dict)
+    unique_manifest['word_int'] = unique_manifest['word'].map(vocab_dict)
 
     # distractor manifest - talkers & words not in test foreground set but still in vocab
     target_vocab = unique_manifest['word'].unique()
@@ -143,26 +146,26 @@ def main(args):
     condition, snr = cond_ix_dict[cond_ix]
 
     path_to_bg_stim = Path("/om2/user/msaddler/spatial_audio_pipeline/assets/human_experiment_v00/")
-
     bg_stim = list((path_to_bg_stim / condition).glob('*.wav'))
+
     # sample unique manifest to get 180 males and 180 females but all 360 unique words 
+    # done per-condition for variety of talker x word combinations
     female_samps = unique_manifest[unique_manifest.gender == 'female'].sample(180)
     female_words = female_samps.word.unique()
     male_samps = unique_manifest[(unique_manifest.gender == "male") & ~unique_manifest.word.isin(female_words)].sample(180)
     wanted_manifest = pd.concat([female_samps, male_samps], axis=0, ignore_index=True)
 
-    if "1-talker" in condition:
-        f0_manifest = []
-
     cond_records = []
-    for row in tqdm(wanted_manifest.itertuples()):
+    # for row in tqdm(wanted_manifest.itertuples()):
+    for ix, word in tqdm(word_key_dict.items(), total=len(word_key_dict)):
+        row = wanted_manifest[wanted_manifest.word == word].iloc[0]
         record = {}
         trial_signal = np.zeros((int(SR * trial_dur)),dtype=np.float32)
-        ix = row.Index # ix for background in 
         # are already cut/resampled/windowed
         cue_wav, cue_sr = librosa.load(row.cue_src_fn, sr=SR)
         target_wav, target_sr = librosa.load(row.src_fn, sr=SR)
         record['target_sr'] = target_sr
+        record['experiment_key_target_word_ix'] = ix
         record['cue_sr'] = cue_sr
         record['target_fn'] = row.src_fn
         record['cue_fn'] = row.cue_src_fn
@@ -175,43 +178,54 @@ def main(args):
         record['target_gender'] = row.gender
 
         # get talker f0 - bound to range of human voice 
-        target_f0 = librosa.pyin(target_wav, fmin=80, fmax=300, sr=SR, fill_na=np.nan)
+        target_f0, voice_flag, voice_probs = librosa.pyin(target_wav, fmin=80, fmax=300, sr=SR, fill_na=np.nan)
+        target_f0 = target_f0[voice_flag]        
         avg_target_f0 = np.nanmean(target_f0)
         record['target_f0'] = avg_target_f0
-        if "1-talker" in condition:
-            distractor_gender = 'male' if ix < 180 else 'female'
-            # get existing distractor signal used in binaural experiment
-            distractor_eg = manifest[(manifest["src_ix"] == unique_manifest.src_ix[0]) & (manifest['distractor_gender'] == distractor_gender)].iloc[0]
-            # is already cut/resampled/windowed
-            bg_signal, _ = librosa.load(distractor_eg.distractor_src_fn, sr=SR)
-            bg_talker_f0 = librosa.pyin(bg_signal, fmin=80, fmax=300, sr=SR, fill_na=np.nan)
-            avg_bg_f0 = np.nanmean(bg_talker_f0)
-            record['distractor_fn'] = distractor_eg.distractor_src_fn
-            record['distractor_f0'] = avg_bg_f0
-            record['distractor_gender'] = distractor_gender
-         
-        elif "4-talker" in condition:
-            bg_talkers = distractor_manifest.sample(4).apply(lambda x: get_excerpt(x, dur=2, sr=44100, pad_with_context=True, jitter_fraction=0), axis=1).values
-            bg_talkers = util_audio.set_dBSPL(np.stack(bg_talkers), 60) # set to 60 dB SPL
-            bg_signal = bg_talkers.sum(axis=0) # set mixture to 60 dB
 
-        elif "issn" in condition:
-            bg_signal = util_audio.spectrally_matched_noise(target_wav, target_sr)
-            if "festenplomp" in condition:
-                donor_wav = distractor_manifest.sample(1).apply(lambda x: get_excerpt(x, dur=2,
-                                                                                      sr=SR,
-                                                                                      pad_with_context=True,
-                                                                                      jitter_fraction=0), axis=1).values[0]
-                bg_signal = util_audio.festen_plomp_fluctuating_noise(donor_wav, bg_signal, sr=SR, dbspl=60)
+        if condition != "SILENCE": 
+            if "1-talker" in condition:
+                distractor_gender = 'male' if ix < 180 else 'female'
+                # get existing distractor signal used in binaural experiment
+                distractor_eg = manifest[(manifest["src_ix"] == row.src_ix) & (manifest['distractor_gender'] == distractor_gender)].iloc[0]
+                # is already cut/resampled/windowed
+                bg_signal, _ = librosa.load(distractor_eg.distractor_src_fn, sr=SR)
+                bg_talker_f0, voice_flag, voice_probs = librosa.pyin(bg_signal, fmin=80, fmax=300, sr=SR, fill_na=np.nan)
+                bg_talker_f0 = bg_talker_f0[voice_flag] # fill_na should do this, but do it again to be safe
+                avg_bg_f0 = np.nanmean(bg_talker_f0)
+                record['distractor_fn'] = distractor_eg.distractor_src_fn
+                record['distractor_f0'] = avg_bg_f0
+                record['distractor_gender'] = distractor_gender
+                record['distractor_word'] = distractor_eg.distractor_word
+            
+            elif "4-talker" in condition:
+                bg_examples = distractor_manifest.sample(4)
+                bg_audio = bg_examples.apply(lambda x: get_excerpt(x, dur=2, sr=44100, pad_with_context=True, jitter_fraction=0), axis=1)
+                bg_talkers = util_audio.set_dBSPL(np.stack(bg_audio.values), 60) # set to 60 dB SPL
+                bg_signal = bg_talkers.sum(axis=0) # set mixture to 60 dB
+                record['distractor_fn'] = list(bg_examples.src_fn.values)
+                record['distractor_f0'] = [np.nanmean(librosa.pyin(bg_talker, fmin=80, fmax=300, sr=SR, fill_na=np.nan)[0]) for bg_talker in bg_talkers]
+                record['distractor_gender'] = list(bg_examples.gender.values)
+                record['distractor_word'] = list(bg_examples.word.values)
+                
+            elif "issn" in condition:
+                bg_signal = util_audio.spectrally_matched_noise(target_wav, target_sr)
+                if "festenplomp" in condition:
+                    donor_wav = distractor_manifest.sample(1).apply(lambda x: get_excerpt(x, dur=2,
+                                                                                        sr=SR,
+                                                                                        pad_with_context=True,
+                                                                                        jitter_fraction=0), axis=1).values[0]
+                    bg_signal = util_audio.festen_plomp_fluctuating_noise(donor_wav, bg_signal, sr=SR, dbspl=60)
+            else:
+                bg_signal, _ = librosa.load(bg_stim[ix], sr=SR)
+                # crop and window to signal duration
+                bg_signal = util_audio.ramp_hann(util_audio.pad_or_trim_to_len(bg_signal, int(2*SR)), win_dur, samplerate=SR)
+            mixture = util_audio.combine_signal_and_noise(target_wav, bg_signal, snr)
+        # no background noise 
         else:
-            ix  = ix % 360
-            bg_signal, _ = librosa.load(bg_stim[ix], sr=SR)
-            # crop and window to signal duration
-            bg_signal = util_audio.ramp_hann(util_audio.pad_or_trim_to_len(bg_signal, int(2*SR)), win_dur, samplerate=SR)
-        
-        mixture = util_audio.combine_signal_and_noise(target_wav, bg_signal, snr)
-        mixture = util_audio.ramp_hann(mixture, win_dur, samplerate=SR)
+            mixture = target_wav # is just target if no noise 
 
+        mixture = util_audio.ramp_hann(mixture, win_dur, samplerate=SR)
         mixture, mixture_scale_factor = rms_normalize_db(mixture, 60)
         # set cue to same level as target post scaling 
         cue_wav = util_audio.set_dBSPL(cue_wav, 60)
@@ -223,14 +237,13 @@ def main(args):
         trial_signal = util_audio.set_dBSPL(trial_signal, 60)
         # save trial signal
         # f string with digint padded to 3 places
-        out_name = stim_out_path / f"condition_{cond_ix:02}"/ f'{row.word_int:03}.wav'
+        out_name = stim_out_path / f"condition_{cond_ix:02}"/ f'{ix:03}.wav'
         # make out name directory if it doesn't exist
         out_name.parent.mkdir(parents=True, exist_ok=True)
         sf.write(out_name, trial_signal, samplerate=SR)
         record['mixture_fn'] = out_name
         cond_records.append(record)
-
-
+    
     # make pd manifest from f0_manifest
     cond_manifest = pd.DataFrame.from_records(cond_records)
     # save f0_manifest as csv

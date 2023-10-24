@@ -20,8 +20,8 @@ module add openmind/cuda/11.3
 
 
 python3 eval_binaural.py --config config/binaural_attn/word_task_mixed_cue_large_architecture_v03.yml \
-                 --ckpt_path attn_cue_models/word_task_mixed_cue_large_architecture_v03/checkpoints/epoch=0-step=2000-v1.ckpt \
-                 --model_name word_task_mixed_cue_large_architecture_v03 --location_idx $SLURM_ARRAY_TASK_ID \
+                 --ckpt_path attn_cue_models/word_task_mixed_cue_large_architecture_v04/checkpoints/epoch=0-step=1000-v8.ckpt \
+                 --model_name word_task_mixed_cue_large_architecture_v04 --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 1 --exp_dir binaural_eval/ \
-                 --snr 0 --cue_type location
+                 --snr 0 --cue_type voice_and_location
 
