@@ -11,7 +11,7 @@ import scipy.stats as stats
 import soundfile as sf
 import soxr
 #! change below to spatial_attn_lighting if want to use with modular 
-import src.binaural_attn_lightning as attn_tracking_lightning
+import src.spatial_attn_lightning as attn_tracking_lightning
 import torch
 import yaml
 
@@ -156,10 +156,18 @@ def get_excerpt(dfi, dur=3.0, sr=50000, pad_with_context=True, jitter_fraction=0
     y = np.nan_to_num(y.astype(np.float32), nan=0.0, posinf=0.0, neginf=0.0)
     return y
 
+def whitenoise(time: float, sr: int, dtype: np.dtype = np.float32, rms: int = 65) -> np.ndarray:
+        rng = np.random.default_rng()
+        noise = rng.random(size=int(time * sr), dtype=dtype)
+        #! Should we rms norm?
+        # noise = _rms_norm(noise, rms)
+        return noise
+
 
 def run_eval(args):
     model_name = args.model_name
     checkpoint_path = args.ckpt_path
+    cue_type = args.cue_type
 
     config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
     config['num_workers'] = args.n_jobs
@@ -167,9 +175,11 @@ def run_eval(args):
     config['noise_kwargs']['low_snr'] = 0
     config['noise_kwargs']['high_snr'] = 0
 
+    #TODO handle multiple elevations
     idx = args.location_idx
     # re_run_mapping = pickle.load(open('/om2/user/rphess/Auditory-Attention/rerun_dict_3.pkl', 'rb'))
-    loc_dict = pickle.load(open('/om2/user/rphess/Auditory-Attention/speaker_room_0_elev_conditions.pkl', 'rb'))
+    loc_dict = pickle.load(open('/om2/user/rphess/Auditory-Attention/speaker_room_all_elev.pkl', 'rb'))
+    idx += 2001
     target_loc = loc_dict[idx][0]
     distract_loc = loc_dict[idx][1]
 
@@ -189,7 +199,10 @@ def run_eval(args):
         elif loc == 'distractor':
             coords = distract_loc
         else:
-            coords = target_loc
+            if cue_type == 'voice':
+                coords = (0,0)
+            else:
+                coords = target_loc
         df_row = only14_manifest[(only14_manifest['src_azim'] == coords[0]) & (only14_manifest['src_elev'] == coords[1])]
         h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{df_row["index_room"].values[0]}.hdf5'
         index_brir = df_row['index_brir'].values[0]
@@ -219,9 +232,10 @@ def run_eval(args):
         src_ix = row['src_ix']
         cue_ix = row['cue_src_ix']
         src_row = all_words_not_filtered.iloc[src_ix]
-        cue_row = all_words_not_filtered.iloc[cue_ix]
+        if cue_type != 'location':
+            cue_row = all_words_not_filtered.iloc[cue_ix]
+            cues.append(get_excerpt(cue_row))
         foregrounds.append(get_excerpt(src_row))
-        cues.append(get_excerpt(cue_row))
     df['loaded_foreground'] = foregrounds
     df['loaded_cue'] = cues
 
@@ -245,7 +259,10 @@ def run_eval(args):
         else:
             dist_df = female_df
         for i, row in tar_df.iterrows():
-            cue = torch.from_numpy(row['loaded_cue']).unsqueeze(0)
+            if cue_type == 'location':
+                cue = torch.from_numpy(whitenoise(3, 50000)).unsqueeze(0)
+            else:
+                cue = torch.from_numpy(row['loaded_cue']).unsqueeze(0)
             fg = torch.from_numpy(row['loaded_foreground']).unsqueeze(0)
             client_id = row['client_id']
             word = row['word']
@@ -257,14 +274,14 @@ def run_eval(args):
             cue = mass_spatialize(cue.cuda(), cue_brir.cuda()).cpu()
             cue = np.array(cue[:, :, 12500:137500])
             #! delete the .squeeze(0) below if want to use modular
-            cue = audio_transforms(cue, None)[0].squeeze(0)
+            cue = audio_transforms(cue, None)[0]
 
             fg = mass_spatialize(fg.cuda(), tar_brir.cuda()).cpu()
             fg = np.array(fg[:, :, 12500:137500])
             bg = mass_spatialize(distractor_signal.cuda(), dist_brir.cuda()).cpu()
             bg = np.array(bg[:, :, 12500:137500])
             #! delete the .squeeze(0) below as well
-            scene = audio_transforms(fg, bg)[0].squeeze(0)
+            scene = audio_transforms(fg, bg)[0]
 
             out = model.forward(cue.cuda(), scene.cuda(), cue_mask_ixs=None)
             softmax_outputs = torch.nn.functional.softmax(out, dim=-1)
@@ -297,6 +314,12 @@ def cli_main():
         default=pathlib.Path("./exp"),
         type=pathlib.Path,
         help="path to checkpoint (Default: './exp')",
+    )
+    parser.add_argument(
+        "--cue_type",
+        default='voice',
+        type=str,
+        help="type of cue to use (Default: 'voice')",
     )
     parser.add_argument(
         "--model_name",
