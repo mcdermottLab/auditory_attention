@@ -78,6 +78,8 @@ class H5Dataset(torch.utils.data.Dataset):
             self.voice_key = "voice_cue_rand_loc"
         elif "v03" in self.file_path:
             self.voice_key = "voice_cue_center_loc"
+        else:
+            self.voice_key = "voice_cue_target_loc"
 
         if cue_type == 'voice_and_location':
             self.cue_key = 'voice_cue_target_loc'

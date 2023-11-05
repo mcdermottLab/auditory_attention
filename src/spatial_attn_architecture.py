@@ -76,14 +76,16 @@ class CNN2DExtractor(nn.Module):
         self.frequency_dim = 40
         self.n_layers = len(out_channels)
 
+        self.input_channels = kwargs.get('input_channels', 2)
+
         self.model_dict = nn.ModuleDict()
         self.output_height = self.frequency_dim
         self.output_len = 20000 # softcode eventually
-        self.model_dict["norm_coch_rep"]= nn.LayerNorm([2, self.frequency_dim, self.output_len])
-        self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, 2, global_avg_cue=global_avg_cue)
+        self.model_dict["norm_coch_rep"]= nn.LayerNorm([self.input_channels, self.frequency_dim, self.output_len])
+        self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, self.input_channels, global_avg_cue=global_avg_cue)
 
         for idx in range(self.n_layers):
-            nIn = 2 if idx == 0 else out_channels[idx - 1]
+            nIn = self.input_channels if idx == 0 else out_channels[idx - 1]
             nOut = out_channels[idx]
             # Convolutional block:
             if self.pool_stride[idx] != -1:

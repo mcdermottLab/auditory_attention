@@ -75,8 +75,8 @@ class BinauralAttentionModule(LightningModule):
             ])
 
         # Init Model
-        fc_attn_only = self.model_config.get('fc_attn_only', False) 
-        fc_size = self.model_config.get('fc_size', 4096)
+        # fc_attn_only = self.model_config.get('fc_attn_only', False) 
+        # fc_size = self.model_config.get('fc_size', 4096)
         # global_avg_cue = self.model_config.get('global_avg_cue', False)
         # Get model architecture
         self.model = CNN2DExtractor(**self.model_config) 
