@@ -169,7 +169,7 @@ def run_eval(args):
     print(config['corpus']['cue_type'])
     idx = args.location_idx
     # re_run_mapping = pickle.load(open('/om2/user/rphess/Auditory-Attention/rerun_dict_3.pkl', 'rb'))
-    loc_dict = pickle.load(open('/om2/user/rphess/Auditory-Attention/speaker_room_0_elev_conditions.pkl', 'rb'))
+    loc_dict = pickle.load(open(args.location_manifest, 'rb'))
     target_loc = loc_dict[idx][0]
     distract_loc = loc_dict[idx][1]
 
@@ -309,6 +309,12 @@ def cli_main():
         help="path to checkpoint (Default: './exp')",
     )
     parser.add_argument(
+        "--location_manifest",
+        default=pathlib.Path("/om2/user/rphess/Auditory-Attention/speaker_room_0_elev_conditions.pkl"),
+        type=pathlib.Path,
+        help="path manifest of target and distractor locations to use for evaluation",
+    )
+    parser.add_argument(
         "--model_name",
         default='BinauralAttn_Word_Task_Voice_Cue',
         type=str,
@@ -317,7 +323,7 @@ def cli_main():
     parser.add_argument(
         "--location_idx",
         type=int,
-        help="index into saved location dictionary",
+        help="index into saved location manifest",
     )
     parser.add_argument(
         "--num_nodes",

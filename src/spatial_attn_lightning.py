@@ -215,8 +215,11 @@ class BinauralAttentionModule(LightningModule):
 
     def test_timit(self, batch, batch_idx):
         cue_features, cue_mask_ixs, scene_features, labels = batch
+        self.log(f"true_word_ix", labels.float(), on_step=True, on_epoch=False)
         # self() is self.forward()  
         fg_outputs = self(cue_features, scene_features, cue_mask_ixs) 
+        if labels == -1:
+            labels[0] = 0
         fg_loss = self.loss_fn(fg_outputs, labels)
         model_confidence, model_guess = fg_outputs.softmax(-1).max(-1) # returns value, index
         self.accuracy["test"](fg_outputs, labels)

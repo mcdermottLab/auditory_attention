@@ -28,7 +28,7 @@ def run_eval(args):
         config['corpus']['root'] = cv_eval_h5_path
         config['loader']['num_workers'] = args.n_jobs
         config['loader']['batch_size'] = 32
-    elif 'Binaural' in model_name:
+    elif 'binaural' in model_name.lower() or 'mono' in model_name.lower():
         config['hparas']['batch_size'] = 1
         config['num_workers'] = args.n_jobs
         config['data'] = {}
@@ -61,10 +61,13 @@ def run_eval(args):
             snr = ''
         task_name = "_"
 
-    if "Binaural" in model_name:
+    if "binaural" in model_name.lower() or "mono" in model_name.lower():
         config['corpus']['root'] = config['data']['corpus']['root']
         config['corpus']['clean_targets'] = config['data']['corpus']['clean_targets']
+        if "mono" in model_name.lower():
+            config['corpus']['run_mono'] = True
     
+
     log_name = f"TIMIT{task_name}attn_task_{snr}_all_targets_{model_name}"
 
 
