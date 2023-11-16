@@ -1,10 +1,8 @@
-# Following is originally copied from PyTorch RNN-T ASR Example:
-# https://github.com/pytorch/audio/tree/820b383b3b21fc06e91631a5b1e6ea1557836216/examples/asr/librispeech_emformer_rnnt
-
 import pathlib
 from argparse import ArgumentParser
 import yaml
 import pickle
+import csv
 import torch 
 import numpy as np 
 from tqdm.auto import tqdm
@@ -13,8 +11,6 @@ from src.attn_tracking_lightning import AttentionalTrackingModule
 from src.spatial_attn_lightning import BinauralAttentionModule 
 from corpus.swc_mono_test import SWCMonoTestSet
 import src.audio_transforms as at
-import scipy.stats as stats
-
 
 seed_everything(1)
 
@@ -77,35 +73,40 @@ def run_eval(args):
         return cues, mixtures, labels
 
     dataloader = torch.utils.data.DataLoader(dataset,
-                                             batch_size=1,
+                                             batch_size=20,
                                              shuffle=False,
                                              collate_fn=collate_fn,
                                              num_workers=args.n_jobs)
 
-    # run eval loop
-    results = []
-
-    for batch in tqdm(dataloader):
-        cue, mixture, word = batch
-        # to device 
-        cue = cue.cuda()
-        mixture = mixture.cuda()
-        
-        logits = model(cue, mixture)
-        preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach()
-        results.extend(word == preds)
-    
-    res_err = stats.sem(results)
-    res = np.mean(results)
-
-    res_dict = {"acc": res, "std_err": res_err}
+    # set up output file 
     out_dir = args.exp_dir / model_name 
     # make dir if it doesn't exist
     out_dir.mkdir(parents=True, exist_ok=True)
-    with open(out_dir / f"{model_name}_{condition}_{snr}_eval_results.pkl", 'wb') as f:
-        pickle.dump(res_dict, f)
-
-    print(f"Eval results: {res} +/- {res_err}")
+    with open(out_dir / f"{model_name}_{condition}_{snr}dB_SNR_eval_results.csv", 'w') as file:
+        csv_out = csv.writer(file, delimiter=",")
+        # write column header to csv
+        print("writing csv header")
+        csv_out.writerow(['pred_word_int', 'true_word_int', 'accuracy'])
+        
+        # run eval 
+        for i, batch in enumerate(tqdm(dataloader, desc=f"evaluating {model_name} on {condition} at {snr}dB SNR")):
+            cue, mixture, word = batch
+            # to device 
+            cue = cue.cuda()
+            mixture = mixture.cuda()
+            
+            logits = model(cue, mixture)
+            preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach().numpy().astype('int')
+            true_word = word.numpy().astype('int')
+            accuracy = (true_word == preds).astype('int')
+            # write to csv
+            rows = list(zip(*[preds, true_word, accuracy]))
+            csv_out.writerows(rows)
+            if i == 0:
+                print(f"EG of data writing: {rows}")
+            if i % 100 == 0:
+                print(f"writing on batch {i} of {len(dataloader)}")
+                file.flush() # only write every 100 batches 
 
 def cli_main():
     parser = ArgumentParser()

@@ -4,9 +4,9 @@
 #SBATCH --error=outLogs/mono_swc_test_stim_%A_%a.err
 #SBATCH --mem=8Gb
 #SBATCH --cpus-per-task=4
-#SBATCH --partition=normal
+#SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=1-40# 0-40
+#SBATCH --array=1-40%10 # 0-40
 
 source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
