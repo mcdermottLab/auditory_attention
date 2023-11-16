@@ -158,3 +158,5 @@ corpus/jsinV3AttnTrackVal_v1.py
 tests/sample_data/gigaspeech_words-10k.vocab
 *.out
 *.err
+prelim_binaural_figs/avg_perf_confusion_at_0_elev.pdf
+prelim_binaural_figs/diff_min_same_confusion_at_0_elev.pdf
