@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH --job-name=eval_model
-#SBATCH --output=outLogs/eval_binaural_model_rerun_%A_%a.out
-#SBATCH --error=outLogs/eval_binaural_model_rerun_%A_%a.err
+#SBATCH --output=outLogs/eval_binaural_model_elev_test_%A_%a.out
+#SBATCH --error=outLogs/eval_binaural_model_elev_test_%A_%a.err
 #SBATCH --mem=8Gb
 #SBATCH --cpus-per-task=1
 #SBATCH --time=1:00:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0-1443
+#SBATCH --array=0-1200
 
 module add openmind/miniconda
 
@@ -21,7 +21,7 @@ module add openmind/cuda/11.3
 
 python3 eval_binaural.py --config config/binaural_attn/word_task_mixed_cue_large_architecture_v04.yml \
                  --ckpt_path attn_cue_models/word_task_mixed_cue_large_architecture_v04/checkpoints/epoch=0-step=2000-v14.ckpt \
-                 --location_manifest expanded_elev_v01_11_14_2023.pkl \
+                 --location_manifest expanded_all_elev_5_az_11_15_2023.pkl \
                  --model_name word_task_mixed_cue_large_architecture_v04 --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 1 --exp_dir binaural_eval/ \
                  --snr 0 --cue_type voice_and_location
