@@ -18,7 +18,7 @@ class SWCMonoTestSet(torch.utils.data.Dataset):
         self.cue_end_frame = int(2 * self.sr)
         self.mixture_start_frame = int(2.5 * self.sr)
         self.label_type = label_type
-        self.class_map, self.word_2_class = self.get_class_map()
+        self.word_2_class = self.get_class_map()
 
     def get_class_map(self):
         """
@@ -27,11 +27,10 @@ class SWCMonoTestSet(torch.utils.data.Dataset):
         if self.label_type == "WSN":
             ## load WSN vocab mapping 
             word_and_speaker_encodings = pickle.load( open( "/om2/user/imgriff/projects/Auditory-Attention/word_and_speaker_encodings_jsinv3.pckl", "rb" )) 
-            class_map = word_and_speaker_encodings['word_idx_to_word']
+            word_2_class = word_and_speaker_encodings['word_to_idx']
         elif self.label_type == "CV":
-            class_map = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", "rb" )) 
-        word_2_class = {v:k for k,v in class_map.items()}
-        return class_map, word_2_class
+            word_2_class = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", "rb" )) 
+        return word_2_class
 
     def __getitem__(self, index):
         # get stimulus 
