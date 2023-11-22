@@ -3,7 +3,6 @@ import torchaudio
 import random
 import numpy as np
 import sys
-from scipy.io import loadmat
 import scipy.signal as sps
 sys.path.append('/om/user/imgriff/python-packages/chcochleagram')
 import chcochleagram
