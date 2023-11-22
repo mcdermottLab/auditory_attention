@@ -2,10 +2,10 @@
 #SBATCH --job-name=jupyter_notebook
 #SBATCH --output=outLogs/notebook%j.out
 #SBATCH --error=outLogs/notebook%j.err
-#SBATCH --mem=60Gb
+#SBATCH --mem=30Gb
 #SBATCH --cpus-per-task=10
-#SBATCH --time=1:30:00
-#SBATCH --partition=normal
+#SBATCH --time=2:00:00
+#SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:a100:1
 #SBATCH -x node055
 source ~/.bashrc

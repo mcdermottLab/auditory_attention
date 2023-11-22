@@ -15,7 +15,7 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
     foreground excerpts from Spoken Wikipedia.  Backgrounds are 
     either also from SWC.
     """
-    def __init__(self, manifest_path, excerpt_path, cue_type, target_loc, distract_loc, sr=20_000):
+    def __init__(self, manifest_path, excerpt_path, cue_type, sr=20_000):
         """
         Args:
             manifest_path (str): path to pandas manifest with trials defined
@@ -31,37 +31,6 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
         self.class_map, self.word_2_class = self.class_map()
 
         self.dataset_len = len(self.manifest)
-
-        #TODO change this account for specific room
-        new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
-        only14_manifest = new_room_manifest[new_room_manifest['src_dist'] == 1.4]
-        ir_dict = dict()
-        for loc in ['target', 'distractor', 'cue']:
-            if loc == 'target':
-                coords = target_loc
-            elif loc == 'distractor':
-                coords = distract_loc
-            else:
-                if cue_type == 'voice':
-                    coords = (0,0)
-                else:
-                    coords = target_loc
-            df_row = only14_manifest[(only14_manifest['src_azim'] == coords[0]) & (only14_manifest['src_elev'] == coords[1])]
-            h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{df_row["index_room"].values[0]}.hdf5'
-            index_brir = df_row['index_brir'].values[0]
-            sr_src = df_row['sr'].values[0]
-            with h5py.File(h5_fn, 'r') as f:
-                brir = f['brir'][index_brir]
-            new_sr = 50000
-            brir = soxr.resample(brir.astype(np.float32), sr_src, new_sr)
-            ir_dict[loc] = brir
-
-        tar_brir = torch.from_numpy(ir_dict['target'])
-        self.tar_brir = torch.flip(tar_brir, dims=[0])
-        dist_brir = torch.from_numpy(ir_dict['distractor'])
-        self.dist_brir = torch.flip(dist_brir, dims=[0])
-        cue_brir = torch.from_numpy(ir_dict['cue'])
-        self.cue_brir = torch.flip(cue_brir, dims=[0])
 
     def class_map(self):
         """
@@ -83,8 +52,8 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
             specified by target_keys. 
         """
         src_ix = self.manifest['src_ix'][index]
-        cue_ix = self.manifest['cue_ix'][index]
-        bg_ix = self.manifest['bg_ix'][index]
+        cue_ix = self.manifest['cue_src_ix'][index]
+        bg_ix = self.manifest['bg_src_ix'][index]
         # pick bg somehow
         if self.cue_type != 'location':
             cue = self.get_excerpt(self.excerpts.iloc[cue_ix])
@@ -93,26 +62,15 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
         src = self.get_excerpt(self.excerpts.iloc[src_ix])
         bg = self.get_excerpt(self.excerpts.iloc[bg_ix])
 
-        cue = self.spatialize(cue.cuda(), self.cue_brir.cuda()).cpu()[:, 12500:137500]
-        foreground = self.spatialize(src.cuda(), self.tar_brir.cuda()).cpu()[:, 12500:137500]
-        background = self.spatialize(bg.cuda(), self.dist_brir.cuda()).cpu()[:, 12500:137500]
-
         word = self.manifest['word'][index]
         word_label = self.word_2_class[word]
+        dist_word = self.manifest['bg_word'][index]
+        dist_word_label = self.word_2_class[dist_word]
 
-        return cue, foreground, background, word_label
+        return cue, src, bg, word_label, dist_word_label
 
     def __len__(self):
         return self.dataset_len
-
-    def mass_spatialize(self, words, ir):
-        """Uses pytorch to convolve all sounds in words with 2 channel IR given in ir"""
-        n_words = words.shape[0]
-        words_padded = [torch.nn.functional.pad(word, (ir.shape[0] - 1, 0)) for word in words]
-        ir = ir.T.unsqueeze(1)
-        words_padded = torch.stack(words_padded)
-        spatialized = torch.nn.functional.conv1d(words_padded.view(n_words, 1, -1).cuda(), ir.cuda()).cuda()
-        return spatialized
 
     def whitenoise(self, time, sr, dtype=torch.float32, rms=65):
         noise = torch.rand(int(time * sr), dtype=dtype)
