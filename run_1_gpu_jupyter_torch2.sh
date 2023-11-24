@@ -2,11 +2,11 @@
 #SBATCH --job-name=jupyter_notebook
 #SBATCH --output=outLogs/notebook%j.out
 #SBATCH --error=outLogs/notebook%j.err
-#SBATCH --mem=16Gb
-#SBATCH --cpus-per-task=2
-#SBATCH --time=1:30:00
-#SBATCH --partition=mcdermott
-#SBATCH --gres=gpu:1
+#SBATCH --mem=20Gb
+#SBATCH --cpus-per-task=12
+#SBATCH --time=1:00:00
+#SBATCH --partition=normal
+#SBATCH --gres=gpu:a100:2
 #SBATCH -x node055
 
 source /etc/profile.d/modules.sh

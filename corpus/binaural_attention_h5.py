@@ -141,16 +141,13 @@ class H5Dataset(torch.utils.data.Dataset):
             # first 1/3 location, last 2/3 both
             cue = np.concatenate((cues1, cues2, cues3), axis=0)
             ## get backgrounds for mixed cue condition
-            print("cues: ", len(cues1),len(cues2),len(cues3))
             # get backgrounds for location only and voice + location conditions
             bg_1 = self.dataset['bg_scene'][start:loc_only_ix].transpose((0, 2, 1))
             bg_2 = self.dataset['bg_scene'][loc_only_ix:voice_and_loc_ix].transpose((0, 2, 1))
             bg_3 = self.dataset['bg_scene_co_located'][voice_and_loc_ix: end].transpose((0, 2, 1))
             # first 2/3 normal, last 1/3 co-located
             background = np.concatenate((bg_1, bg_2, bg_3), axis=0) 
-            print(cue.shape, background.shape)
-            print("bgs: ", len(bg_1), len(bg_2), len(bg_3))
-            print(loc_only_ix, voice_and_loc_ix, voice_only_ix)
+
         elif self.cue_key == 'voice':
             cue = self.dataset[self.cue_key][start:end].transpose((0, 2, 1))
             background = self.dataset['bg_scene_co_located'][start:end].transpose((0, 2, 1))

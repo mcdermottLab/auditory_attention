@@ -8,10 +8,13 @@ from src.custom_modules import HannPooling2d
 class SimpleAttentionalGain(nn.Module):
     def __init__(self, frequency_dim, cnn_channels, global_avg_cue=False):
         super(SimpleAttentionalGain, self).__init__()
+        self.frequency_dim = frequency_dim
         if global_avg_cue:
-            self.time_average = nn.AdaptiveAvgPool2d((1, 1)) # outsize is N, C, 1, 1
+            self.ouptut_shape = (1,1)
+            # self.time_average = nn.AdaptiveAvgPool2d((1, 1)) # outsize is N, C, 1, 1
         else:
-            self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) # outsize is N, C, FreqDim, 1
+            self.ouptut_shape = (frequency_dim, 1)
+            # self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) # outsize is N, C, FreqDim, 1
         self.bias = nn.Parameter(torch.zeros(1)) # init gain scaling to zero
         self.slope = nn.Parameter(torch.ones(1)) # init slope to one
         self.threshold = nn.Parameter(torch.zeros(1)) # init threshold to zero
@@ -24,7 +27,9 @@ class SimpleAttentionalGain(nn.Module):
 
     def forward(self, cue, mixture, cue_mask_ixs):
         ## Process cue 
-        cue = self.time_average(cue)
+        # time average - same as nn op, but is compat with compile 
+        cue = cue.mean(axis=-1,keepdim=True)
+        # cue = self.time_average(cue)
         # apply threshold shift
         cue = cue - self.threshold
         # apply slope
