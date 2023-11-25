@@ -81,8 +81,11 @@ class BinauralAttentionModule(LightningModule):
         # global_avg_cue = self.model_config.get('global_avg_cue', False)
         # Get model architecture
         model = CNN2DExtractor(**self.model_config) 
-        self.model = torch.compile(model, mode="reduce-overhead")
-
+        # check if torch version 2 or greater - if so, compile model
+        if torch.__version__ >= '2.0.0':
+            self.model = torch.compile(model, mode="reduce-overhead")
+        else:
+            self.model = model
         # Add input rep to model or audio transforms
         self.rep_on_gpu = self.audio_config['rep_kwargs']['rep_on_gpu']
         self.coch_gram = cm.AttnAudioInputRepresentation(**self.audio_config)
