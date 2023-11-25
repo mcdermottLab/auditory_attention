@@ -7,16 +7,18 @@ import os
 import yaml
 import json
 import pickle
+import torch
 
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.plugins import DDPPlugin
 from src.spatial_attn_lightning import BinauralAttentionModule #probably need to change this to the new name
 
 # get nodename 
 import socket
 
+torch.set_float32_matmul_precision('medium')
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 
 hostname = socket.gethostname()
 
@@ -100,18 +102,14 @@ def run_train(args):
     callbacks.append(train_checkpoint)
 
     trainer = Trainer(
-        precision=32, # if args.mixed_precision else 32,
+        precision="16-mixed",
         # precision=16,# 16 if 'binaural' in args.config else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
-
-       # log_every_n_steps = 10,
-        detect_anomaly=True,
         num_nodes=args.num_nodes,
-        gpus=args.gpus,
-        accelerator="gpu" if args.gpus > 0 else 'cpu',
+        devices=args.gpus,
+        accelerator="gpu", 
         # resume_from_checkpoint = ckpt_path,  
-        strategy=DDPPlugin(find_unused_parameters=False),
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=config['hparas']['gradient_clip_val'],
         profiler=None,

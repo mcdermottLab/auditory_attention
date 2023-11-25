@@ -2,12 +2,12 @@
 #SBATCH --job-name=co_located_80p
 #SBATCH --output=outLogs/train_binaural_attn_co_locate_80p_%j.out
 #SBATCH --error=outLogs/train_binaural_attn_co_locate_80p_%j.err
-#SBATCH --mem=400Gb
+#SBATCH --mem=900Gb
 #SBATCH -N 1
-#SBATCH --cpus-per-task=48
-#SBATCH --time=3-00:00:00
-#SBATCH --partition=mcdermott
-#SBATCH --gres=gpu:a100:4
+#SBATCH --cpus-per-task=96
+#SBATCH --time=12:00:00
+#SBATCH --partition=multi-gpu
+#SBATCH --gres=gpu:a100:8
 ##SBATCH -w apollo001
 
 #source /etc/profile.d/modules.sh
