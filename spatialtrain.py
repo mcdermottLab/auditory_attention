@@ -7,7 +7,7 @@ import os
 import yaml
 import json
 import pickle
-
+import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -20,6 +20,9 @@ import socket
 
 hostname = socket.gethostname()
 
+torch.set_float32_matmul_precision('medium')
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 
 def run_train(args):
 
