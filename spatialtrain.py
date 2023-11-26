@@ -84,7 +84,7 @@ def run_train(args):
         callbacks.append(ModelCheckpoint(
             checkpoint_dir,
             monitor=f"{config['val_metric']}",
-            mode="max" if 'ACC' in config['val_metric'] else "min",
+            mode="max" if 'acc' in config['val_metric'] else "min",
             save_top_k=1,
             save_weights_only=True,
             verbose=True,
@@ -92,7 +92,7 @@ def run_train(args):
 
     train_checkpoint = ModelCheckpoint(
         checkpoint_dir,
-        monitor="Losses/train_loss",
+        monitor="train_loss",
         mode="min",
         save_top_k=1,
         save_weights_only=True,

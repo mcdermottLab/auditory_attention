@@ -37,7 +37,7 @@ audio:                                  # Attributes of audio feature
     power: 0.3
 
 
-val_metric: 'ACC/val_acc'
+val_metric: 'val_acc'
 model_name: 'binaural_attn_cue_voice_and_loc'
 
 noise_kwargs: # parameters for background signal levels 

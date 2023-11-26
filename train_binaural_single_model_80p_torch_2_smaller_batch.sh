@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=co_located_80p
-#SBATCH --output=outLogs/train_binaural_attn_co_locate_80p_%j.out
-#SBATCH --error=outLogs/train_binaural_attn_co_locate_80p_%j.err
+#SBATCH --output=outLogs/train_binaural_attn_co_locate_80p_small_batch_%j.out
+#SBATCH --error=outLogs/train_binaural_attn_co_locate_80p_small_batch_%j.err
 #SBATCH --mem=100Gb
 #SBATCH -N 1
 #SBATCH --cpus-per-task=16
