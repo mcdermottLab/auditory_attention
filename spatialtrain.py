@@ -102,13 +102,14 @@ def run_train(args):
     callbacks.append(train_checkpoint)
 
     trainer = Trainer(
-        precision="16-mixed",
+        precision="32",
         # precision=16,# 16 if 'binaural' in args.config else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
         num_nodes=args.num_nodes,
         devices=args.gpus,
         accelerator="gpu", 
+        benchmark=True,
         # resume_from_checkpoint = ckpt_path,  
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=config['hparas']['gradient_clip_val'],

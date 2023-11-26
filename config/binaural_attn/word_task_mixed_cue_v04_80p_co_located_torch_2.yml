@@ -51,7 +51,7 @@ hparas:                                   # Experiment hyper-parameters
   lr: 0.0001
   eps: 0.00000001                         # 1e-8
   gradient_clip_val: 100 
-  batch_size: 768                        # Gets divided by num gpus -is for 8 a100s heree
+  batch_size: 512                        # Gets divided by num gpus -is for 8 a100s heree
 
 model:                                    # Model architecture
   input_sr: 10000
