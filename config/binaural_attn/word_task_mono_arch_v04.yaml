@@ -49,7 +49,7 @@ hparas:                                   # Experiment hyper-parameters
   lr: 0.0001
   eps: 0.00000001                         # 1e-8
   gradient_clip_val: 100 
-  batch_size: 512                        # Gets divided by num gpus
+  batch_size: 784                        # Gets divided by num gpus
 
 model:                                    # Model architecture
   input_sr: 10000

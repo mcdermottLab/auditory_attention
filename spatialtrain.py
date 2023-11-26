@@ -20,7 +20,6 @@ import socket
 
 hostname = socket.gethostname()
 
-torch.set_float32_matmul_precision('medium')
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
@@ -109,7 +108,8 @@ def run_train(args):
         max_epochs=config['hparas']['epochs'],
 
        # log_every_n_steps = 10,
-        detect_anomaly=True,
+        # detect_anomaly=True,
+        benchmark=True,
         num_nodes=args.num_nodes,
         gpus=args.gpus,
         accelerator="gpu" if args.gpus > 0 else 'cpu',
