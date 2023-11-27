@@ -23,19 +23,22 @@ def run_eval(args):
     print(f"Loading model from {checkpoint_path}")
     
     # load model 
-    if 'binaural' in model_name:
+    if 'binaural_attn' in args.config:
         module = BinauralAttentionModule
         label_type = 'CV'
         sr = 50_000
+        audio_config = config['audio']
+
+
     else:
         module = AttentionalTrackingModule
         config['data']['audio']['rep_kwargs']['center_crop'] = True
         config['data']['audio']['rep_kwargs']['out_dur'] = 2
         label_type = "WSN"
         sr = 20_000
-    
-    # set audio transforms
-    audio_config = config['data']['audio']
+        audio_config = config['data']['audio']
+
+        # set audio transforms
     IIR_COCH = not audio_config['rep_kwargs']['rep_on_gpu']
 
     if IIR_COCH:
@@ -94,8 +97,10 @@ def run_eval(args):
             # to device 
             cue = cue.cuda()
             mixture = mixture.cuda()
-            
-            logits = model(cue, mixture)
+            if module == BinauralAttentionModule:
+                logits = model(cue, mixture, None)
+            else:
+                logits = model(cue, mixture)
             preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach().numpy().astype('int')
             true_word = word.numpy().astype('int')
             accuracy = (true_word == preds).astype('int')

@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=harmonic_timit
+#SBATCH --job-name=multi_timit
 #SBATCH --output=outLogs/attn_eval_harmonic_timit_%j.out
 #SBATCH --error=outLogs/attn_eval_harmonic_timit_%j.err
 #SBATCH --mem=24Gb
@@ -15,9 +15,9 @@ module add openmind/cuda/11.3
 source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
 python3 eval_timit.py --gpus 1 --n_jobs 5 --exp_dir "attn_cue_models/attn_timit_task" \
-                      --model_name "MultiDistractorAttnCNN" \
-                      --harmonic --clean  \ # toggle --clean 
-                      --config_name "config/attentional_cue/attn_cue_lr_1e-4_bs_64_constrained_slope_multi_distractor.yaml" \
-                      --ckpt_path "attn_cue_models/attn_cue_jsin_multi_distractor_w_audioset_bs_64_lr_1e-4/checkpoints/epoch=0-step=70000.ckpt"
+                      --model_name "word_task_mono_arch_v04" \
+                      --harmonic --clean_targets \
+                      --config_name "config/binaural_attn/word_task_mono_arch_v04.yaml" \
+                      --ckpt_path "attn_cue_models/word_task_mono_arch_v04/checkpoints/epoch=0-step=1000.ckpt"
 
 
