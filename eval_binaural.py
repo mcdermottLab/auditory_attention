@@ -50,7 +50,7 @@ def run_eval(args):
     log_name = f"/{model_name}_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}"
     print(log_name)
 
-    experiment_dir = args.exp_dir
+    experiment_dir = f"{args.exp_dir}/{model_name}"
     model = attn_tracking_lightning.BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).cuda()
     audio_transforms = model.audio_transforms
     # to inference mode 
