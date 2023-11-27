@@ -4,7 +4,7 @@
 #SBATCH --error=outLogs/eval_model_%A_%a.err
 #SBATCH --mem=10Gb
 #SBATCH --cpus-per-task=2
-#SBATCH --time=01:00:00
+#SBATCH --time=02:30:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:1 --constraint=20GB
 #SBATCH --array=0-1769

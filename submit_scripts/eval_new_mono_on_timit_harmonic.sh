@@ -16,7 +16,7 @@ source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
 python3 eval_timit.py --gpus 1 --n_jobs 5 --exp_dir "attn_cue_models/attn_timit_task" \
                       --model_name "word_task_mono_arch_v04" \
-                      --harmonic --clean_targets \
+                      --harmonic \
                       --config_name "config/binaural_attn/word_task_mono_arch_v04.yaml" \
                       --ckpt_path "attn_cue_models/word_task_mono_arch_v04/checkpoints/epoch=0-step=1000.ckpt"
 
