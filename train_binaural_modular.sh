@@ -8,6 +8,7 @@
 #SBATCH --time=12:00:00
 #SBATCH --partition=multi-gpu
 #SBATCH --gres=gpu:a100:8
+#SBATCH -x apollo001
 
 #source /etc/profile.d/modules.sh
 #module use /cm/shared/modulefiles

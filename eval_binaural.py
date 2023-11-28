@@ -44,6 +44,7 @@ def run_eval(args):
     idx = args.location_idx
     # re_run_mapping = pickle.load(open('/om2/user/rphess/Auditory-Attention/rerun_dict_3.pkl', 'rb'))
     loc_dict = pickle.load(open('/om2/user/rphess/Auditory-Attention/speaker_room_all_elev.pkl', 'rb'))
+    idx += 2000
     target_loc = loc_dict[idx][0]
     distract_loc = loc_dict[idx][1]
 
