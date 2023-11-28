@@ -5,7 +5,7 @@
 #SBATCH --mem=800Gb
 #SBATCH -N 1
 #SBATCH --cpus-per-task=96
-#SBATCH --time=12:00:00
+#SBATCH --time=11:00:00
 #SBATCH --partition=multi-gpu
 #SBATCH --gres=gpu:a100:8
 ##SBATCH -w apollo001
