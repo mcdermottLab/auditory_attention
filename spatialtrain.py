@@ -7,39 +7,43 @@ import os
 import yaml
 import json
 import pickle
+import torch
 
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.plugins import DDPPlugin
 from src.spatial_attn_lightning import BinauralAttentionModule #probably need to change this to the new name
 
 # get nodename 
 import socket
 
+torch.set_float32_matmul_precision('medium')
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 
 hostname = socket.gethostname()
 
 
 def run_train(args):
-    with open(args.config_list, 'rb') as f:
-        model_config = pickle.load(f)
 
-    seed_everything(args.random_seed)
+    if args.config != "":
+        config_path = args.config
+        
+    else:
+        with open(args.config_list, 'rb') as f:
+            model_config = pickle.load(f)
+        config_path = model_config[args.job_id]
+        config_path = config_path.split("/Auditory-Attention/")[-1]
 
-    config_path = model_config[args.job_id]
+    print(config_path)
 
     if (config_path.endswith(".json")):
         with open(config_path, 'r') as file:
             config = json.load(file)
-    elif (config_path.endswith(".yml")):
+    elif (config_path.endswith(".yml")) or (config_path.endswith(".yaml")):
         config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
     else:
         print("config file type not supported")
-        print(config_path)
         return
-
-    config_path = pathlib.Path(config_path)
 
     config['corpus']['clean_percentage'] = args.clean_percentage
     model_name = config['model_name']
@@ -48,14 +52,18 @@ def run_train(args):
     if args.gpus > 0:
         config['hparas']['batch_size'] = config['hparas']['batch_size'] // args.gpus
 
+    config_path = pathlib.Path(config_path)
     checkpoint_dir = args.exp_dir / f"{config_path.stem}/checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    ckpt_paths = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)
 
-    if args.resume_training:
-        ckpt_path = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)[-1]
+    if args.resume_training and len(ckpt_paths) != 0:
+        ckpt_path = ckpt_paths[-1]
+        seed_everything(int(os.path.getatime(ckpt_path)))
         model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
         print('Resuming training from checkpoint: ', ckpt_path)
     else:
+        seed_everything(123)
         model = BinauralAttentionModule(config)
 
     callbacks = []
@@ -76,7 +84,7 @@ def run_train(args):
         callbacks.append(ModelCheckpoint(
             checkpoint_dir,
             monitor=f"{config['val_metric']}",
-            mode="max" if 'ACC' in config['val_metric'] else "min",
+            mode="max" if 'acc' in config['val_metric'] else "min",
             save_top_k=1,
             save_weights_only=True,
             verbose=True,
@@ -84,7 +92,7 @@ def run_train(args):
 
     train_checkpoint = ModelCheckpoint(
         checkpoint_dir,
-        monitor="Losses/train_loss",
+        monitor="train_loss",
         mode="min",
         save_top_k=1,
         save_weights_only=True,
@@ -94,28 +102,26 @@ def run_train(args):
     callbacks.append(train_checkpoint)
 
     trainer = Trainer(
-        precision=16 if args.mixed_precision else 32,
+        precision="32",
+        # precision=16,# 16 if 'binaural' in args.config else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
-
-       # log_every_n_steps = 10,
-        detect_anomaly=True,
         num_nodes=args.num_nodes,
-        gpus=args.gpus,
-        accelerator="gpu" if args.gpus > 0 else 'cpu',
+        devices=args.gpus,
+        accelerator="gpu", 
+        benchmark=True,
         # resume_from_checkpoint = ckpt_path,  
-        strategy=DDPPlugin(find_unused_parameters=False),
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=config['hparas']['gradient_clip_val'],
         profiler=None,
         callbacks=callbacks)
 
-
     trainer.fit(model)
-
+    
 
 def cli_main():
     parser = ArgumentParser()
+    parser.add_argument('--config', default='', type=str, help='Path to experiment config.')
     parser.add_argument('--config_list', type=str, help='Path to list of config files.')
     parser.add_argument('--job_id', type=int, help='Index into the config list specifying which one to use.')
     parser.add_argument(
@@ -138,7 +144,7 @@ def cli_main():
     )
     parser.add_argument(
         "--mixed_precision",
-        default=False,
+        default=True,
         action='store_true',
         help="Use 16 bit precision in training. (Default: False)",
     )

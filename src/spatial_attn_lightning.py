@@ -4,6 +4,7 @@ from typing import List, Tuple, Optional, Union
 import numpy as np
 import torch
 import torchmetrics
+from torchmetrics.classification import Accuracy
 from pytorch_lightning import LightningModule
 
 import src.audio_transforms as at
@@ -75,39 +76,47 @@ class BinauralAttentionModule(LightningModule):
             ])
 
         # Init Model
-        fc_attn_only = self.model_config.get('fc_attn_only', False) 
-        fc_size = self.model_config.get('fc_size', 4096)
+        # fc_attn_only = self.model_config.get('fc_attn_only', False) 
+        # fc_size = self.model_config.get('fc_size', 4096)
         # global_avg_cue = self.model_config.get('global_avg_cue', False)
         # Get model architecture
-        self.model = CNN2DExtractor(**self.model_config) 
+        model = CNN2DExtractor(**self.model_config) 
+        # check if torch version 2 or greater - if so, compile model
+        self.model = torch.compile(model, mode="reduce-overhead")
 
         # Add input rep to model or audio transforms
         self.rep_on_gpu = self.audio_config['rep_kwargs']['rep_on_gpu']
-        if  self.rep_on_gpu:
-            self.model = cm.AttnSequentialAttacker(
-                cm.AttnAudioInputRepresentation(**self.audio_config),
-                self.model
-            )
-        else:
-            self.audio_transforms = at.AudioCompose([
-                self.audio_transforms,
-                at.AudioToAudioRepresentation(**self.audio_config)
-            ])
+        self.coch_gram = cm.AttnAudioInputRepresentation(**self.audio_config)
+        # if  self.rep_on_gpu:
+        #     self.model = cm.AttnSequentialAttacker(
+        #         cm.AttnAudioInputRepresentation(**self.audio_config),
+        #         self.model
+        #     )
+        # else:
+        #     self.audio_transforms = at.AudioCompose([
+        #         self.audio_transforms,
+        #         at.AudioToAudioRepresentation(**self.audio_config)
+        #     ])
 
         # Losses
         self.loss_fn = torch.nn.CrossEntropyLoss()
 
         # Set up metrics
         if self.multi_task:
-            self.train_acc = torch.nn.ModuleDict({'word':torchmetrics.Accuracy(), 'location':torchmetrics.Accuracy()})
-            self.valid_acc = torch.nn.ModuleDict({'word':torchmetrics.Accuracy(), 'location':torchmetrics.Accuracy()})
-            self.test_acc = torch.nn.ModuleDict({'word':torchmetrics.Accuracy(), 'location':torchmetrics.Accuracy()})
-            self.test_confusion = torch.nn.ModuleDict({'word': torchmetrics.Accuracy(), 'location': torchmetrics.Accuracy()})
+            self.train_acc = torch.nn.ModuleDict({'word':Accuracy(task="multiclass", num_classes=config['model']['num_classes']['num_words']), 
+                                                  'location':Accuracy(task="multiclass", num_classes=config['model']['num_classes']['num_locs'])})
+            self.valid_acc = torch.nn.ModuleDict({'word':Accuracy(task="multiclass", num_classes=config['model']['num_classes']['num_words']),
+                                                 'location':Accuracy(task="multiclass", num_classes=config['model']['num_classes']['num_locs'])})
+            self.test_acc = torch.nn.ModuleDict({'word':Accuracy(task="multiclass", num_classes=config['model']['num_classes']['num_words']),
+                                                 'location':Accuracy(task="multiclass", num_classes=config['model']['num_classes']['num_locs'])})
+            self.test_confusion = torch.nn.ModuleDict({'word': Accuracy(task="multiclass", num_classes=config['model']['num_classes']['num_words']),
+                                                 'location': Accuracy(task="multiclass", num_classes=config['model']['num_classes']['num_locs'])})
         else:
-            self.train_acc = torchmetrics.Accuracy()
-            self.valid_acc = torchmetrics.Accuracy()
-            self.test_acc = torchmetrics.Accuracy()
-            self.test_confusion = torchmetrics.Accuracy()
+            task_key = 'num_words' if self.corpora_config['task'] == 'word' else "num_locs"
+            self.train_acc = Accuracy(task="multiclass", num_classes=config['model']['num_classes'][task_key]).to(self.device)
+            self.valid_acc = Accuracy(task="multiclass", num_classes=config['model']['num_classes'][task_key]).to(self.device)
+            self.test_acc = Accuracy(task="multiclass", num_classes=config['model']['num_classes'][task_key]).to(self.device)
+            self.test_confusion = Accuracy(task="multiclass", num_classes=config['model']['num_classes'][task_key]).to(self.device)
         self.accuracy = {'train': self.train_acc,
                          'val': self.valid_acc,
                          'test': self.test_acc,
@@ -131,6 +140,8 @@ class BinauralAttentionModule(LightningModule):
             return None
         cue_features, cue_mask_ixs, scene_features, labels = batch
 
+        cue_features, scene_features = self.coch_gram(cue_features, scene_features)
+
         # self() is self.forward()
         outputs = self(cue_features, scene_features, cue_mask_ixs)
         if self.multi_task:
@@ -142,14 +153,15 @@ class BinauralAttentionModule(LightningModule):
             loss = word_loss + loc_loss
             self.accuracy[step_type]['word'](word, word_label) # word accuracy
             self.accuracy[step_type]['location'](location, location_label) # location accuracy
-            self.log(f"Losses/{step_type}_loss", loss.detach(), on_step=True, on_epoch=False)
-            self.log(f"ACC/{step_type}_word_acc", self.accuracy[step_type]['word'], on_step=False, on_epoch=True)
-            self.log(f"ACC/{step_type}_location_acc", self.accuracy[step_type]['location'], on_step=False, on_epoch=True)
+            self.log(f"{step_type}_loss", loss.detach(), on_step=True, on_epoch=False, prog_bar=True)
+            self.log(f"{step_type}_word_acc", self.accuracy[step_type]['word'], on_step=False, on_epoch=True, prog_bar=True)
+            self.log(f"{step_type}_location_acc", self.accuracy[step_type]['location'], on_step=False, on_epoch=True, prog_bar=True)
         else:
             loss = self.loss_fn(outputs, labels)
             self.accuracy[step_type](outputs, labels)
-            self.log(f"Losses/{step_type}_loss", loss.detach(), on_step=True, on_epoch=False)
-            self.log(f"ACC/{step_type}_acc", self.accuracy[step_type], on_step=False, on_epoch=True)
+            self.log(f"{step_type}_loss", loss.detach(), on_step=True, on_epoch=False, prog_bar=True)
+            self.log(f"{step_type}_acc", self.accuracy[step_type], on_step=False, on_epoch=True, prog_bar=True)
+
         return loss
 
     def on_before_zero_grad(self, *args, **kwargs):
@@ -215,8 +227,11 @@ class BinauralAttentionModule(LightningModule):
 
     def test_timit(self, batch, batch_idx):
         cue_features, cue_mask_ixs, scene_features, labels = batch
+        self.log(f"true_word_ix", labels.float(), on_step=True, on_epoch=False)
         # self() is self.forward()  
         fg_outputs = self(cue_features, scene_features, cue_mask_ixs) 
+        if labels == -1:
+            labels[0] = 0
         fg_loss = self.loss_fn(fg_outputs, labels)
         model_confidence, model_guess = fg_outputs.softmax(-1).max(-1) # returns value, index
         self.accuracy["test"](fg_outputs, labels)
@@ -276,6 +291,7 @@ class BinauralAttentionModule(LightningModule):
             num_workers=self.config['num_workers'], 
             collate_fn=self._collate_fn,
             pin_memory=True,
+            # persistent_workers=True,
             shuffle=False,
         )
         return dataloader

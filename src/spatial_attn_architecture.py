@@ -8,10 +8,13 @@ from src.custom_modules import HannPooling2d
 class SimpleAttentionalGain(nn.Module):
     def __init__(self, frequency_dim, cnn_channels, global_avg_cue=False):
         super(SimpleAttentionalGain, self).__init__()
+        self.frequency_dim = frequency_dim
         if global_avg_cue:
-            self.time_average = nn.AdaptiveAvgPool2d((1, 1)) # outsize is N, C, 1, 1
+            self.ouptut_shape = (1,1)
+            # self.time_average = nn.AdaptiveAvgPool2d((1, 1)) # outsize is N, C, 1, 1
         else:
-            self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) # outsize is N, C, FreqDim, 1
+            self.ouptut_shape = (frequency_dim, 1)
+            # self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) # outsize is N, C, FreqDim, 1
         self.bias = nn.Parameter(torch.zeros(1)) # init gain scaling to zero
         self.slope = nn.Parameter(torch.ones(1)) # init slope to one
         self.threshold = nn.Parameter(torch.zeros(1)) # init threshold to zero
@@ -24,7 +27,9 @@ class SimpleAttentionalGain(nn.Module):
 
     def forward(self, cue, mixture, cue_mask_ixs):
         ## Process cue 
-        cue = self.time_average(cue)
+        # time average - same as nn op, but is compat with compile 
+        cue = cue.mean(axis=-1,keepdim=True)
+        # cue = self.time_average(cue)
         # apply threshold shift
         cue = cue - self.threshold
         # apply slope
@@ -76,14 +81,16 @@ class CNN2DExtractor(nn.Module):
         self.frequency_dim = 40
         self.n_layers = len(out_channels)
 
+        self.input_channels = kwargs.get('input_channels', 2)
+
         self.model_dict = nn.ModuleDict()
         self.output_height = self.frequency_dim
         self.output_len = 20000 # softcode eventually
-        self.model_dict["norm_coch_rep"]= nn.LayerNorm([2, self.frequency_dim, self.output_len])
-        self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, 2, global_avg_cue=global_avg_cue)
+        self.model_dict["norm_coch_rep"]= nn.LayerNorm([self.input_channels, self.frequency_dim, self.output_len])
+        self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, self.input_channels, global_avg_cue=global_avg_cue)
 
         for idx in range(self.n_layers):
-            nIn = 2 if idx == 0 else out_channels[idx - 1]
+            nIn = self.input_channels if idx == 0 else out_channels[idx - 1]
             nOut = out_channels[idx]
             # Convolutional block:
             if self.pool_stride[idx] != -1:
