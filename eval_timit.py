@@ -17,12 +17,25 @@ from pytorch_lightning.loggers import CSVLogger
 seed_everything(1)
 
 def run_eval(args):
-    
-
     model_name = args.model_name
     checkpoint_path = args.ckpt_path
     config = yaml.load(open(args.config_name, 'r'), Loader=yaml.FullLoader)
-    
+    # read test manifest
+    if args.test_manifest.as_posix() != "":
+        # open pickle 
+        with open(args.test_manifest, 'rb') as f:
+            eval_conditions = pickle.load(f)
+            cond_dict = eval_conditions[args.array_id]
+        harmonic = cond_dict.get('harmonic', False)
+        whispered = cond_dict.get('whispered', False)
+        inharmonic = cond_dict.get('inharmonic', False)
+        clean_targets = cond_dict.get('clean_targets', False)
+    else:
+        harmonic = args.harmonic
+        whispered = args.whispered
+        inharmonic = args.inharmonic
+        clean_targets = args.clean_targets
+
     config['matched_cue_level'] = False
     if 'cv' in model_name:
         config['corpus']['root'] = cv_eval_h5_path
@@ -39,22 +52,22 @@ def run_eval(args):
         config['data']['loader']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
     config['corpora_name'] = 'TIMIT'
     config['data']['corpus']['clean_targets'] = args.clean_targets
-    snr = 'clean' if args.clean_targets else '0dB_SNR'
+    snr = 'clean' if clean_targets else '0dB_SNR'
 
-    if args.harmonic: 
+    if harmonic: 
         config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/harmonic_timit/all_targets_harmonic_single_distractor_0dB_SNR_jitter_fn_render.pdpkl'
         task_name = "_harmonic_speech_jitter_render_"    
         
-    elif args.whispered:
+    elif whispered:
         config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/whispered_timit/all_targets_whispered_single_distractor_0dB_SNR.pdpkl'
         task_name = "_whispered_speech_"
         
-    elif args.inharmonic:
+    elif inharmonic:
         config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/inharmonic_timit/all_targets_inharmonic_single_distractor_0dB_SNR.pdpkl'
         task_name = "_inharmonic_speech_"
             
     else:
-        if args.clean_targets:
+        if clean_targets:
             config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/clean_timit_targets_attn_task_0.1rms.pdpkl'
         else:
             config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/attn_task_dataframes/timit_attn_stim_for_model_all_targets.pdpkl'
@@ -157,10 +170,10 @@ def cli_main():
         help="Slurm array task ID",
     )
     parser.add_argument(
-        "--get_confusions",
-        default=False,
-        action='store_true',
-        help="get target-distractor confusions",
+        "--test_manifest",
+        default=pathlib.Path(""),
+        type=pathlib.Path,
+        help="Path to config for test manifest mappig to array_id",
     )
     parser.add_argument(
         "--harmonic",

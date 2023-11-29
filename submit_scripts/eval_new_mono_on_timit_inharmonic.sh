@@ -18,6 +18,6 @@ python3 eval_timit.py --gpus 1 --n_jobs 5 --exp_dir "attn_cue_models/attn_timit_
                       --model_name "word_task_mono_arch_v04" \
                       --inharmonic  --clean_targets \
                       --config_name "config/binaural_attn/word_task_mono_arch_v04.yaml" \
-                      --ckpt_path "attn_cue_models/word_task_mono_arch_v04/checkpoints/epoch=0-step=1000.ckpt"
+                      --ckpt_path "attn_cue_models/word_task_mono_arch_v04/checkpoints/epoch=3-step=19355.ckpt"
 
 
