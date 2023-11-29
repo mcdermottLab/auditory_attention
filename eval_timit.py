@@ -51,7 +51,7 @@ def run_eval(args):
         config['data']['loader']['num_workers'] = args.n_jobs
         config['data']['loader']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus
     config['corpora_name'] = 'TIMIT'
-    config['data']['corpus']['clean_targets'] = args.clean_targets
+    config['data']['corpus']['clean_targets'] = clean_targets
     snr = 'clean' if clean_targets else '0dB_SNR'
 
     if harmonic: 
