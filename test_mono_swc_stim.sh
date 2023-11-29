@@ -4,9 +4,9 @@
 #SBATCH --error=outLogs/mono_swc_test_stim_%A_%a.err
 #SBATCH --mem=8Gb
 #SBATCH --cpus-per-task=4
-#SBATCH --partition=normal
+#SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=1-40 # 0-40
+#SBATCH --array=0-40 # 0-40
 
 source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 
@@ -16,7 +16,7 @@ source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 #                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 
 python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_mono_arch_v04.yaml \
-                 --ckpt_path attn_cue_models/word_task_mono_arch_v04/checkpoints/epoch=0-step=1000.ckpt \
+                 --ckpt_path attn_cue_models/word_task_mono_arch_v04/checkpoints/epoch=3-step=19355.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 
