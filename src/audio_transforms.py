@@ -375,10 +375,15 @@ class AudioToTensor(torch.nn.Module):
             background_wav (torch.Tensor): the waveform that will be used as
                 the background audio sample
         """
+        # check if foregoround_wav is a torch tensor
+        if not isinstance(foreground_wav, torch.Tensor):
+            foreground_wav = torch.from_numpy(foreground_wav)
         if background_wav is None:
-            return torch.from_numpy(foreground_wav), None
+            return foreground_wav, None
         else:
-            return torch.from_numpy(foreground_wav), torch.from_numpy(background_wav)
+            if not isinstance(background_wav, torch.Tensor):
+                background_wav = torch.from_numpy(background_wav)
+            return foreground_wav, background_wav
 
 
 class UnsqueezeAudio(torch.nn.Module):
