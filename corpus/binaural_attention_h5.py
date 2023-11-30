@@ -147,6 +147,7 @@ class H5Dataset(torch.utils.data.Dataset):
             bg_3 = self.dataset['bg_scene_co_located'][voice_and_loc_ix: end].transpose((0, 2, 1))
             # first 2/3 normal, last 1/3 co-located
             background = np.concatenate((bg_1, bg_2, bg_3), axis=0) 
+
         elif self.cue_key == 'voice':
             cue = self.dataset[self.cue_key][start:end].transpose((0, 2, 1))
             background = self.dataset['bg_scene_co_located'][start:end].transpose((0, 2, 1))

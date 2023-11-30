@@ -7,6 +7,8 @@ import yaml
 import pickle
 import torch 
 import numpy as np 
+import pandas as pd
+
 from tqdm.auto import tqdm
 from pytorch_lightning import seed_everything
 from src.attn_tracking_lightning import AttentionalTrackingModule
@@ -14,6 +16,9 @@ from src.spatial_attn_lightning import BinauralAttentionModule
 from corpus.saddler_word_rec import SaddlerSWCWordRecTest
 import src.audio_transforms as at
 import scipy.stats as stats
+import h5py
+import soxr
+
 
 
 seed_everything(1)
@@ -89,7 +94,28 @@ def run_eval(args):
                                              num_workers=args.n_jobs)
 
 
-    
+    new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
+    only14_manifest = new_room_manifest[new_room_manifest['src_dist'] == 1.4]
+    df_row = only14_manifest[(only14_manifest['src_azim'] == 0) & (only14_manifest['src_elev'] == 0)]
+    h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{df_row["index_room"].values[0]}.hdf5'
+    index_brir = df_row['index_brir'].values[0]
+    sr_src = df_row['sr'].values[0]
+    with h5py.File(h5_fn, 'r') as f:
+        brir = f['brir'][index_brir]
+    sr = 50000
+    brir = soxr.resample(brir.astype(np.float32), sr_src, sr)
+    brir = torch.from_numpy(brir)
+    brir = torch.flip(brir, dims=[0])
+
+    def mass_spatialize(words, ir):
+        """Uses pytorch to convolve all sounds in words with 2 channel IR given in ir"""
+        n_words = words.shape[0]
+        words_padded = [torch.nn.functional.pad(word, (ir.shape[0] - 1, 0)) for word in words]
+        ir = ir.T.unsqueeze(1)
+        words_padded = torch.stack(words_padded)
+        spatialized = torch.nn.functional.conv1d(words_padded.view(n_words, 1, -1).cuda(), ir.cuda()).cuda()
+        return spatialized
+
     # run eval loop
     results = []
 
@@ -102,6 +128,7 @@ def run_eval(args):
         logits = model(cue, mixture)
         preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach()
         results.extend(word == preds)
+
     
     res_err = stats.sem(results)
     res = np.mean(results)

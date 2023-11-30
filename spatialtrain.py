@@ -9,14 +9,15 @@ import json
 import pickle
 import torch
 from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.loggers import CSVLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.plugins import DDPPlugin
 from src.spatial_attn_lightning import BinauralAttentionModule #probably need to change this to the new name
 
 # get nodename 
 import socket
 
+torch.set_float32_matmul_precision('medium')
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 
 hostname = socket.gethostname()
 
@@ -84,7 +85,7 @@ def run_train(args):
         callbacks.append(ModelCheckpoint(
             checkpoint_dir,
             monitor=f"{config['val_metric']}",
-            mode="max" if 'ACC' in config['val_metric'] else "min",
+            mode="max" if 'acc' in config['val_metric'] else "min",
             save_top_k=1,
             save_weights_only=True,
             verbose=True,
@@ -92,7 +93,7 @@ def run_train(args):
 
     train_checkpoint = ModelCheckpoint(
         checkpoint_dir,
-        monitor="Losses/train_loss",
+        monitor="train_loss",
         mode="min",
         save_top_k=1,
         save_weights_only=True,
@@ -111,10 +112,10 @@ def run_train(args):
         # detect_anomaly=True,
         benchmark=True,
         num_nodes=args.num_nodes,
-        gpus=args.gpus,
-        accelerator="gpu" if args.gpus > 0 else 'cpu',
+        devices=args.gpus,
+        accelerator="gpu", 
+        benchmark=True,
         # resume_from_checkpoint = ckpt_path,  
-        strategy=DDPPlugin(find_unused_parameters=False),
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=config['hparas']['gradient_clip_val'],
         profiler=None,

@@ -34,7 +34,8 @@ audio:                                  # Attributes of audio feature
     power: 0.3
 
 
-val_metric: 'ACC/val_acc'
+val_metric: 'val_acc'
+
 model_name: 'binaural_attn_cue_voice_and_loc'
 
 noise_kwargs: # parameters for background signal levels 
@@ -48,7 +49,8 @@ hparas:                                   # Experiment hyper-parameters
   lr: 0.0001
   eps: 0.00000001                         # 1e-8
   gradient_clip_val: 100 
-  batch_size: 384                         # Gets divided by num gpus
+  batch_size: 576                        # Gets divided by num gpus
+
 
 model:                                    # Model architecture
   input_sr: 10000

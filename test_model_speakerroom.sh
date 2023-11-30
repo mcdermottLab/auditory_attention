@@ -2,6 +2,7 @@
 #SBATCH --job-name=eval_model
 #SBATCH --output=outLogs/eval_model_%A_%a.out
 #SBATCH --error=outLogs/eval_model_%A_%a.err
+
 #SBATCH --mem=10Gb
 #SBATCH --cpus-per-task=2
 #SBATCH --time=02:30:00
