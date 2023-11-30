@@ -280,7 +280,6 @@ class TIMIT_Binaural_Compat_Prepaired(Dataset):
         """
         mixture = self.target_signals[index].astype('float32') # pre-mixed target and distractor 
         mixture = self.upsample(torch.from_numpy(mixture)).numpy()
-        print(f"{mixture.shape=} after upsample")
         target_word_int = self.dataset.word_int[index].astype('int')  # target word label
         # map to cv vocab
         target_word_int = self.class_remap[target_word_int]
