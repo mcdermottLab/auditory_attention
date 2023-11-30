@@ -8,7 +8,6 @@ import yaml
 import json
 import pickle
 import torch
-
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from src.spatial_attn_lightning import BinauralAttentionModule #probably need to change this to the new name
@@ -22,6 +21,8 @@ torch.backends.cudnn.allow_tf32 = True
 
 hostname = socket.gethostname()
 
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
 
 def run_train(args):
 
@@ -106,6 +107,10 @@ def run_train(args):
         # precision=16,# 16 if 'binaural' in args.config else 32,
         default_root_dir=args.exp_dir,
         max_epochs=config['hparas']['epochs'],
+
+       # log_every_n_steps = 10,
+        # detect_anomaly=True,
+        benchmark=True,
         num_nodes=args.num_nodes,
         devices=args.gpus,
         accelerator="gpu", 

@@ -43,87 +43,99 @@ def run_eval(args):
     idx = args.location_idx
     # re_run_mapping = pickle.load(open('/om2/user/rphess/Auditory-Attention/rerun_dict_3.pkl', 'rb'))
     loc_dict = pickle.load(open('/om2/user/rphess/Auditory-Attention/speaker_room_all_elev.pkl', 'rb'))
-    idx += 2000
-    target_loc = loc_dict[idx][0]
-    distract_loc = loc_dict[idx][1]
+    # run 10 locations per job 
+    n_per_job = 10
+    start = idx * n_per_job
+    end = start + n_per_job
+    
+    # open room manifest and filter for 1.4m distance and room 0
+    new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
+    only14_manifest = new_room_manifest[(new_room_manifest['src_dist'] == 1.4) & (new_room_manifest['index_room'] == 0)]
 
-    log_name = f"/{model_name}_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}"
-    print(log_name)
-
-    experiment_dir = f"{args.exp_dir}/{model_name}"
+    # init model 
     model = attn_tracking_lightning.BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).cuda()
     audio_transforms = model.audio_transforms
     # to inference mode 
     model = model.eval()
 
-    new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
-    only14_manifest = new_room_manifest[(new_room_manifest['src_dist'] == 1.4) & (new_room_manifest['index_room'] == 0)]
-    ir_dict = dict()
-    for loc in ['target', 'distractor', 'cue']:
-        if loc == 'target':
-            coords = target_loc
-        elif loc == 'distractor':
-            coords = distract_loc
-        else:
-            if cue_type == 'voice':
-                coords = (0,0)
-            else:
+    # set up experiment directory   
+    experiment_dir = pathlib.Path(args.exp_dir)
+    experiment_dir = experiment_dir / model_name
+
+    for idx in range(start, end):
+        target_loc = loc_dict[idx][0]
+        distract_loc = loc_dict[idx][1]
+
+        log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}"
+        print(log_name)
+        
+        ir_dict = dict()
+        for loc in ['target', 'distractor', 'cue']:
+            if loc == 'target':
                 coords = target_loc
-        df_row = only14_manifest[(only14_manifest['src_azim'] == coords[0]) & (only14_manifest['src_elev'] == coords[1])]
-        h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{df_row["index_room"].values[0]}.hdf5'
-        index_brir = df_row['index_brir'].values[0]
-        sr_src = df_row['sr'].values[0]
-        with h5py.File(h5_fn, 'r') as f:
-            brir = f['brir'][index_brir]
-        sr = 50000
-        brir = soxr.resample(brir.astype(np.float32), sr_src, sr)
-        ir_dict[loc] = brir
+            elif loc == 'distractor':
+                coords = distract_loc
+            else:
+                if cue_type == 'voice':
+                    coords = (0,0)
+                else:
+                    coords = target_loc
+            df_row = only14_manifest[(only14_manifest['src_azim'] == coords[0]) & (only14_manifest['src_elev'] == coords[1])]
+            h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{df_row["index_room"].values[0]}.hdf5'
+            index_brir = df_row['index_brir'].values[0]
+            sr_src = df_row['sr'].values[0]
+            with h5py.File(h5_fn, 'r') as f:
+                brir = f['brir'][index_brir]
+            sr = 50000
+            brir = soxr.resample(brir.astype(np.float32), sr_src, sr)
+            ir_dict[loc] = brir
 
-    tar_brir = torch.from_numpy(ir_dict['target'])
-    tar_brir = torch.flip(tar_brir, dims=[0])
-    dist_brir = torch.from_numpy(ir_dict['distractor'])
-    dist_brir = torch.flip(dist_brir, dims=[0])
-    cue_brir = torch.from_numpy(ir_dict['cue'])
-    cue_brir = torch.flip(cue_brir, dims=[0])
+        tar_brir = torch.from_numpy(ir_dict['target'])
+        tar_brir = torch.flip(tar_brir, dims=[0])
+        dist_brir = torch.from_numpy(ir_dict['distractor'])
+        dist_brir = torch.flip(dist_brir, dims=[0])
+        cue_brir = torch.from_numpy(ir_dict['cue'])
+        cue_brir = torch.flip(cue_brir, dims=[0])
 
-    dataset = SpeakerRoomDataset('/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl', '/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl', cue_type)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
+        # can find way to re_init more efficiently
+        dataset = SpeakerRoomDataset('/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl', '/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl', cue_type)
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
 
-    output_dict = {'results': None, 'confusions': None}
-    accuracies = []
-    confusions = []
+        output_dict = {'results': None, 'confusions': None}
+        accuracies = []
+        confusions = []
 
-    with torch.no_grad(): 
-        for batch in tqdm(dataloader):
-            cue, fg, bg, label, confusion = batch
+        with torch.no_grad(): 
+            for batch in tqdm(dataloader):
+                cue, fg, bg, label, confusion = batch
 
-            cue = np.array(spatialize(cue.cuda(), cue_brir.cuda()).cpu()[:, :, 12500:137500])
-            foreground = np.array(spatialize(fg.cuda(), tar_brir.cuda()).cpu()[:, :, 12500:137500])
-            background = np.array(spatialize(bg.cuda(), dist_brir.cuda()).cpu()[:, :, 12500:137500])
+                cue = np.array(spatialize(cue.cuda(), cue_brir.cuda()).cpu()[:, :, 12500:137500])
+                foreground = np.array(spatialize(fg.cuda(), tar_brir.cuda()).cpu()[:, :, 12500:137500])
+                background = np.array(spatialize(bg.cuda(), dist_brir.cuda()).cpu()[:, :, 12500:137500])
 
-            cue = audio_transforms(cue, None)[0]
-            mixture = audio_transforms(foreground, background)[0]
+                cue = audio_transforms(cue, None)[0]
+                mixture = audio_transforms(foreground, background)[0]
 
-            cue = cue.cuda()
-            mixture = mixture.cuda()
-            logits = model(cue, mixture, None)
+                cue = cue.cuda()
+                mixture = mixture.cuda()
+                logits = model(cue, mixture, None)
 
-            preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach().numpy().astype('int')
-            true_word = label.numpy().astype('int')
-            con_word = confusion.numpy().astype('int')
-            accuracy = (preds == true_word).astype('int')
-            cons = (preds == con_word).astype('int')
-            accuracies.append(accuracy)
-            confusions.append(cons)
-    accuracies = np.concatenate(accuracies)
-    confusions = np.concatenate(confusions)
-    output_dict['results'] = accuracies
-    output_dict['confusions'] = confusions
+                preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach().numpy().astype('int')
+                true_word = label.numpy().astype('int')
+                con_word = confusion.numpy().astype('int')
+                accuracy = (preds == true_word).astype('int')
+                cons = (preds == con_word).astype('int')
+                accuracies.append(accuracy)
+                confusions.append(cons)
+        accuracies = np.concatenate(accuracies)
+        confusions = np.concatenate(confusions)
+        output_dict['results'] = accuracies
+        output_dict['confusions'] = confusions
 
-    if not os.path.exists(experiment_dir):
-        os.makedirs(experiment_dir)
-    with open(str(experiment_dir) + log_name + '.pkl', 'wb') as f:
-        pickle.dump(output_dict, f)
+        if not os.path.exists(experiment_dir):
+            os.makedirs(experiment_dir)
+        with open(str(experiment_dir) + log_name + '.pkl', 'wb') as f:
+            pickle.dump(output_dict, f)
 
 def cli_main():
     parser = ArgumentParser()
