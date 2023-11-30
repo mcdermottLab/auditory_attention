@@ -8,6 +8,7 @@ import pickle
 import torch 
 import numpy as np 
 import pandas as pd
+
 from tqdm.auto import tqdm
 from pytorch_lightning import seed_everything
 from src.attn_tracking_lightning import AttentionalTrackingModule
@@ -17,6 +18,7 @@ import src.audio_transforms as at
 import scipy.stats as stats
 import h5py
 import soxr
+
 
 
 seed_everything(1)
@@ -113,6 +115,7 @@ def run_eval(args):
         words_padded = torch.stack(words_padded)
         spatialized = torch.nn.functional.conv1d(words_padded.view(n_words, 1, -1).cuda(), ir.cuda()).cuda()
         return spatialized
+
     # run eval loop
     results = []
 
@@ -126,6 +129,7 @@ def run_eval(args):
         preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach()
         results.extend(word == preds)
 
+    
     res_err = stats.sem(results)
     res = np.mean(results)
 

@@ -4,11 +4,11 @@
 #SBATCH --error=outLogs/train_binaural_attn_%A_%a.err
 #SBATCH --mem=800Gb
 #SBATCH -N 1
-#SBATCH --cpus-per-task=96
+#SBATCH --cpus-per-task=80
 #SBATCH --time=12:00:00
 #SBATCH --partition=multi-gpu
-#SBATCH --gres=gpu:a100:8
-#SBATCH -x apollo001
+#SBATCH --gres=gpu:a100:8 
+#SBATCH --array=0
 
 #source /etc/profile.d/modules.sh
 #module use /cm/shared/modulefiles
@@ -23,6 +23,7 @@ source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 #module add openmind/cuda/12.3
 
 which python3
-python3 spatialtrain.py --config /om2/user/imgriff/projects/Auditory-Attention/config/binaural_attn/word_task_mixed_cue_v04_80p_co_located_A100.yml \
-                 --gpus 8 --n_jobs 12 --resume_training True --clean_percentage 0.1\
+
+python3 spatialtrain.py --config_list train_models_08_02.pkl --job_id $SLURM_ARRAY_TASK_ID\
+                 --gpus 8 --n_jobs 10 --resume_training True --clean_percentage 0.1\
                  --exp_dir attn_cue_models \

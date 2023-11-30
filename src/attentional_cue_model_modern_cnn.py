@@ -1,0 +1,203 @@
+import torch
+import numpy as np
+import torch.nn as nn
+from src.layers import conv2d_same
+from src.custom_modules import HannPooling2d
+
+class SimpleAttentionalGain(nn.Module):
+    def __init__(self, frequency_dim, cnn_channels, global_avg=False):
+        super(SimpleAttentionalGain, self).__init__()
+        if global_avg:
+            self.time_average = nn.AdaptiveAvgPool2d((1, 1)) # outsize is N, C, 1, 1
+        else:
+            self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) # outsize is N, C, FreqDim, 1
+        self.bias = nn.Parameter(torch.zeros(1)) # init gain scaling to zero
+        self.slope = nn.Parameter(torch.ones(1)) # init slope to one
+        self.threshold = nn.Parameter(torch.zeros(1)) # init threshold to zero
+        self.reset_parameters() 
+
+    def reset_parameters(self):
+        nn.init.constant_(self.bias, 0)
+        nn.init.constant_(self.slope, 1)
+        nn.init.constant_(self.threshold, 0)
+
+    def forward(self, cue, mixture):
+        ## Process cue 
+        cue = self.time_average(cue)
+        # apply threshold shift
+        cue = cue - self.threshold
+        # apply slope
+        cue = cue * self.slope
+        # apply sigmoid & bias
+        cue = self.bias + (1-self.bias) * torch.sigmoid(cue)
+        # Apply to mixture (element mult)
+        mixture = torch.mul(mixture, cue)
+        return mixture
+
+
+class KernelAttentionalGain(nn.Module):
+    def __init__(self, frequency_dim, cnn_channels, global_avg=False):
+        super(SimpleAttentionalGain, self).__init__()
+        if global_avg:
+            self.time_average = nn.AdaptiveAvgPool2d((1, 1)) # outsize is N, C, 1, 1
+        else:
+            self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) # outsize is N, C, FreqDim, 1
+        self.bias = nn.Parameter(torch.zeros(1, cnn_channels, 1, 1)) # init gain scaling to zero
+        self.slope = nn.Parameter(torch.ones(1, cnn_channels, 1, 1)) # init slope to one
+        self.threshold = nn.Parameter(torch.zeros(1, cnn_channels, 1, 1)) # init threshold to zero
+        self.reset_parameters() 
+
+    def reset_parameters(self):
+        nn.init.constant_(self.bias, 0)
+        nn.init.constant_(self.slope, 1)
+        nn.init.constant_(self.threshold, 0)
+
+    def forward(self, cue, mixture):
+        ## Process cue 
+        cue = self.time_average(cue)
+        # apply threshold shift
+        cue = cue - self.threshold
+        # apply slope
+        cue = cue * self.slope
+        # apply sigmoid & bias
+        cue = self.bias + (1-self.bias) * torch.sigmoid(cue)
+        # Apply to mixture (element mult)
+        mixture = torch.mul(mixture, cue)
+        return mixture
+
+
+class SeparableConv2d(nn.Module):
+
+    def __init__(self, in_channels, out_channels, kernel_size, bias=False):
+        super(SeparableConv2d, self).__init__()
+        self.depthwise = nn.Conv2d(in_channels, in_channels, kernel_size=kernel_size, 
+                                groups=in_channels, bias=bias, padding=1)
+        self.pointwise = nn.Conv2d(in_channels, out_channels, 
+                                kernel_size=1, bias=bias)
+
+    def forward(self, x):
+        out = self.depthwise(x)
+        out = self.pointwise(out)
+        return out
+
+
+class AuditoryCNN(nn.Module):
+    def __init__(self, num_classes=1000, fc_size=4096, input_width = 16000, global_avg=False):
+        super(AuditoryCNN, self).__init__()
+        layer_width = input_width
+        self.norm_coch_rep = nn.LayerNorm([1, 40, layer_width])
+        self.attn_block_in = SimpleAttentionalGain(40, 1, global_avg=global_avg)
+
+        self.conv0 = nn.Sequential(
+            nn.LayerNorm([1, 40, layer_width]),
+            SeparableConv2d(1, 32, kernel_size = [2, 34]),
+            nn.GELU(),
+            HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
+        )
+        self.attn_block0 = SimpleAttentionalGain(20, 32, global_avg=global_avg)
+
+        layer_width = np.ceil(layer_width / 4).astype('int') # 4 is tmporal downsampling factor in pool (eg, stride[1] in last pool layer)
+
+        self.conv1 = nn.Sequential(
+            nn.LayerNorm([32, 20, layer_width]),
+            SeparableConv2d(32, 64, kernel_size = [2, 14]),
+            nn.GELU(),
+            HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
+        )
+        self.attn_block1 = SimpleAttentionalGain(10, 64, global_avg=global_avg)
+
+        layer_width = np.ceil(layer_width / 4).astype('int') # 4 is tmporal downsampling factor in pool (eg, stride[1] in last pool layer)
+
+        self.conv2 = nn.Sequential(
+            nn.LayerNorm([64, 10, layer_width]),
+            SeparableConv2d(64, 256, kernel_size = [7,7]),
+            nn.GELU(),
+            HannPooling2d(stride = [1, 4 if layer_width % 4 == 0 else 5], pool_size = [1, 13], padding = [0, 6])
+        )
+        self.attn_block2 = SimpleAttentionalGain(10, 256, global_avg=global_avg)
+
+        self.conv3 =  nn.Sequential(
+            nn.LayerNorm([256, 10, 250]),
+            SeparableConv2d(256, 512, kernel_size = [7,7]),
+            nn.GELU(),
+            HannPooling2d(stride = [1, 4], pool_size = [1, 13], padding = [0, 6])
+        )
+        self.attn_block3 = SimpleAttentionalGain(10, 512, global_avg=global_avg)
+
+        self.conv4 = nn.Sequential(
+            nn.LayerNorm([512, 10, 63]),
+            SeparableConv2d(512, 512, kernel_size = [7,7]),
+            nn.GELU(),
+            HannPooling2d(stride = [1, 1], pool_size = [1, 1], padding = [0, 0])
+        )
+        self.attn_block4 = SimpleAttentionalGain(10, 512, global_avg=global_avg)
+
+        self.conv5 = nn.Sequential(
+            nn.LayerNorm([512, 10, 63]),
+            SeparableConv2d(512, 512, kernel_size = [7,7]),
+            # nn.GELU(),
+            # HannPooling2d(stride = [1, 1], pool_size = [1, 1], padding = [0, 0])
+        )
+        self.attn_block5 = SimpleAttentionalGain(10, 512, global_avg=global_avg)
+
+        self.conv6 = nn.Sequential(
+            # nn.LayerNorm([512, 10, 63]),
+            SeparableConv2d(512, 512, kernel_size = [7,7]),
+            nn.GELU(),
+            HannPooling2d(stride = [2, 4], pool_size = [6, 13], padding = [3, 6])
+        )
+        self.attn_block6 = SimpleAttentionalGain(6, 512, global_avg=global_avg)
+
+        self.global_avg_pool = nn.AdaptiveAvgPool2d(1) # flatten to Cx1x1
+        self.classification = nn.Linear(512, num_classes) # 512 is the number of channels in the last conv layer
+        
+
+    def forward(self, cue, mixture=None):
+        # pass cue through cnn & store reps
+        cue = self.norm_coch_rep(cue)
+        cue0 = self.conv0(cue) # has layer norm as 1st layer - may be a problem? 
+        cue1 = self.conv1(cue0)
+        cue2 = self.conv2(cue1)
+        cue3 = self.conv3(cue2)
+        cue4 = self.conv4(cue3)
+        cue5 = self.conv5(cue4)
+        cue6 = self.conv6(cue5)
+        
+        ## Combine cue and mixture using attention
+        if mixture is not None:
+            mixture = self.norm_coch_rep(mixture)
+            # attn for cochlear model
+            attn = self.attn_block_in(cue, mixture)
+            # conv 0 
+            attn = self.conv0(attn)
+            attn = self.attn_block0(cue0, attn)
+            # conv 1
+            attn = self.conv1(attn)
+            attn = self.attn_block1(cue1, attn)
+            #conv 2
+            attn = self.conv2(attn)
+            attn = self.attn_block2(cue2, attn)
+            #conv 3
+            attn = self.conv3(attn)
+            attn = self.attn_block3(cue3, attn)
+            #conv4
+            attn = self.conv4(attn)
+            attn = self.attn_block4(cue4, attn)
+            #conv5
+            attn = self.conv5(attn)
+            attn = self.attn_block5(cue5, attn)
+            #conv6
+            attn = self.conv6(attn)
+            attn = self.attn_block6(cue6, attn)
+
+            out = attn
+        else:
+            out = cue6
+
+        out = self.global_avg_pool(out)       
+        out = torch.flatten(out, 1)
+
+        out = self.classification(out)
+        return out
+        
+    

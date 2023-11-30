@@ -18,6 +18,7 @@ export HDF5_USE_FILE_LOCKING=FALSE
 
 source activate /om2/user/imgriff/conda_envs/pytorch_2
 
+
 #module add openmind/cudnn/11.5-v8.3.3.40
 #module add openmind/cuda/12.3
 
@@ -25,3 +26,4 @@ which python3
 python3 spatialtrain.py --config config/binaural_attn/word_task_mixed_cue_v04.yml \
                  --gpus 4 --n_jobs 4 --resume_training True --clean_percentage 0.1\
                  --exp_dir attn_cue_models \
+

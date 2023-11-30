@@ -2,7 +2,7 @@ corpus:
   name: 'spatialized_commonvoice_gise_scenes'
   cue_type: "mixed"
   task: "word"
-  root: '/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
+  root: '/om/scratch/Mon/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v04'
   with_cue_free: False
 
 
@@ -35,31 +35,31 @@ audio:                                  # Attributes of audio feature
 
 
 val_metric: 'ACC/val_acc'
-model_name: 'binaural_attn_cue_voice_and_loc'
+model_name: 'binaural_mix_cue_word_task_large_architecture_v04'
 
 noise_kwargs: # parameters for background signal levels 
   low_snr: -10
   high_snr: 10
 
 hparas:                                   # Experiment hyper-parameters
-  valid_step: 250
+  valid_step: 1000
   epochs: 1000
   optimizer: 'AdamW'
   lr: 0.0001
   eps: 0.00000001                         # 1e-8
   gradient_clip_val: 100 
-  batch_size: 768                        # Gets divided by num gpus
+  batch_size: 232                        # Gets divided by num gpus
 
 model:                                    # Model architecture
   input_sr: 10000
-  out_channels: [32, 64, 256, 512, 512, 512, 512]                       
-  kernel:  [[2, 34], [2, 14], [5, 5], [5, 5], [6, 6], [5, 5], [6, 6]]
-  stride: [[1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1]]
-  padding: ['same', 'same', 'same', 'same', 'same', 'same', 'same']
-  pool_stride: [[2, 4], [2, 4], [1, 5], [1, 4], [1, 1], [1, 1], [2, 4]] 
-  pool_size: [[9, 13], [9, 13], [1, 13], [1, 13], [1, 1], [1, 1], [6, 13]]
-  pool_padding: [[4,6], [4,6], [0,6], [0,6], [0,0], [0,0], [3,6]]
-  attn: [1, 1, 1, 1, 1, 1, 1]
+  out_channels: [32, 32, 64, 64, 256, 256, 512, 512, 512, 512, 512, 512, 512, 512]                       
+  kernel:  [[2, 34], [2, 34], [2, 14], [2, 14], [5, 5], [5, 5], [5, 5], [5, 5], [6, 6], [6, 6], [5, 5], [5, 5], [6, 6], [6, 6]]
+  stride: [[1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1]]
+  padding: ['same', 'same', 'same', 'same', 'same', 'same', 'same', 'same', 'same', 'same', 'same', 'same', 'same', 'same']
+  pool_stride: [-1, [2, 4], -1, [2, 4], -1, [1, 5], -1, [1, 4], -1, [1, 1], -1, [1, 1], -1, [2, 4]] 
+  pool_size: [-1, [9, 13], -1, [9, 13], -1, [1, 13], -1, [1, 13], -1, [1, 1], -1, [1, 1], -1, [6, 13]]
+  pool_padding: [-1, [4,6], -1, [4,6], -1, [0,6], -1, [0,6], -1, [0,0], -1, [0,0], -1, [3,6]]
+  attn: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
   num_classes:                         # 998 words in cv vocab
     num_words: 800
   fc_size: 512

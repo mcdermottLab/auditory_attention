@@ -2,7 +2,7 @@ corpus:
   name: 'spatialized_commonvoice_gise_scenes'
   cue_type: "mixed"
   task: "word"
-  root: '/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
+  root: '/om/scratch/Mon/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v02'
   with_cue_free: False
 
 
@@ -35,14 +35,14 @@ audio:                                  # Attributes of audio feature
 
 
 val_metric: 'ACC/val_acc'
-model_name: 'binaural_attn_cue_voice_and_loc'
+model_name: 'binaural_attn_mix_cue_word_task_large_architecture'
 
 noise_kwargs: # parameters for background signal levels 
   low_snr: -10
   high_snr: 10
 
 hparas:                                   # Experiment hyper-parameters
-  valid_step: 250
+  valid_step: 500
   epochs: 1000
   optimizer: 'AdamW'
   lr: 0.0001

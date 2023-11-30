@@ -40,10 +40,15 @@ class SimpleAttentionalGain(nn.Module):
 
 
 class BinauralAttentionCNN(nn.Module):
-    def __init__(self, num_classes={'num_words':998, 'num_locs':504}, fc_size=512, global_avg_cue=False, **kwargs):
+    def __init__(self, num_classes={'num_words':998, 'num_locs':504}, fc_size=512, global_avg_cue=False, run_mono=False, **kwargs):
         super(BinauralAttentionCNN, self).__init__()
 
         # setup vars for task
+        if run_mono:
+            input_channels = 1
+        else:   
+            input_channels = 2
+        print(f"{input_channels=}")
         print(f"{num_classes=}")
         self.dual_task = False
         if isinstance(num_classes, dict):
@@ -63,12 +68,12 @@ class BinauralAttentionCNN(nn.Module):
                 num_locs = num_classes['num_locs']
                 print('Model performing both location and word tasks')
 
-        self.norm_coch_rep = nn.LayerNorm([2, 40, 20000])
-        self.attn_block_in = SimpleAttentionalGain(40, 2, global_avg_cue=global_avg_cue)
+        self.norm_coch_rep = nn.LayerNorm([input_channels, 40, 20000])
+        self.attn_block_in = SimpleAttentionalGain(40, input_channels, global_avg_cue=global_avg_cue)
 
         self.conv0 = nn.Sequential(
-                    nn.LayerNorm([2, 40, 20000]),
-                    conv2d_same.create_conv2d_pad(2, 32, kernel_size = [2, 34], stride = [1, 1], padding = 'same'),
+                    nn.LayerNorm([input_channels, 40, 20000]),
+                    conv2d_same.create_conv2d_pad(input_channels, 32, kernel_size = [2, 34], stride = [1, 1], padding = 'same'),
                     nn.ReLU(),
                     HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
         )

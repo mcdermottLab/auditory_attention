@@ -1,0 +1,53 @@
+
+
+corpus:
+  root: '/om2/user/imgriff/datasets/commonvoice_9_en/3000ms/stimSR_50000/cv_9_en/subsets/'
+
+audio:                                  # Attributes of audio feature
+  rep_type:  'cochlea_filt'
+  rep_kwargs:
+    sr: 50000
+    env_sr: 10000
+    n_channels: 40
+    low_lim: 40
+    use_pad: True
+    rep_on_gpu: True
+    center_crop: True
+    out_dur: 2  ## in seconds
+    impulse_len: 1
+    env_extraction_type: 'Half-wave Rectification'
+    downsampling_type: 'TorchTransformsResample'
+    downsampling_kwargs:
+      lowpass_filter_width: 64
+      rolloff: 0.9475937167399596
+      resampling_method: "kaiser_window"
+      beta: 14.769656459379492
+  compression_type: 'coch_p3'
+  compression_kwargs:
+    scale: 1
+    offset: 0.0000001   
+    clip_value: 5
+    power: 0.3
+
+loader:
+  batch_size: 512                         # Gets divided by num gpus
+
+model:
+  num_words: 998        
+  fc_size: 512
+
+val_metric: 'ACC/val_acc'
+model_name: 'cv_clean_word_rec_baseline'
+
+hparas:                                   # Experiment hyper-parameters
+  valid_step: 500
+  epochs: 10
+  optimizer: 'Adam'
+  lr: 0.0001
+  eps: 0.00000001                         # 1e-8
+  lr_scheduler: 'fixed'                   # 'fixed'/'warmup'
+  curriculum: 0
+  gradient_clip_val: 10
+  
+
+  

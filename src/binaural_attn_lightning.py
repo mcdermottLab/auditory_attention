@@ -51,6 +51,10 @@ class BinauralAttentionModule(LightningModule):
         self.model_config = config['model']
         self.hparas_config = config['hparas']
 
+        # corpora params 
+        self.corpora_name = config.get('corpora_name', False)
+        self.run_timit = self.corpora_name == 'TIMIT'
+
         # set dataset as attribute
         self.dataset = BinauralAttentionDataset 
 
@@ -62,6 +66,14 @@ class BinauralAttentionModule(LightningModule):
         ])
 
         self.test_step = self._test_step
+        
+        # format attrs for TIMIT test 
+        if self.run_timit:
+            self.test_step = self.test_timit 
+            self.audio_transforms = at.AudioCompose([
+                at.AudioToTensor(),
+                at.UnsqueezeAudio(dim=0),
+            ])
 
         # Init Model
         fc_attn_only = self.model_config.get('fc_attn_only', False) 
@@ -113,7 +125,6 @@ class BinauralAttentionModule(LightningModule):
         if batch is None:
             return None
         cue_features, cue_mask_ixs, scene_features, labels = batch
-
         # self() is self.forward()
         outputs = self(cue_features, scene_features, cue_mask_ixs) 
         loss = self.loss_fn(outputs, labels)
@@ -229,7 +240,7 @@ class BinauralAttentionModule(LightningModule):
         return cue_features, cue_mask_ixs, scene_features, labels
 
     def train_dataloader(self):
-        dataset = self.dataset(**self.corpora_config, mode='train')
+        dataset = self.dataset(**self.corpora_config, mode='train', run_mono= not self.audio_config['rep_kwargs']['binaural'])
         print(f"len training set = {len(dataset)}")
         dataloader = torch.utils.data.DataLoader(
             dataset,
@@ -242,7 +253,7 @@ class BinauralAttentionModule(LightningModule):
         return dataloader
 
     def val_dataloader(self):
-        dataset = self.dataset(**self.corpora_config, mode='val')
+        dataset = self.dataset(**self.corpora_config, mode='val', run_mono= not self.audio_config['rep_kwargs']['binaural'])
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=self.hparas_config['batch_size'],
@@ -252,7 +263,13 @@ class BinauralAttentionModule(LightningModule):
         return dataloader
 
     def test_dataloader(self): # dumy placeholder for now - fix 
-        dataset = self.dataset(**self.corpora_config, mode='test')
+        if self.run_timit:
+            from corpus.timit import TIMIT_Binaural_Compat_Prepaired
+            dataset = TIMIT_Binaural_Compat_Prepaired(**self.corpora_config, mode='test')
+                                        # clean_targets = self.corpora_config.get('clean_targets', False))
+        else:
+            dataset = self.dataset(**self.corpora_config, mode='test')
+            
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=self.hparas_config['batch_size'],

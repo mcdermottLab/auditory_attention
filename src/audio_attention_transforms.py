@@ -324,9 +324,8 @@ class AudioToCochlearRep(torch.nn.Module):
         # Define cochleagram
         self.Cochleagram = TimeDomainCochleagram(self.coch_filter_kwargs,
                                                 self.downsampling_op,
-                                                use_pad=self.use_pad,
                                                 compression=None,
-                                                on_gpu=cgram_kwargs['rep_on_gpu'])
+                                                 **cgram_kwargs)
 
 
     def forward(self, cue_wav, foreground_wav, background_wav):

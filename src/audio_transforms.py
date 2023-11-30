@@ -3,7 +3,6 @@ import torchaudio
 import random
 import numpy as np
 import sys
-from scipy.io import loadmat
 import scipy.signal as sps
 sys.path.append('/om/user/imgriff/python-packages/chcochleagram')
 import chcochleagram
@@ -36,9 +35,11 @@ def ch_demean(x, dim=0):
 def ch_global_demean(x):
     '''
     Helper function to globally mean-subtract tensor.
+
     Args
     ----
     x (tensor): tensor to be mean-subtracted
+
     Returns
     -------
     x_demean (tensor): mean-subtracted tensor
@@ -173,7 +174,6 @@ class AudioToAudioRepresentation(torch.nn.Module):
         rep_type (str): the type of representation to build
     """
     def __init__(self, rep_type, rep_kwargs, compression_type, compression_kwargs):
-        print(rep_type, rep_kwargs, compression_type, compression_kwargs)
         super(AudioToAudioRepresentation, self).__init__()
         self.rep_type = rep_type
         self.rep_kwargs = rep_kwargs
@@ -536,8 +536,10 @@ class RMSNormalizeForegroundAndBackground(torch.nn.Module):
 class BinauralRMSNormalizeForegroundAndBackground(torch.nn.Module):
     """
     RMS normalize the foreground and background sounds
+
     Args:
         rms_normalization (float): The rms level to set the sound to
+
     Returns:
         foreground_wav, background_wav
     """
@@ -637,8 +639,10 @@ class BinauralCombineWithRandomDBSNR(torch.nn.Module):
         low_snr (float): the low end for the range of dB SNR to draw from
         high_snr (float): the high end for the range of db SNR to draw from
         rms_level (float): the end RMS value for the combined sound
+
     Returns:
         signal_in_noise, None
+
     """
     def __init__(self, low_snr=-10, high_snr=10):
         self.low_snr=low_snr
@@ -683,3 +687,28 @@ class BinauralCombineWithRandomDBSNR(torch.nn.Module):
         signal_in_noise = torch.add(foreground_wav, background_wav)
 
         return signal_in_noise, None
+
+
+class DuplicateChannel(torch.nn.Module):
+    """
+    Duplicates the input channel to the number of output channels.
+
+    Args:
+        num_output_channels (int): the number of output channels
+        dim (int): the axis to duplicate along
+
+    Returns:
+        foreground_wav, background_wav
+    """
+
+    def __init__(self, num_output_channels=2, dim=1):
+        super(DuplicateChannel, self).__init__()
+        self.num_output_channels = num_output_channels
+
+    def forward(self, foreground_wav, background_wav):
+        if foreground_wav is not None:
+            foreground_wav = foreground_wav.repeat(self.num_output_channels, dim=dim)
+        if background_wav is not None:
+            background_wav = background_wav.repeat(self.num_output_channels, dim=dim)
+        return foreground_wav, background_wav
+        

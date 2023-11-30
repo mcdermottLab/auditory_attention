@@ -14,7 +14,7 @@ import yaml
 
 from argparse import ArgumentParser
 from corpus.speaker_room_dataset import SpeakerRoomDataset
-from pytorch_lightning import Trainer, seed_everything
+
 from tqdm.auto import tqdm
 
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
