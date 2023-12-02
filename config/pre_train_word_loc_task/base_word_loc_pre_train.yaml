@@ -1,0 +1,52 @@
+corpus:
+  name: 'saddler_word_and_loc_task'
+  task: "word_and_location"
+  root: "/om/scratch/Sat/msaddler/dataset_multitask/v04"
+
+audio:                                  # Attributes of audio feature
+  rep_type:  'cochlea_filt'
+  rep_kwargs:
+    sr: 44100                           # Note difference from binaural_attn config - go to this moving forward 
+    env_sr: 10000
+    n_channels: 40
+    low_lim: 40
+    use_pad: True
+    binaural: True
+    rep_on_gpu: True
+    center_crop: True
+    out_dur: 2  ## in seconds
+    impulse_len: 0.25
+    env_extraction_type: 'Half-wave Rectification'
+    downsampling_type: 'TorchTransformsResample'
+    downsampling_kwargs:
+      lowpass_filter_width: 64
+      rolloff: 0.9475937167399596
+      resampling_method: "kaiser_window"
+      beta: 14.769656459379492
+  compression_type: 'coch_p3'
+  compression_kwargs:
+    scale: 1
+    offset: 0.0000001   
+    clip_value: 5
+    power: 0.3
+
+val_metric: 'val_acc'
+model_name: 'word_loc_single_source'
+
+hparas:                                   # Experiment hyper-parameters
+  valid_step: 1000
+  epochs: 1000
+  optimizer: 'AdamW'
+  lr: 0.00001                             # 1e-5
+  eps: 0.00000001                         # 1e-8
+  gradient_clip_val: 100 
+  batch_size: 160                        # Gets divided by num gpus 
+
+model:                                    # Model architecture
+  input_sr: 10000
+  fc_size: 512
+  dropout: 0.5
+  num_classes:                         
+    num_words: 801              # 800 + null at 0
+    num_locations: 505          # 504 + null at 0 
+
