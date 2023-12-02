@@ -17,7 +17,7 @@ module add openmind/miniconda
 export HDF5_USE_FILE_LOCKING=FALSE
 
 
-source activate /om/user/imgriff/conda_envs/torch_2_tf
+source activate /om/user/imgriff/conda_envs/pytorch_2_tf_records
 
 
 export LC_ALL=C; unset XDG_RUNTIME_DIR && jupyter notebook --no-browser --ip='0.0.0.0' --port=1337 --NotebookApp.allow_origin='*'

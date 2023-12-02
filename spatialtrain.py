@@ -114,7 +114,6 @@ def run_train(args):
         num_nodes=args.num_nodes,
         devices=args.gpus,
         accelerator="gpu", 
-        benchmark=True,
         # resume_from_checkpoint = ckpt_path,  
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=config['hparas']['gradient_clip_val'],
