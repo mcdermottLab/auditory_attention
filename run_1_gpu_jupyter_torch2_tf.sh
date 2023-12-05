@@ -18,5 +18,5 @@ export HDF5_USE_FILE_LOCKING=FALSE
 
 source activate /om/user/imgriff/conda_envs/pytorch_2_tf
 
-export LC_ALL=C; unset XDG_RUNTIME_DIR && jupyter-notebook --no-browser --ip='0.0.0.0' --port=1338
+export LC_ALL=C; unset XDG_RUNTIME_DIR && jupyter notebook --no-browser --ip='0.0.0.0' --port=1338
 

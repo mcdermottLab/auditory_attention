@@ -10,19 +10,13 @@ import pickle
 import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
-from src.spatial_attn_lightning import BinauralAttentionModule #probably need to change this to the new name
+from src.pre_train_lightning import BinauralCNNModule 
 
-# get nodename 
-import socket
 
 torch.set_float32_matmul_precision('medium')
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
-hostname = socket.gethostname()
-
-torch.backends.cuda.matmul.allow_tf32 = True
-torch.backends.cudnn.allow_tf32 = True
 
 def run_train(args):
 
@@ -46,26 +40,34 @@ def run_train(args):
         print("config file type not supported")
         return
 
-    config['corpus']['clean_percentage'] = args.clean_percentage
-    model_name = config['model_name']
 
     config['num_workers'] = args.n_jobs
     if args.gpus > 0:
         config['hparas']['batch_size'] = config['hparas']['batch_size'] // args.gpus
 
     config_path = pathlib.Path(config_path)
-    checkpoint_dir = args.exp_dir / f"{config_path.stem}/checkpoints"
+    model_name = config_path.stem
+
+    if args.set_lr_with_job:
+        print("Setting learning rate with job id")
+        model_name = f"{model_name}_lr_1e_neg_{args.job_id+2}"
+        config['hparas']['lr'] = 10**(-(args.job_id+2))
+
+    exp_dir = args.exp_dir / model_name
+    print("Experiment directory: ", exp_dir)
+    exp_dir.mkdir(parents=True, exist_ok=True)
+    checkpoint_dir = exp_dir / "checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     ckpt_paths = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)
 
     if args.resume_training and len(ckpt_paths) != 0:
         ckpt_path = ckpt_paths[-1]
         seed_everything(int(os.path.getatime(ckpt_path)))
-        model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
+        model = BinauralCNNModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
         print('Resuming training from checkpoint: ', ckpt_path)
     else:
         seed_everything(123)
-        model = BinauralAttentionModule(config)
+        model = BinauralCNNModule(config)
 
     callbacks = []
 
@@ -104,17 +106,12 @@ def run_train(args):
 
     trainer = Trainer(
         precision="32",
-        # precision=16,# 16 if 'binaural' in args.config else 32,
-        default_root_dir=args.exp_dir,
+        default_root_dir=exp_dir,
         max_epochs=config['hparas']['epochs'],
-
-       # log_every_n_steps = 10,
-        # detect_anomaly=True,
         benchmark=True,
         num_nodes=args.num_nodes,
         devices=args.gpus,
         accelerator="gpu", 
-        # resume_from_checkpoint = ckpt_path,  
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=config['hparas']['gradient_clip_val'],
         profiler=None,
@@ -125,7 +122,7 @@ def run_train(args):
 
 def cli_main():
     parser = ArgumentParser()
-    parser.add_argument('--config', default='', type=str, help='Path to experiment config.')
+    parser.add_argument('--config', default='config/pre_train_word_loc_task/base_word_loc_pre_train.yaml', type=str, help='Path to experiment config.')
     parser.add_argument('--config_list', type=str, help='Path to list of config files.')
     parser.add_argument('--job_id', type=int, help='Index into the config list specifying which one to use.')
     parser.add_argument(
@@ -166,8 +163,11 @@ def cli_main():
     )
     parser.add_argument('--random_seed', default=0, type=int, help='Random seed for dataset.')
     parser.add_argument('--resume_training', default=False, help='Resume training from checkpoint.')
-    parser.add_argument('--negative_elevs', default=False, help='Use negative elevations in training.')
-    parser.add_argument('--clean_percentage', default=0.0, type=float, help='Percentage of clean speech data to use in training.')
+    parser.add_argument('--set_lr_with_job', 
+                        default=False, 
+                        action='store_true',
+                        help='Searching for learning rate. Scale with job id')
+
     args = parser.parse_args()
 
     run_train(args)

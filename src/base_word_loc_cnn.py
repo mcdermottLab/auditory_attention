@@ -1,12 +1,11 @@
 import torch
-import numpy as np
 import torch.nn as nn
 from src.layers import conv2d_same
 from src.custom_modules import HannPooling2d
 
 
 class AuditoryCNN(nn.Module):
-    def __init__(self, num_words=800, num_locs=512, fc_size=512):
+    def __init__(self, num_words=800, num_locs=512, fc_size=512, dropout=0.5):
         super(AuditoryCNN, self).__init__()
 
         self.norm_coch_rep = nn.LayerNorm([2, 40, 20000])
@@ -63,19 +62,19 @@ class AuditoryCNN(nn.Module):
         self.fc_norm = nn.LayerNorm([512,6,16]) 
         self.word_fc = nn.Linear(512*6*16, fc_size)
         self.word_relufc = nn.ReLU()
-        self.word_dropout = nn.Dropout()
+        self.word_dropout = nn.Dropout(dropout)
         self.word_classification = nn.Linear(fc_size, num_words)
 
         self.loc_fc = nn.Linear(512*6*16, fc_size)
         self.loc_relufc = nn.ReLU()
-        self.loc_dropout = nn.Dropout() 
+        self.loc_dropout = nn.Dropout(dropout) 
         self.loc_classification = nn.Linear(fc_size, num_locs)  
     
         
 
     def forward(self, x, *args):
         # pass xthrough cnn & store reps
-        x = self.norm_coch_rep(x)
+        # x = self.norm_coch_rep(x)
         x = self.conv0(x) # has layer norm as 1st layer - may be a problem? 
         x = self.conv1(x)
         x = self.conv2(x)
@@ -85,7 +84,7 @@ class AuditoryCNN(nn.Module):
         x = self.conv6(x)
 
         x = self.fc_norm(x)
-        x = x.view(x.size(0), -1) # B x FC size
+        x = x.view(x.size(0), x.shape[1:].numel()) # B x FC size
 
         # word classification
         word_x = self.word_fc(x)
