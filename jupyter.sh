@@ -5,9 +5,8 @@
 #SBATCH --mem=20Gb 
 #SBATCH --time=6:00:00
 #SBATCH --partition=mcdermott
-#SBATCH --cpus-per-task=10
-#SBATCH -x node104
-
+#SBATCH --cpus-per-task=1
+#SBATCH -x node043
 
 source /etc/profile.d/modules.sh
 module use /cm/shared/modulefiles

@@ -9,11 +9,11 @@ class AuditoryCNN(nn.Module):
     def __init__(self, num_words=800, num_locs=512, fc_size=512):
         super(AuditoryCNN, self).__init__()
 
-        self.norm_coch_rep = nn.LayerNorm([1, 40, 20000])
+        self.norm_coch_rep = nn.LayerNorm([2, 40, 20000])
 
         self.conv0 = nn.Sequential(
-                    nn.LayerNorm([1, 40, 20000]),
-                    conv2d_same.create_conv2d_pad(1, 32, kernel_size = [2, 34], stride = [1, 1], padding = 'same'),
+                    nn.LayerNorm([2, 40, 20000]),
+                    conv2d_same.create_conv2d_pad(2, 32, kernel_size = [2, 34], stride = [1, 1], padding = 'same'),
                     nn.ReLU(),
                     HannPooling2d(stride = [2, 4], pool_size = [9, 13], padding = [4, 6])
         )
@@ -85,7 +85,7 @@ class AuditoryCNN(nn.Module):
         x = self.conv6(x)
 
         x = self.fc_norm(x)
-        x = x.view(x.size(0), x.shape[1:].numel()) # B x FC size
+        x = x.view(x.size(0), -1) # B x FC size
 
         # word classification
         word_x = self.word_fc(x)
@@ -100,5 +100,3 @@ class AuditoryCNN(nn.Module):
         loc_x = self.loc_classification(loc_x)
 
         return word_x, loc_x
-        
-    
