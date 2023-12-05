@@ -21,9 +21,6 @@ torch.backends.cudnn.allow_tf32 = True
 
 hostname = socket.gethostname()
 
-torch.backends.cuda.matmul.allow_tf32 = True
-torch.backends.cudnn.allow_tf32 = True
-
 def run_train(args):
 
     if args.config != "":

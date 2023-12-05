@@ -104,6 +104,8 @@ class BinauralCNNModule(LightningModule):
             word_loss = self.word_loss_fn(word_pred, word_label)
             self.accuracy[step_type]['word'](word_pred, word_label) # word accuracy
             self.log(f"{step_type}_word_acc", self.accuracy[step_type]['word'], on_step=False, on_epoch=True, prog_bar=True)
+            self.log(f"{step_type}_word_loss", word_loss.detach(), on_step=True, on_epoch=False, prog_bar=True)
+
         else:
             word_loss = torch.tensor(0, device=self.device, dtype=torch.float32) #  
 
@@ -111,6 +113,7 @@ class BinauralCNNModule(LightningModule):
             loc_loss = self.loc_loss_fn(location_pred, location_label)
             self.accuracy[step_type]['location'](location_pred, location_label) # location accuracy
             self.log(f"{step_type}_location_acc", self.accuracy[step_type]['location'], on_step=False, on_epoch=True, prog_bar=True)
+            self.log(f"{step_type}_loc_loss", loc_loss.detach(), on_step=True, on_epoch=False, prog_bar=True)
 
         else:
             loc_loss = torch.tensor(0, device=self.device, type=torch.float32) #  

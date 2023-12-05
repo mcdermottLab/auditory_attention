@@ -139,6 +139,11 @@ word_rec
 lightning_logs
 behavioral_experiments
 results_figs
+binaural_eval
+confidenceScorers
+pre_train_word_loc
+
+
 
 # swap file
 *.swp
@@ -160,3 +165,4 @@ tests/sample_data/gigaspeech_words-10k.vocab
 *.err
 prelim_binaural_figs/avg_perf_confusion_at_0_elev.pdf
 prelim_binaural_figs/diff_min_same_confusion_at_0_elev.pdf
+*.ckpt

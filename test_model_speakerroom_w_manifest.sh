@@ -7,7 +7,7 @@
 #SBATCH --time=2:00:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=1-189 # 0-189
+#SBATCH --array=0-189 # 0-189
 
 module add openmind/miniconda
 
@@ -21,7 +21,7 @@ module add openmind/cuda/11.3
 
 
 python3 eval_binaural_w_manifest.py --config config/binaural_attn/word_task_mixed_cue_v04_80p_co_located_torch_2_smaller_batch.yml \
-                 --ckpt_path attn_cue_models/word_task_mixed_cue_v04_80p_co_located_torch_2_smaller_batch/checkpoints/epoch=5-step=54560.ckpt \
+                 --ckpt_path attn_cue_models/word_task_mixed_cue_v04_80p_co_located_torch_2_smaller_batch/checkpoints/epoch=3-step=36936.ckpt \
                  --location_manifest expanded_all_azim_chosen_elev_az_11_29_2023.pkl \
                  --model_name word_task_mixed_cue_v04_80p_co_located_torch_2_smaller_batch --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/ \

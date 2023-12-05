@@ -243,7 +243,13 @@ class TIMIT_Binaural_Compat_Prepaired(Dataset):
         self.dataset = pd.read_pickle(self.path)
         self.demo = demo 
         self.dataset_len = self.dataset.shape[0]
-        self.upsample = T.Resample(20_000, 50_000, dtype=torch.float32)
+        # use params for high quality upsampling 
+        self.upsample = T.Resample(20_000, 50_000,
+                                lowpass_filter_width=64,
+                                rolloff=0.9475937167399596,
+                                beta=14.769656459379492,
+                                resampling_method='kaiser_window',
+                                dtype=torch.float32)
         self.run_mono = run_mono
 
         if clean_targets:
