@@ -3,10 +3,10 @@
 #SBATCH --output=outLogs/notebook%j.out
 #SBATCH --error=outLogs/notebook%j.err
 #SBATCH --mem=20Gb
-#SBATCH --cpus-per-task=12
-#SBATCH --time=1:00:00
+#SBATCH --cpus-per-task=5
+#SBATCH --time=2:00:00
 #SBATCH --partition=normal
-#SBATCH --gres=gpu:a100:2
+#SBATCH --gres=gpu:a100:1
 #SBATCH -x node055
 
 source /etc/profile.d/modules.sh

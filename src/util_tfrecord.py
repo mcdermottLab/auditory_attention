@@ -182,7 +182,7 @@ def get_dataset_from_tfrecords(filenames,
     for k in sorted(feature_description.keys()):
         if any([(fte in k) for fte in features_to_exclude]):
             feature_description.pop(k)
-    
+
     if bytes_description is None:
         bytes_description = {}
     if isinstance(bytes_description, str):
@@ -195,13 +195,13 @@ def get_dataset_from_tfrecords(filenames,
         with open(bytes_description, 'rb') as f:
             bytes_description = pickle.load(f)
     assert isinstance(bytes_description, dict), "invalid bytes_description specified"
-    
+
     def _parse_function(example_proto):
         example_parsed = example_proto
         if feature_description:
             example_parsed = tf.io.parse_single_example(example_proto, feature_description)
         return example_parsed
-    
+
     def _decode_function(example_parsed):
         example_decoded = {}
         for k in example_parsed:
@@ -220,7 +220,7 @@ def get_dataset_from_tfrecords(filenames,
             else:
                 example_decoded[k] = example_parsed[k]
         return example_decoded
-    
+
     def _densify_function(example):
         list_k_dense_shape = [k for k in example if k.endswith('_dense_shape')]
         if len(list_k_dense_shape) == 0:
@@ -280,7 +280,7 @@ def get_dataset_from_tfrecords(filenames,
             if not any(k_dense in k for k_dense in example_densified):
                 example_densified[k] = example[k]
         return example_densified
-    
+
     def _interleave_function(filenames):
         dataset = tf.data.TFRecordDataset(
             filenames,
@@ -304,7 +304,7 @@ def get_dataset_from_tfrecords(filenames,
             else:
                 dataset = dataset.map(map_function, num_parallel_calls=1)
         return dataset
-    
+
     dataset = tf.data.Dataset.from_tensor_slices(filenames)
     dataset = dataset.interleave(
         _interleave_function,
