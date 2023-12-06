@@ -46,7 +46,7 @@ def run_eval(args):
         config['num_workers'] = args.n_jobs
         config['data'] = {}
         config['data']['corpus'] = {}
-        config['audio']['rep_kwargs']['center_crop'] = False
+        config['audio']['rep_kwargs']['center_crop'] = True
     else:
         config['data']['loader']['num_workers'] = args.n_jobs
         config['data']['loader']['batch_size'] = 1 # config['data']['loader']['batch_size'] // args.gpus

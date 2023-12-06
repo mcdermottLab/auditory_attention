@@ -39,7 +39,11 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         # filter bad files from the dataset
         
         self.all_hdf5_files = [fname for fname in self.all_hdf5_files if Path(fname).stem not in files_to_skip]
-        print(f"{mixture_percentages=}")
+        
+        print(f"cue type: {cue_type}")
+        if cue_type == 'mixed':
+            print(f"{mixture_percentages=}")
+
         print(f"{len( self.all_hdf5_files)} files in {mode} concat dataset")
         self.all_hdf5_datasets = [H5Dataset(h5_file, cue_type, task, batch_size, run_mono, skip_negative_elev, mono_sanity_check, clean_percentage, mixture_percentages) for h5_file in self.all_hdf5_files]
 

@@ -30,17 +30,19 @@ audio:                                  # Attributes of audio feature
     clip_value: 5
     power: 0.3
 
-val_metric: 'val_acc'
+val_metric:
+  word_metric: 'val_word_acc'
+  loc_metric: 'val_location_acc'
 model_name: 'word_loc_single_source'
 
 hparas:                                   # Experiment hyper-parameters
-  valid_step: 1000
+  valid_step: 2000
   epochs: 1000
   optimizer: 'AdamW'
-  lr: 0.00001                             # 1e-5
+  lr: 0.000001                             # 1e-6
   eps: 0.00000001                         # 1e-8
   gradient_clip_val: 100 
-  batch_size: 160                        # Gets divided by num gpus 
+  batch_size: 80                       # Gets divided by num gpus 
 
 model:                                    # Model architecture
   input_sr: 10000
