@@ -5,7 +5,6 @@ import pandas as pd
 import pathlib
 import pickle
 import scipy.stats as stats
-import soundfile as sf
 import soxr
 #! change below to spatial_attn_lighting if want to use with modular 
 import src.spatial_attn_lightning as attn_tracking_lightning
@@ -115,6 +114,8 @@ def run_eval(args):
         output_dict = {'results': None, 'confusions': None}
         accuracies = []
         confusions = []
+        pred_list = []
+        true_word_int = []
 
         with torch.no_grad(): 
             for batch in tqdm(dataloader):
@@ -126,7 +127,6 @@ def run_eval(args):
                 # cue = np.array(spatialize(cue.cuda(), cue_brir)[:, :, 12500:137500])
                 # foreground = np.array(spatialize(fg.cuda(), tar_brir)[:, :, 12500:137500])
                 # background = np.array(spatialize(bg.cuda(), dist_brir)[:, :, 12500:137500])
-
                 cue = audio_transforms(cue, None)[0]
                 mixture = audio_transforms(foreground, background)[0]
                 # cue = cue.cuda()
@@ -141,10 +141,17 @@ def run_eval(args):
                 cons = (preds == con_word).astype('int')
                 accuracies.append(accuracy)
                 confusions.append(cons)
+                pred_list.append(preds)
+                true_word_int.append(true_word)
         accuracies = np.concatenate(accuracies)
         confusions = np.concatenate(confusions)
+        preds = np.concatenate(pred_list)
+        true_word_int = np.concatenate(true_word_int)
+
         output_dict['results'] = accuracies
         output_dict['confusions'] = confusions
+        output_dict['preds'] = preds
+        output_dict['true_word_int'] = true_word_int
 
         if not os.path.exists(experiment_dir):
             os.makedirs(experiment_dir)
