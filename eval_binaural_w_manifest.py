@@ -33,13 +33,14 @@ class Spatialize(torch.nn.Module):
     def __init__(self, ir):
         super(Spatialize, self).__init__()
         ir = torch.flip(torch.from_numpy(ir), dims=[0])
+        self.n_taps = ir.shape[0]
         ir = ir.T.unsqueeze(1)
-        self.ir = torch.nn.Parameter(ir, requires_grad=False)
+        self.register_buffer("ir", ir)
 
     def forward(self, words):
         n_words = words.shape[0]
         # pad last dim of words with ir.shape[0] - 1 zeros
-        words_padded = torch.nn.functional.pad(words, (self.ir.shape[0] - 1, 0))
+        words_padded = torch.nn.functional.pad(words, (self.n_taps - 1, 0))
         spatialized = torch.nn.functional.conv1d(words_padded.view(n_words, 1, -1), self.ir)
         # resize to desired shape
         spatialized = spatialized[:, :, 12500:137500]
