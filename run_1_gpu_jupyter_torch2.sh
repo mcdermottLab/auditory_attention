@@ -1,23 +1,21 @@
-#!/bin/bash
+#!/bin/bash -l
 #SBATCH --job-name=jupyter_notebook
 #SBATCH --output=outLogs/notebook%j.out
 #SBATCH --error=outLogs/notebook%j.err
-#SBATCH --mem=20Gb
-#SBATCH --cpus-per-task=12
-#SBATCH --time=1:00:00
+#SBATCH --mem=12Gb
+#SBATCH --cpus-per-task=2
+#SBATCH --time=3:00:00
 #SBATCH --partition=normal
-#SBATCH --gres=gpu:a100:2
+#SBATCH --gres=gpu:a100:1
 #SBATCH -x node055
 
-source /etc/profile.d/modules.sh
-module use /cm/shared/modulefiles
-module add openmind/miniconda
+# module load /openmind/miniconda
+module load openmind8/anaconda/3-2022.10
 
 
 export HDF5_USE_FILE_LOCKING=FALSE
 
-
-source activate /om2/user/imgriff/conda_envs/torch_2_cuda_12
+source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 export LC_ALL=C; unset XDG_RUNTIME_DIR && jupyter notebook --no-browser --ip='0.0.0.0' --port=1338
 

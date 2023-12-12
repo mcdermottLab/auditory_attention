@@ -102,7 +102,7 @@ def run_train(args):
     trainer = Trainer(
         precision="32",
         # precision=16,# 16 if 'binaural' in args.config else 32,
-        default_root_dir=args.exp_dir,
+        default_root_dir=args.exp_dir / config_path.stem,
         max_epochs=config['hparas']['epochs'],
 
        # log_every_n_steps = 10,
