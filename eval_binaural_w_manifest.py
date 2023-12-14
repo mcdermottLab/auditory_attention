@@ -53,7 +53,7 @@ def run_eval(args):
 
     config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
     config['num_workers'] = args.n_jobs
-    config['hparas']['batch_size'] = 40 # config['data']['loader']['batch_size'] // args.gpus
+    config['hparas']['batch_size'] = 30 # config['data']['loader']['batch_size'] // args.gpus
     config['noise_kwargs']['low_snr'] = 0
     config['noise_kwargs']['high_snr'] = 0
 

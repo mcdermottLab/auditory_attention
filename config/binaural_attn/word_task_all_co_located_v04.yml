@@ -5,8 +5,8 @@ corpus:
   root: '/om/scratch/Mon/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v04'
   with_cue_free: False
   mixture_percentages:
-    voice_only: 0.5
-    voice_and_location: 0.5
+    voice_only: 1.
+    voice_and_location: 0.
     location_only: 0.
 
 audio:                                  # Attributes of audio feature
@@ -67,6 +67,6 @@ model:                                    # Model architecture
     num_words: 800
   fc_size: 512
   global_avg_cue: False
-  dropout: 0.6
+  dropout: 0.5
   attn_constraints:
     slope: True
