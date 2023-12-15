@@ -5,9 +5,9 @@
 #SBATCH --mem=10Gb
 #SBATCH --cpus-per-task=2
 #SBATCH --time=2:00:00
-#SBATCH --partition=normal
-#SBATCH --gres=gpu:a100:1 --constraint=20GB
-#SBATCH --array=0-13 # 0-189
+#SBATCH --partition=use-everything
+#SBATCH --gres=gpu:1 --constraint=20GB
+#SBATCH --array=0-51
 #SBATCH -x dgx001,dgx002
 
 module load openmind8/anaconda/3-2022.10
@@ -18,8 +18,8 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 which python3
 python3 eval_binaural_w_manifest.py --config config/binaural_attn/word_task_voice_and_loc_cue_v04.yml \
                  --ckpt_path exp/word_task_voice_and_loc_cue_v04/checkpoints/epoch=6-step=66872.ckpt \
-                 --location_manifest compliment_11_29_2023_locs_for_0_elev.pkl \
+                 --location_manifest binaural_test_manifests/match_human_pilot_conds.pkl \
                  --model_name word_task_voice_loc_cue_only_v04 --location_idx $SLURM_ARRAY_TASK_ID \
-                 --gpus 1 --n_jobs 2 --exp_dir binaural_eval/ \
+                 --gpus 1 --n_jobs 2 --exp_dir binaural_eval/human_pilot_conds \
                  --cue_type voice_and_location
 

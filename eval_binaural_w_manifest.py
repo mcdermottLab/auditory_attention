@@ -14,6 +14,7 @@ import yaml
 from argparse import ArgumentParser
 from corpus.speaker_room_dataset import SpeakerRoomDataset
 from tqdm.auto import tqdm
+from datetime import datetime
 
 torch.set_float32_matmul_precision('medium') # use same as training
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
@@ -85,7 +86,7 @@ def run_eval(args):
         target_loc = loc_dict[idx][0]
         distract_loc = loc_dict[idx][1]
 
-        log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}"
+        log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}"        
         print(log_name)
         ir_dict = dict()
         for loc in ['target', 'distractor', 'cue']:
