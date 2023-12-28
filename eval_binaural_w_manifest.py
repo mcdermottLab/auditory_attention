@@ -11,6 +11,7 @@ import src.spatial_attn_lightning as attn_tracking_lightning
 import torch
 import yaml
 
+import argparse
 from argparse import ArgumentParser
 from corpus.speaker_room_dataset import SpeakerRoomDataset
 from tqdm.auto import tqdm
@@ -69,6 +70,8 @@ def run_eval(args):
     end = start + n_per_job
 
     experiment_dir = f"{args.exp_dir}/{model_name}"
+    if not os.path.exists(experiment_dir):
+        os.makedirs(experiment_dir)
     model = attn_tracking_lightning.BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config, strict=False).cuda()
     audio_transforms = model.audio_transforms.cuda()
     # to inference mode 
@@ -88,6 +91,11 @@ def run_eval(args):
 
         log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}"        
         print(log_name)
+        output_name = str(experiment_dir) + log_name + '.pkl'
+        if idx % 10 == 0:
+            print("Overwrite ", args.overwrite)
+        if not args.overwrite and os.path.exists(output_name):
+            continue
         ir_dict = dict()
         for loc in ['target', 'distractor', 'cue']:
             if loc == 'target':
@@ -155,9 +163,8 @@ def run_eval(args):
         output_dict['preds'] = preds
         output_dict['true_word_int'] = true_word_int
 
-        if not os.path.exists(experiment_dir):
-            os.makedirs(experiment_dir)
-        with open(str(experiment_dir) + log_name + '.pkl', 'wb') as f:
+
+        with open(output_name, 'wb') as f:
             pickle.dump(output_dict, f)
 
 def cli_main():
@@ -216,7 +223,12 @@ def cli_main():
         type=int,
         help="Number of CPUs for dataloader. (Default: 0)",
     )
-
+    # create overwrite flag to handle overwrite of existing results
+    parser.add_argument(
+        "--overwrite",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will overwrite existing results",
+    )
 
     args = parser.parse_args()
 
