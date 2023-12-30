@@ -43,7 +43,7 @@ noise_kwargs: # parameters for background signal levels
   high_snr: 10
 
 hparas:                                   # Experiment hyper-parameters
-  valid_step: 1000
+  valid_step: 2000
   epochs: 1000
   optimizer: 'AdamW'
   lr: 0.0001

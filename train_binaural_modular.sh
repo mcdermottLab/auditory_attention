@@ -13,7 +13,7 @@
 #source /etc/profile.d/modules.sh
 #module use /cm/shared/modulefiles
 
-module load /openmind/miniconda
+module load openmind/miniconda
 
 export HDF5_USE_FILE_LOCKING=FALSE
 

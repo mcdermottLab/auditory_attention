@@ -34,7 +34,7 @@ audio:                                  # Attributes of audio feature
     power: 0.3
 
 
-val_metric: 'ACC/val_acc'
+val_metric: 'val_acc'
 model_name: 'mono_attn_cue_word_task_v05'
 
 noise_kwargs: # parameters for background signal levels 
@@ -42,7 +42,7 @@ noise_kwargs: # parameters for background signal levels
   high_snr: 10
 
 hparas:                                   # Experiment hyper-parameters
-  valid_step: 1000
+  valid_step: 2000
   epochs: 1000
   optimizer: 'AdamW'
   lr: 0.00001
