@@ -10,7 +10,7 @@ corpus:
 audio:                                  # Attributes of audio feature
   rep_type:  'cochlea_filt'
   rep_kwargs:
-    sr: 50000
+    sr: 44100
     env_sr: 10000
     n_channels: 40
     low_lim: 40
