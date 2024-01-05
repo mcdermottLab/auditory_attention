@@ -58,6 +58,8 @@ def run_eval(args):
     config['hparas']['batch_size'] = 30 # config['data']['loader']['batch_size'] // args.gpus
     config['noise_kwargs']['low_snr'] = 0
     config['noise_kwargs']['high_snr'] = 0
+    # get model input sr for brir resampling
+    model_in_sr = config['audio']['rep_kwargs']['sr']
 
     #TODO handle multiple elevations
     idx = args.location_idx
@@ -79,7 +81,10 @@ def run_eval(args):
     coch_gram = model.coch_gram.cuda()
 
     # set up dataset and dataloader
-    dataset = SpeakerRoomDataset('/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl', '/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl', cue_type)
+    dataset = SpeakerRoomDataset(manifest_path='/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl',
+                                excerpt_path='/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl',
+                                cue_type=cue_type,
+                                sr=model_in_sr) 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
 
     new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
@@ -113,8 +118,8 @@ def run_eval(args):
             sr_src = df_row['sr'].values[0]
             with h5py.File(h5_fn, 'r') as f:
                 brir = f['brir'][index_brir]
-            sr = 50000
-            brir = soxr.resample(brir.astype(np.float32), sr_src, sr)
+            if model_in_sr != sr_src:
+                brir = soxr.resample(brir.astype(np.float32), sr_src, model_in_sr)
             ir_dict[loc] = brir
 
         tar_brir = Spatialize(ir_dict['target']).cuda()

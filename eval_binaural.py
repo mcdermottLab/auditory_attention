@@ -101,7 +101,11 @@ def run_eval(args):
         cue_brir = torch.flip(cue_brir, dims=[0])
 
         # can find way to re_init more efficiently
-        dataset = SpeakerRoomDataset('/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl', '/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl', cue_type)
+        dataset = SpeakerRoomDataset(manifest_path='/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl',
+                                    excerpt_path='/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl',
+                                    cue_type=cue_type,
+                                    sr=model_in_sr)
+        
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
 
         output_dict = {'results': None, 'confusions': None}

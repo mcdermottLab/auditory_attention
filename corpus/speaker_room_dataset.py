@@ -58,7 +58,7 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
         if self.cue_type != 'location':
             cue = self.get_excerpt(self.excerpts.iloc[cue_ix])
         else:
-            cue = self.whitenoise(3, 50000)
+            cue = self.whitenoise(3)
         src = self.get_excerpt(self.excerpts.iloc[src_ix])
         bg = self.get_excerpt(self.excerpts.iloc[bg_ix])
 
@@ -72,8 +72,8 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
     def __len__(self):
         return self.dataset_len
 
-    def whitenoise(self, time, sr, dtype=torch.float32, rms=65):
-        noise = torch.rand(int(time * sr), dtype=dtype)
+    def whitenoise(self, time, dtype=torch.float32, rms=65):
+        noise = torch.rand(int(time * self.sr), dtype=dtype)
         #! Should we rms norm?
         # noise = _rms_norm(noise, rms)
         return noise
@@ -122,7 +122,7 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
         assert len(x_out) == n
         return x_out
 
-    def get_excerpt(self, dfi, dur=3.0, sr=50000, pad_with_context=True, jitter_fraction=0):
+    def get_excerpt(self, dfi, dur=3.0, pad_with_context=True, jitter_fraction=0):
         """
         This function loads an audio file and excerpts a clip with the specified
         duration. Target durations that exceed clip boundaries are handled with
@@ -131,6 +131,7 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
         """
         jitter_in_s = 0
         jitter_via_zero_padding = True
+        sr = self.sr
         if dfi.clip_dur_in_s > dur:
             # Take a random segment if clip duration is longer than excerpt
             clip_start_in_s = np.random.uniform(
