@@ -1,17 +1,14 @@
 corpus:
   name: 'spatialized_commonvoice_audioset_scenes'
-  cue_type: "mixed"
+  cue_type: "voice_and_location"
   task: "word"
-  root: '/om/scratch/Sun/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v05'
-  with_cue_free: False
-  mixture_percentages:
-    voice_only: 1.
-    voice_and_location: 0.
+  root: '/om/scratch/Sun/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v06'
+
 
 audio:                                  # Attributes of audio feature
   rep_type:  'cochlea_filt'
   rep_kwargs:
-    sr: 50000
+    sr: 44100
     env_sr: 10000
     n_channels: 40
     low_lim: 40
@@ -37,7 +34,7 @@ audio:                                  # Attributes of audio feature
 
 
 val_metric: 'val_acc'
-model_name: 'binaural_attn_all_co_located_v05'
+model_name: 'binaural_attn_v05'
 
 noise_kwargs: # parameters for background signal levels 
   low_snr: -10
@@ -50,7 +47,7 @@ hparas:                                   # Experiment hyper-parameters
   lr: 0.0001
   eps: 0.00000001                         # 1e-8
   gradient_clip_val: 100 
-  batch_size: 288                        # 576 for 8 288 for 4Gets divided by num gpus
+  batch_size: 288                        # Gets divided by num gpus
 
 model:                                    # Model architecture
   input_sr: 10000
@@ -66,6 +63,6 @@ model:                                    # Model architecture
     num_words: 800
   fc_size: 512
   global_avg_cue: False
-  dropout: 0.5
+  dropout: 0.6
   attn_constraints:
     slope: True

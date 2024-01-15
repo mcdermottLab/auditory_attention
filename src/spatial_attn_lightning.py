@@ -272,9 +272,9 @@ class BinauralAttentionModule(LightningModule):
 
     def _collate_fn(self, samples: List):
         samples = samples[0]
-        cue_features = self.audio_transforms(samples[0], None)[0]
+        cue_features, _ = self.audio_transforms(samples[0], None)
         cue_mask_ixs = None
-        scene_features = self.audio_transforms(samples[1], samples[2])[0]
+        scene_features, _ = self.audio_transforms(samples[1], samples[2])
         labels = torch.from_numpy(samples[3]).type(torch.LongTensor)
         return cue_features, cue_mask_ixs, scene_features, labels
 
