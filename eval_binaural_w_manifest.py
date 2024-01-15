@@ -8,6 +8,7 @@ import scipy.stats as stats
 import soxr
 #! change below to spatial_attn_lighting if want to use with modular 
 import src.spatial_attn_lightning as attn_tracking_lightning
+import src.audio_transforms as at
 import torch
 import yaml
 
@@ -34,7 +35,7 @@ os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 class Spatialize(torch.nn.Module):
     def __init__(self, ir):
         super(Spatialize, self).__init__()
-        ir = torch.flip(torch.from_numpy(ir), dims=[0])
+        ir = torch.flip(torch.from_numpy(ir), dims=[0]).float()
         self.n_taps = ir.shape[0]
         ir = ir.T.unsqueeze(1)
         self.register_buffer("ir", ir)
@@ -75,7 +76,14 @@ def run_eval(args):
     if not os.path.exists(experiment_dir):
         os.makedirs(experiment_dir)
     model = attn_tracking_lightning.BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config, strict=False).cuda()
-    audio_transforms = model.audio_transforms.cuda()
+    # define audio transforms to standardize eval transforms across models (v05 skips BinauralCombineWithRandomDBSNR)
+    audio_transforms = at.AudioCompose([
+                    at.AudioToTensor(),
+                    at.BinauralCombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'],    # is 0 dB
+                                                      high_snr=config['noise_kwargs']['high_snr']), # is 0 dB 
+                    at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+            ])
+    audio_transforms = audio_transforms.cuda()
     # to inference mode 
     model = model.eval()
     coch_gram = model.coch_gram.cuda()
@@ -120,7 +128,7 @@ def run_eval(args):
                 brir = f['brir'][index_brir]
             if model_in_sr != sr_src:
                 brir = soxr.resample(brir.astype(np.float32), sr_src, model_in_sr)
-            ir_dict[loc] = brir
+            ir_dict[loc] = brir.astype(np.float32)
 
         tar_brir = Spatialize(ir_dict['target']).cuda()
         dist_brir = Spatialize(ir_dict['distractor']).cuda()

@@ -26,26 +26,23 @@ def run_eval(args):
     if 'binaural_attn' in args.config:
         module = BinauralAttentionModule
         label_type = 'CV'
-        sr = 50_000
-        audio_config = config['audio']
-
 
     else:
         module = AttentionalTrackingModule
         config['data']['audio']['rep_kwargs']['center_crop'] = True
         config['data']['audio']['rep_kwargs']['out_dur'] = 2
         label_type = "WSN"
-        sr = 20_000
-        audio_config = config['data']['audio']
 
-        # set audio transforms
+    # set audio transforms
+    sr = config['audio']['rep_kwargs']['sr']
+    audio_config = config['audio']
     IIR_COCH = not audio_config['rep_kwargs']['rep_on_gpu']
 
     if IIR_COCH:
         audio_transforms = at.AudioCompose([
                 at.AudioToTensor(),
                 # at.CombineWithRandomDBSNR(low_snr=snr, high_snr=snr), 
-                at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
+                at.RMSNormalizeForegroundAndBackground(rms_level=0.1),  # 0.02 is the default for the swc-based models 
                 at.UnsqueezeAudio(dim=0),
                 at.AudioToAudioRepresentation(**audio_config),
             ])
@@ -53,12 +50,15 @@ def run_eval(args):
         audio_transforms = at.AudioCompose([
                     at.AudioToTensor(),
                     # at.CombineWithRandomDBSNR(low_snr=snr, high_snr=snr), 
-                    at.RMSNormalizeForegroundAndBackground(rms_level=0.1),
+                    at.RMSNormalizeForegroundAndBackground(rms_level=0.02),  # 0.02 is the default for CV-based models 
                     at.UnsqueezeAudio(dim=0),
             ])  
 
     # load and freeze model
     model = module.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).eval().cuda()
+    coch_gram = None
+    if 'v05' in args.config:
+        coch_gram = model.coch_gram.cuda()
 
     dataset = SWCMonoTestSet(stim_path=args.stim_path,
                             cond_ix=args.array_id,
@@ -76,7 +76,7 @@ def run_eval(args):
         return cues, mixtures, labels
 
     dataloader = torch.utils.data.DataLoader(dataset,
-                                             batch_size=20,
+                                             batch_size=16,
                                              shuffle=False,
                                              collate_fn=collate_fn,
                                              num_workers=args.n_jobs)
@@ -97,6 +97,10 @@ def run_eval(args):
             # to device 
             cue = cue.cuda()
             mixture = mixture.cuda()
+
+            if coch_gram: # if cochleagram is not part of model arch. 
+                cue, mixture = coch_gram(cue, mixture)
+
             if module == BinauralAttentionModule:
                 logits = model(cue, mixture, None)
             else:
