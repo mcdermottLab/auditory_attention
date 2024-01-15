@@ -7,7 +7,7 @@
 #SBATCH --time=2:00:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0-50 # 0-50
+#SBATCH --array=0-50
 #SBATCH -x dgx001,dgx002
 
 module load openmind8/anaconda/3-2022.10
@@ -17,7 +17,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 which python3
 python3 eval_binaural_w_manifest.py --config config/binaural_attn/word_task_no_co_loc_v05.yaml \
-                 --ckpt_path attn_cue_models/word_task_no_co_loc_v05/checkpoints/epoch=1-step=21544.ckpt \
+                 --ckpt_path attn_cue_models/word_task_no_co_loc_v05/checkpoints/epoch=3-step=50590.ckpt \
                  --location_manifest binaural_test_manifests/match_human_pilot_conds.pkl \
                  --model_name word_task_no_co_loc_v05 --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/human_pilot_conds \
