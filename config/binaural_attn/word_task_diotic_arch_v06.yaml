@@ -1,9 +1,9 @@
 corpus:
   name: 'spatialized_commonvoice_audioset_scenes'
-  cue_type: "voice"
+  cue_type: "voice_and_location"
   task: "word"
   root: '/om/scratch/Sun/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v06'
-  run_mono: True 
+  mono_sanity_check: True 
 
 
 audio:                                  # Attributes of audio feature
@@ -14,7 +14,7 @@ audio:                                  # Attributes of audio feature
     n_channels: 40
     low_lim: 40
     use_pad: True
-    binaural: False
+    binaural: True
     rep_on_gpu: True
     center_crop: True
     out_dur: 2  ## in seconds
@@ -35,7 +35,7 @@ audio:                                  # Attributes of audio feature
 
 
 val_metric: 'val_acc'
-model_name: 'mono_attn_cue_word_task_v06'
+model_name: 'diotic_attn_cue_word_task_v06'
 
 noise_kwargs: # parameters for background signal levels 
   low_snr: -10
@@ -48,11 +48,11 @@ hparas:                                   # Experiment hyper-parameters
   lr: 0.0001
   eps: 0.00000001                         # 1e-8
   gradient_clip_val: 100 
-  batch_size: 328                        # Gets divided by num gpus
+  batch_size: 288                        # Gets divided by num gpus
 
 model:                                    # Model architecture
   input_sr: 10000
-  input_channels: 1
+  input_channels: 2
   out_channels: [32, 64, 256, 512, 512, 512, 512]                       
   kernel:  [[2, 34], [2, 14], [5, 5], [5, 5], [6, 6], [5, 5], [6, 6]]
   stride: [[1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1]]

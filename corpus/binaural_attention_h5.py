@@ -21,13 +21,17 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         Builds the pytorch hdf5 combined dataset from the files found in the
         specified root directory. 
         """
+        self.v05 = False
+        self.v06 = False
+        
         if v05 or "v05" in root:
             self.v05 = True
             print("Using v05 dataset")
         elif v06 or "v06" in root:
             self.v06 = True
             print("Using v06 dataset")
-        self.hdf5_glob = '*.hdf5_chunk000' if with_cue_free or self.v05 else 'noise*.hdf5_chunk000' 
+        self.hdf5_glob = '*.hdf5_chunk000' 
+        # self.hdf5_glob = '*.hdf5_chunk000' if with_cue_free or self.v05 else 'noise*.hdf5_chunk000' 
         print(root)
         if mode == 'train':
             self.all_hdf5_files = list(Path(root).glob(f"train/{self.hdf5_glob}"))
@@ -443,10 +447,10 @@ class H5DatasetV06(torch.utils.data.Dataset):
             label = np.stack((word, loc), axis=1)
 
         if self.run_mono:
-            # average l & r channels
-            cue = cue.mean(1).reshape(self.batch_size, -1)
-            target = target.mean(1).reshape(self.batch_size, -1)
-            background = background.mean(1).reshape(self.batch_size, -1)
+            # Just take single channel
+            cue = cue[:,0,:].reshape(self.batch_size, -1)
+            target = target[:,0,:].reshape(self.batch_size, -1)
+            background = background[:,0,:].reshape(self.batch_size, -1)
             
         if self.mono_sanity_check:
             # use only left channel for both channels

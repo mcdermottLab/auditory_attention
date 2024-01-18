@@ -2,7 +2,7 @@
 #SBATCH --job-name=jupyter_notebook
 #SBATCH --output=outLogs/notebook_%j.out
 #SBATCH --error=outLogs/notebook_%j.err
-#SBATCH --mem=1Gb 
+#SBATCH --mem=20Gb 
 #SBATCH --time=6:00:00
 #SBATCH --partition=mcdermott
 #SBATCH --cpus-per-task=1
@@ -11,6 +11,7 @@
 source /etc/profile.d/modules.sh
 module add openmind/miniconda
 
+export HDF5_USE_FILE_LOCKING=FALSE
 
 source activate /om2/user/imgriff/conda_envs/torch_11_cuda_11_pitch
 

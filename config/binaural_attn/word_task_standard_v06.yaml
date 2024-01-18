@@ -34,7 +34,7 @@ audio:                                  # Attributes of audio feature
 
 
 val_metric: 'val_acc'
-model_name: 'binaural_attn_v05'
+model_name: 'binaural_attn_v06'
 
 noise_kwargs: # parameters for background signal levels 
   low_snr: -10

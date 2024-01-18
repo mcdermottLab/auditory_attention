@@ -1,14 +1,14 @@
 #!/bin/bash
 #SBATCH --job-name=train_binaural_attn
-#SBATCH --output=outLogs/train_binaural_attn_v05_%A_%a.out
-#SBATCH --error=outLogs/train_binaural_attn_v05_%A_%a.err
+#SBATCH --output=outLogs/train_binaural_attn_v06_%A_%a.out
+#SBATCH --error=outLogs/train_binaural_attn_v06_%A_%a.err
 #SBATCH --mem=100GB
 #SBATCH -N 1
 #SBATCH --cpus-per-task=16
 #SBATCH --time=2-00:00:00
-#SBATCH --partition=mcdermott
+#SBATCH --partition=normal
 #SBATCH --gres=gpu:a100:4
-#SBATCH --array=0# 0-2; 3 models in manifest
+#SBATCH --array=1-3# 0-3; 4 models in manifest
 
 #source /etc/profile.d/modules.sh
 #module use /cm/shared/modulefiles
