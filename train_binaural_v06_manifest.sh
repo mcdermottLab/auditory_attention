@@ -8,7 +8,7 @@
 #SBATCH --time=2-00:00:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:a100:4
-#SBATCH --array=1-3# 0-3; 4 models in manifest
+#SBATCH --array=0-3# -3# 0-3; 4 models in manifest
 
 #source /etc/profile.d/modules.sh
 #module use /cm/shared/modulefiles
@@ -22,8 +22,9 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 #module add openmind/cudnn/11.5-v8.3.3.40
 #module add openmind/cuda/12.3
+# 
 
 which python3
 python3 spatialtrain.py --config_list binaural_train_manifests/v06_models_01_2024.pkl --job_id $SLURM_ARRAY_TASK_ID\
-                 --gpus 4 --n_jobs 4 --resume_training True \
+                 --gpus 4 --n_jobs 4  --resume_training True \
                  --exp_dir attn_cue_models \

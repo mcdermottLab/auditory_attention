@@ -42,8 +42,8 @@ noise_kwargs: # parameters for background signal levels
 hparas:                                   # Experiment hyper-parameters
   valid_step: 2000
   epochs: 1000
-  optimizer: 'Adam'
-  lr: 0.0001
+  optimizer: 'AdamW'
+  lr: 0.00001                            # use 0.000005 for first 12000 steps, then raise to 0.00001
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 100 
   batch_size: 288                        # 576 for 8 288 for 4Gets divided by num gpus

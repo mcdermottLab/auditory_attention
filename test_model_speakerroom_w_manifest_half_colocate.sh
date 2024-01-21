@@ -16,10 +16,10 @@ export HDF5_USE_FILE_LOCKING=FALSE
 source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 which python3
-python3 eval_binaural_w_manifest.py --config config/binaural_attn/word_task_half_co_loc_v05.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v05/checkpoints/epoch=9-step=125275.ckpt \
+python3 eval_binaural_w_manifest.py --config config/binaural_attn/word_task_half_co_loc_v06.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v06/checkpoints/epoch=3-step=50632.ckpt \
                  --location_manifest binaural_test_manifests/match_human_pilot_conds.pkl \
-                 --model_name word_task_half_co_loc_v05 --location_idx $SLURM_ARRAY_TASK_ID \
+                 --model_name word_task_half_co_loc_v06 --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/human_pilot_conds \
                  --cue_type voice_and_location --no-overwrite
 

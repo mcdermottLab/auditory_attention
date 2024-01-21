@@ -1,12 +1,12 @@
 #!/bin/bash -l 
-#SBATCH --job-name=eval_mono_swc
-#SBATCH --output=outLogs/mono_swc_test_stim_%A_%a.out
-#SBATCH --error=outLogs/mono_swc_test_stim_%A_%a.err
+#SBATCH --job-name=eval_diotic_swc
+#SBATCH --output=outLogs/diotic_swc_test_stim_%A_%a.out
+#SBATCH --error=outLogs/diotic_swc_test_stim_%A_%a.err
 #SBATCH --mem=12Gb
 #SBATCH --cpus-per-task=4
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0-40 # 0-40
+#SBATCH --array=1-40 # 0-40
 #SBATCH -x dgx001,dgx002
 
 
@@ -20,8 +20,8 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #                  --array_id $SLURM_ARRAY_TASK_ID \
 #                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 
-python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_mono_arch_v06.yaml \
-                 --ckpt_path attn_cue_models/word_task_mono_arch_v06/checkpoints/epoch=1-step=13820-v2.ckpt \
+python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_diotic_arch_v06.yaml \
+                 --ckpt_path attn_cue_models/word_task_diotic_arch_v06/checkpoints/epoch=5-step=69720.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 

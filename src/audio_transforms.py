@@ -709,11 +709,12 @@ class DuplicateChannel(torch.nn.Module):
     def __init__(self, num_output_channels=2, dim=1):
         super(DuplicateChannel, self).__init__()
         self.num_output_channels = num_output_channels
+        self.dim = dim
 
     def forward(self, foreground_wav, background_wav):
         if foreground_wav is not None:
-            foreground_wav = foreground_wav.repeat(self.num_output_channels, dim=dim)
+            foreground_wav = foreground_wav.repeat(self.num_output_channels , 1)
         if background_wav is not None:
-            background_wav = background_wav.repeat(self.num_output_channels, dim=dim)
+            background_wav = background_wav.repeat(self.num_output_channels , 1)
         return foreground_wav, background_wav
         

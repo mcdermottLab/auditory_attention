@@ -14,6 +14,10 @@ import src.audio_transforms as at
 
 seed_everything(1)
 
+torch.set_float32_matmul_precision('medium')
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
+
 
 def run_eval(args):
 
@@ -46,6 +50,15 @@ def run_eval(args):
                 at.UnsqueezeAudio(dim=0),
                 at.AudioToAudioRepresentation(**audio_config),
             ])
+    if 'diotic' in  args.config:
+        print(f"Using diotic input")
+        audio_transforms = at.AudioCompose([
+                    at.AudioToTensor(),
+                    # at.CombineWithRandomDBSNR(low_snr=snr, high_snr=snr), 
+                    at.RMSNormalizeForegroundAndBackground(rms_level=0.02),  # 0.02 is the default for CV-based models 
+                    at.UnsqueezeAudio(dim=0),
+                    at.DuplicateChannel()
+            ])  
     else:
         audio_transforms = at.AudioCompose([
                     at.AudioToTensor(),
@@ -57,7 +70,7 @@ def run_eval(args):
     # load and freeze model
     model = module.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).eval().cuda()
     coch_gram = None
-    if 'v05' in args.config:
+    if 'v05' in args.config or 'v06' in args.config:
         coch_gram = model.coch_gram.cuda()
 
     dataset = SWCMonoTestSet(stim_path=args.stim_path,

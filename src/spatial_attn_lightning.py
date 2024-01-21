@@ -126,6 +126,7 @@ class BinauralAttentionModule(LightningModule):
 
     def _step(self, batch, batch_idx, step_type):
         if batch is None:
+            print(f"Batch on step {batch_idx} was None")
             return None
         cue_features, cue_mask_ixs, scene_features, labels = batch
 
@@ -153,6 +154,19 @@ class BinauralAttentionModule(LightningModule):
 
         return loss
 
+    def on_before_optimizer_step(self, _):
+        def _get_grad_norm(params, scale=1):
+            """Compute grad norm given a gradient scale."""
+            total_norm = 0.0
+            for p in params:
+                if p.grad is not None:
+                    param_norm = (p.grad.detach().data / scale).norm(2)
+                    total_norm += param_norm.item() ** 2
+            total_norm = total_norm**0.5
+            return total_norm
+        grad_norm = _get_grad_norm(self.model.parameters())
+        self.log("grad_norm", torch.tensor(grad_norm), prog_bar=True, on_step=True, on_epoch=False)
+
     def on_before_zero_grad(self, *args, **kwargs):
         for module in self.attn_modules:
             module.apply(self.bias_constraint)
@@ -165,16 +179,16 @@ class BinauralAttentionModule(LightningModule):
         model_params = [{'params': self.model.parameters()}]
         self.optimizer = opt(model_params, lr=self.hparas_config['lr'], eps=self.hparas_config['eps'])       
         ## New for v05 dataset - use lr Scheduler 
-        lr_schedule = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 
-                                                               mode='max', # monitoring val_acc, want max
-                                                               factor=0.1,
-                                                               patience=0.25, # wait a quarter epoch if plateaued
-                                                               threshold=0.0001,
-                                                               threshold_mode='rel',
-                                                               min_lr=1e-7, 
-                                                               verbose=True)
-        schedule = {"scheduler":lr_schedule, "monitor": self.config['val_metric']}
-        return [self.optimizer], schedule
+        # lr_schedule = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 
+        #                                                        mode='max', # monitoring val_acc, want max
+        #                                                        factor=0.1,
+        #                                                        patience=0.25, # wait a quarter epoch if plateaued
+        #                                                        threshold=0.0001,
+        #                                                        threshold_mode='rel',
+        #                                                        min_lr=1e-7, 
+        #                                                        verbose=True)
+        # schedule = {"scheduler":lr_schedule, "monitor": self.config['val_metric']}
+        return [self.optimizer]#, schedule
 
     def forward(self, cue: torch.tensor, scene: torch.tensor, cue_mask_ixs: torch.tensor):
         outputs = self.model(cue, scene, cue_mask_ixs)
@@ -271,6 +285,7 @@ class BinauralAttentionModule(LightningModule):
         return features
 
     def _collate_fn(self, samples: List):
+        # samples is a single-element list holding a tuple batches
         samples = samples[0]
         cue_features, _ = self.audio_transforms(samples[0], None)
         cue_mask_ixs = None
@@ -306,6 +321,7 @@ class BinauralAttentionModule(LightningModule):
             batch_size=1,
             num_workers=self.config['num_workers'],
             collate_fn=self._collate_fn,
+            shuffle=False
         )
         return dataloader
 

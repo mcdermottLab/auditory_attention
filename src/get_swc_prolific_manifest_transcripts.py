@@ -81,7 +81,7 @@ def main(args):
         if distractor_fns is not None:
             batch_dict = {'target_fn': target_batch, 'distractor_fn': distractor_batch,
                         'target_transcripts': [convert_transcript(result.text) for result in target_results],
-                        'distracted_transcripts': [convert_transcript(result.text) for result in distracted_results]}
+                        'distractor_transcripts': [convert_transcript(result.text) for result in distracted_results]}
         else:
             batch_dict = {'target_fn': target_batch,
                         'target_transcripts': [convert_transcript(result.text) for result in target_results]}
