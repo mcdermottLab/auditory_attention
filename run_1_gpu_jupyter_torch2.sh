@@ -5,7 +5,7 @@
 #SBATCH --mem=12Gb
 #SBATCH --cpus-per-task=2
 #SBATCH --time=3:00:00
-#SBATCH --partition=normal
+#SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:a100:1
 #SBATCH -x node055
 

@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=1-40 # 0-40
+#SBATCH --array=0-10 #0-40
 #SBATCH -x dgx001,dgx002
 
 
@@ -20,8 +20,8 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #                  --array_id $SLURM_ARRAY_TASK_ID \
 #                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 
-python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_diotic_arch_v06.yaml \
-                 --ckpt_path attn_cue_models/word_task_diotic_arch_v06/checkpoints/epoch=5-step=69720.ckpt \
+python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_diotic_arch_v07.yaml \
+                 --ckpt_path attn_cue_models/word_task_diotic_arch_v07/checkpoints/epoch=2-step=50074.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 

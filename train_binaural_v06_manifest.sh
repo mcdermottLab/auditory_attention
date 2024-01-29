@@ -8,7 +8,7 @@
 #SBATCH --time=2-00:00:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:a100:4
-#SBATCH --array=0-3# -3# 0-3; 4 models in manifest
+#SBATCH --array=0,2,3# -3# 0-3; 4 models in manifest
 
 #source /etc/profile.d/modules.sh
 #module use /cm/shared/modulefiles

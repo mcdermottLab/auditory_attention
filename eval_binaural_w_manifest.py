@@ -33,11 +33,15 @@ os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 
 # make torch.nn.Module version of spatilaize
 class Spatialize(torch.nn.Module):
-    def __init__(self, ir):
+    def __init__(self, ir, model_sr=50_000):
         super(Spatialize, self).__init__()
         ir = torch.flip(torch.from_numpy(ir), dims=[0]).float()
         self.n_taps = ir.shape[0]
         ir = ir.T.unsqueeze(1)
+        # set center crop of 2.5 seconds relative to model_sr
+        self.start_frame = int(model_sr * 0.25)
+        self.end_frame = int(model_sr * 2.75)
+
         self.register_buffer("ir", ir)
 
     def forward(self, words):
@@ -46,7 +50,7 @@ class Spatialize(torch.nn.Module):
         words_padded = torch.nn.functional.pad(words, (self.n_taps - 1, 0))
         spatialized = torch.nn.functional.conv1d(words_padded.view(n_words, 1, -1), self.ir)
         # resize to desired shape
-        spatialized = spatialized[:, :, 12500:137500]
+        spatialized = spatialized[:, :, self.start_frame:self.end_frame]
         return spatialized
 
 def run_eval(args):
@@ -130,9 +134,9 @@ def run_eval(args):
                 brir = soxr.resample(brir.astype(np.float32), sr_src, model_in_sr)
             ir_dict[loc] = brir.astype(np.float32)
 
-        tar_brir = Spatialize(ir_dict['target']).cuda()
-        dist_brir = Spatialize(ir_dict['distractor']).cuda()
-        cue_brir = Spatialize(ir_dict['cue']).cuda()
+        tar_brir = Spatialize(ir_dict['target'], model_sr=model_in_sr).cuda()
+        dist_brir = Spatialize(ir_dict['distractor'], model_sr=model_in_sr).cuda()
+        cue_brir = Spatialize(ir_dict['cue'], model_sr=model_in_sr).cuda()
 
         output_dict = {'results': None, 'confusions': None}
         accuracies = []

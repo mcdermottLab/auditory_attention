@@ -244,6 +244,7 @@ class BinauralAttentionModule(LightningModule):
 
     def test_timit(self, batch, batch_idx):
         cue_features, cue_mask_ixs, scene_features, labels = batch
+        cue_features, scene_features = self.coch_gram(cue_features, scene_features)
         self.log(f"true_word_ix", labels.float(), on_step=True, on_epoch=False)
         # self() is self.forward()  
         fg_outputs = self(cue_features, scene_features, cue_mask_ixs) 

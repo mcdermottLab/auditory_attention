@@ -4,7 +4,10 @@ import yaml
 import pickle
 import csv
 import torch 
+import soxr
+import h5py
 import numpy as np 
+import pandas as pd
 from tqdm.auto import tqdm
 from pytorch_lightning import seed_everything
 from src.attn_tracking_lightning import AttentionalTrackingModule
@@ -14,11 +17,32 @@ import src.audio_transforms as at
 
 seed_everything(1)
 
-torch.set_float32_matmul_precision('medium')
+torch.set_float32_matmul_precision('high')
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
+# make torch.nn.Module version of spatilaize
+class Spatialize(torch.nn.Module):
+    def __init__(self, ir, model_sr=50_000):
+        super(Spatialize, self).__init__()
+        ir = torch.flip(torch.from_numpy(ir), dims=[0]).float()
+        self.n_taps = ir.shape[0]
+        ir = ir.T.unsqueeze(1)
+        # set center crop of 2.5 seconds relative to model_sr
+        self.start_frame = int(model_sr * 0.25)
+        self.end_frame = int(model_sr * 2.75)
+        print(f"start frame: {self.start_frame}, end frame: {self.end_frame}")
+        self.register_buffer("ir", ir)
 
+    def forward(self, words):
+        n_words = words.shape[0]
+        # pad last dim of words with ir.shape[0] - 1 zeros
+        words_padded = torch.nn.functional.pad(words, (self.n_taps - 1, 0))
+        spatialized = torch.nn.functional.conv1d(words_padded.view(n_words, 1, -1), self.ir)
+        # resize to desired shape
+        # spatialized = spatialized[:, :, self.start_frame:self.end_frame]
+        return spatialized
+    
 def run_eval(args):
 
     model_name = pathlib.Path(args.config).stem
@@ -70,7 +94,7 @@ def run_eval(args):
     # load and freeze model
     model = module.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).eval().cuda()
     coch_gram = None
-    if 'v05' in args.config or 'v06' in args.config:
+    if 'v0' in args.config:
         coch_gram = model.coch_gram.cuda()
 
     dataset = SWCMonoTestSet(stim_path=args.stim_path,
@@ -93,6 +117,23 @@ def run_eval(args):
                                              shuffle=False,
                                              collate_fn=collate_fn,
                                              num_workers=args.n_jobs)
+    
+    # If binaural, get BRIRs for test room and spatialize to center
+    spatialize = None
+    if config['audio']['rep_kwargs']['binaural'] and not config['corpus'].get('mono_sanity_check', False):
+        print("Spatializing to center")
+        new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
+        only14_manifest = new_room_manifest[(new_room_manifest['src_dist'] == 1.4) & (new_room_manifest['index_room'] == 0)]
+        # 0 azim, 0 elev
+        df_row = only14_manifest[(only14_manifest['src_azim'] == 0) & (only14_manifest['src_elev'] == 0)]
+        h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{df_row["index_room"].values[0]}.hdf5'
+        index_brir = df_row['index_brir'].values[0]
+        sr_src = df_row['sr'].values[0]
+        with h5py.File(h5_fn, 'r') as f:
+            brir = f['brir'][index_brir]
+        if config['audio']['rep_kwargs']['sr'] != sr_src:
+            brir = soxr.resample(brir.astype(np.float32), sr_src, config['audio']['rep_kwargs']['sr'])
+        spatialize = Spatialize(brir, model_sr=config['audio']['rep_kwargs']['sr']).cuda()
 
     # set up output file 
     out_dir = args.exp_dir / model_name 
@@ -110,6 +151,10 @@ def run_eval(args):
             # to device 
             cue = cue.cuda()
             mixture = mixture.cuda()
+
+            if spatialize:
+                cue = spatialize(cue)
+                mixture = spatialize(mixture)
 
             if coch_gram: # if cochleagram is not part of model arch. 
                 cue, mixture = coch_gram(cue, mixture)

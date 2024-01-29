@@ -16,13 +16,14 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
     
     def __init__(self, root, cue_type, task, batch_size=1, skip_negative_elev=False, mode='train',
                  with_cue_free=False, run_mono=False, mono_sanity_check=False, clean_percentage=0.0, v05=False, v06=False,
+                 gender_balanced=False,
                  mixture_percentages={'voice_and_location':.33, 'voice_only':.33, "location_only":.33}, **kwargs):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the
         specified root directory. 
         """
-        self.v05 = False
-        self.v06 = False
+        self.v05 = v05
+        self.v06 = v06
         
         if v05 or "v05" in root:
             self.v05 = True
@@ -34,7 +35,11 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         # self.hdf5_glob = '*.hdf5_chunk000' if with_cue_free or self.v05 else 'noise*.hdf5_chunk000' 
         print(root)
         if mode == 'train':
-            self.all_hdf5_files = list(Path(root).glob(f"train/{self.hdf5_glob}"))
+            if gender_balanced:
+                print("Using gender balanced training set")
+                self.all_hdf5_files = list(Path(root).glob(f"train_gender_balanced/{self.hdf5_glob}"))
+            else:
+                self.all_hdf5_files = list(Path(root).glob(f"train/{self.hdf5_glob}"))
             # screen dead files 
             self.all_hdf5_files = [fname for fname in self.all_hdf5_files  if os.path.getsize(fname) > 0]
         elif mode == 'val':
@@ -45,7 +50,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         # # read files to skip from a file
         # with open(root + '/bad_files.txt', 'r') as f:
         #     files_to_skip = [line.strip().split('/')[-1] for line in f.readlines()]
-        if not self.v05:
+        if not self.v05 and not self.v06:
             # filter bad files from the dataset
             files_to_skip = np.load("/om2/user/imgriff/projects/Auditory-Attention/bad_train_file_names.npy")
             self.all_hdf5_files = [fname for fname in self.all_hdf5_files if Path(fname).stem not in files_to_skip]
@@ -453,10 +458,10 @@ class H5DatasetV06(torch.utils.data.Dataset):
             background = background[:,0,:].reshape(self.batch_size, -1)
             
         if self.mono_sanity_check:
-            # use only left channel for both channels
-            cue[:,1,:] = cue[:,0,:]
-            target[:,1,:] = target[:,0,:]
-            background[:,1,:] = background[:,0,:]
+            # running diotic. Sum channels then copy to both channels
+            cue = np.sum(cue, axis=1, keepdims=True).repeat(2, axis=1)
+            target = np.sum(target, axis=1, keepdims=True).repeat(2, axis=1)
+            background = np.sum(background, axis=1, keepdims=True).repeat(2, axis=1)
             
         return cue, target, background, label
 

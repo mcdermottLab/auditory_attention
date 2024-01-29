@@ -37,7 +37,7 @@ def main(args):
     manifes_path = parent_dir / cond_dir / 'manifest.pdpkl'
     out_manifest_path = parent_dir / cond_dir / 'manifest_w_transcripts.pdpkl'
     # check if the manifest already exists
-    if out_manifest_path.exists():
+    if out_manifest_path.exists() and not args.overwrite:
         print("Manifest already exists")
         return
     
@@ -55,14 +55,18 @@ def main(args):
     options = whisper.DecodingOptions()
 
     batch_size = args.batch_size
-    n_iters = len(target_fns) // batch_size
+    n_iters = np.ceil(len(target_fns) / batch_size).astype(int)
 
     transcripts = []
 
     
     print("Transcribing audio...")
-    for iter in tqdm(range(n_iters)):
-        target_batch = target_fns[iter*batch_size : (iter+1)*batch_size]
+    for iter_ix in tqdm(range(n_iters)):
+        start = iter_ix * batch_size
+        end = start + batch_size
+        if end > len(target_fns):
+            end = len(target_fns)
+        target_batch = target_fns[start : end]
         # decode the audio
         target_audio = np.array([whisper.pad_or_trim(whisper.load_audio(fname)) for fname in target_batch])
         target_mel_specs = whisper.log_mel_spectrogram(target_audio).to(model.device)
@@ -70,7 +74,7 @@ def main(args):
 
         # distrctor batch 
         if distractor_fns is not None:
-            distractor_batch = distractor_fns[iter*batch_size : (iter+1)*batch_size]
+            distractor_batch = distractor_fns[start : end]
             distractor_audio = np.array([whisper.pad_or_trim(whisper.load_audio(fname)) for fname in distractor_batch])
             distractor_mel_specs = whisper.log_mel_spectrogram(distractor_audio).to(model.device)
             distracted_results = whisper.decode(model, distractor_mel_specs, options)
@@ -101,5 +105,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--array_ix', type=int, help='array index')
     parser.add_argument('--batch_size', type=int, default = 160, help='batch size')
+    parser.add_argument(
+        "--overwrite",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will overwrite existing results",
+    )
     args = parser.parse_args()
     main(args)
