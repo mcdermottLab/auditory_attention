@@ -8,6 +8,7 @@ import IPython.display as ipd
 import src.spatial_attn_lightning as binaural_lightning 
 import yaml
 import os
+import pickle
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 
@@ -19,6 +20,7 @@ from argparse import ArgumentParser
 torch.set_float32_matmul_precision('medium')
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
+
 
 def run_train(args):
     seed_everything(123)
@@ -72,7 +74,6 @@ def run_train(args):
         default_root_dir= args.exp_dir / config_path.stem,
         precision="32",
         max_epochs=config['hparas']['epochs'],
-        limit_val_batches=0.0,
         num_nodes=1,
         # benchmark=True,
         devices=args.gpus, # was gpus=1,
