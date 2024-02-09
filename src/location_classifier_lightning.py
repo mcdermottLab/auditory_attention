@@ -75,6 +75,7 @@ class LocationClassifier(LightningModule):
             param.requires_grad = False  
         self.model = torch.compile(aud_base, mode="reduce-overhead")
         self.classifier = torch.nn.Linear(config['model']['fc_size'], config['model']['num_classes']['num_locs'])
+        self.classifier = torch.compile(self.classifier, mode="reduce-overhead")
 
         # Add input rep to model or audio transforms
         self.rep_on_gpu = self.audio_config['rep_kwargs']['rep_on_gpu']
@@ -131,16 +132,25 @@ class LocationClassifier(LightningModule):
         model_params = [{'params': self.classifier.parameters()}] ## Use classifier params not model params 
         self.optimizer = opt(model_params, lr=self.hparas_config['lr'], eps=self.hparas_config['eps'])       
         ## New for v05 dataset - use lr Scheduler 
-        # lr_schedule = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 
-        #                                                        mode='max', # monitoring val_acc, want max
-        #                                                        factor=0.1,
-        #                                                        patience=0.25, # wait a quarter epoch if plateaued
-        #                                                        threshold=0.0001,
-        #                                                        threshold_mode='rel',
-        #                                                        min_lr=1e-7, 
-        #                                                        verbose=True)
-        # schedule = {"scheduler":lr_schedule, "monitor": self.config['val_metric']}
-        return [self.optimizer]#, schedule
+        lr_schedule = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 
+                                                               mode='max', # monitoring val_acc, want max
+                                                               factor=0.1,
+                                                               patience=0.25, # wait a quarter epoch if plateaued
+                                                               threshold=0.0001,
+                                                               threshold_mode='rel',
+                                                               min_lr=1e-7, 
+                                                               verbose=True)
+        # self.schedule = {"scheduler":lr_schedule, "monitor": self.config['val_metric']}
+        return {
+                "optimizer": self.optimizer,
+                "lr_scheduler": {
+                    "scheduler": lr_schedule,
+                    "monitor": self.config['val_metric'],
+                    "frequency": 1,
+                    # If "monitor" references validation metrics, then "frequency" should be set to a
+                    # multiple of "trainer.check_val_every_n_epoch".
+                },
+            }
 
     def forward(self, input_aud: torch.tensor):
         with torch.no_grad():
