@@ -115,7 +115,12 @@ def run_eval(args):
         threshold_snr = threshold_snr if isinstance(threshold_snr, str) else int(threshold_snr)
         run_diotic = test_dict[idx]['diotic']
         lead_channel = test_dict[idx]['lead_channel']
-        log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{lead_channel}_lead_{threshold_snr}_SNR"        
+        target_lead_channel = test_dict[idx].get('target_lead_channel', None)
+        
+        if target_lead_channel:
+            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{lead_channel}_lead_{threshold_snr}_SNR_{target_lead_channel}_target_lead"        
+        else:
+            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{lead_channel}_lead_{threshold_snr}_SNR"        
         
         if run_diotic:
             # in diotic case, distractor location is lead_channel side with leading presentation of diotic distractor
@@ -145,9 +150,11 @@ def run_eval(args):
                     coords = target_loc
                 elif loc == 'distractor':
                     coords = distract_loc.copy()
+                    if coords[0] < 0:
+                        coords[0] += 360 
 
                 df_row = only14_manifest[(only14_manifest['src_azim'] == coords[0]) & (only14_manifest['src_elev'] == coords[1])]
-                h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/ruggles_shinncunningham_2011/room000{df_row["index_room"].values[0]}.hdf5'
+                h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/ruggles_shinncunningham_2011/room0000.hdf5'
                 index_brir = df_row['index_brir'].values[0]
                 sr_src = df_row['sr'].values[0]
                 with h5py.File(h5_fn, 'r') as f:
@@ -196,7 +203,23 @@ def run_eval(args):
                 else:     
                     # spatialize signals 
                     cue = tar_brir(cue.cuda())
-                    foreground = tar_brir(fg.cuda())
+                    if not target_lead_channel:
+                        foreground = tar_brir(fg.cuda())
+                    elif target_lead_channel:            
+                        # make precedence cue 
+                        cue_w_delay = precedence_shift_signal(cue,
+                                    delay_in_frames,
+                                    lead_channel=target_lead_channel).cuda()
+                        cue_side = dist_brir(cue_w_delay[:, 0, :])
+                        cue_center = tar_brir(cue_w_delay[:, 1, :])
+                        cue, _ = audio_transforms_0_db(cue_side, cue_center)
+                        # Make precedence foreground
+                        fg_w_delay = precedence_shift_signal(fg,
+                                    delay_in_frames,
+                                    lead_channel=target_lead_channel).cuda()
+                        fg_side = dist_brir(fg_w_delay[:, 0, :]) # 0 is for side channel
+                        fg_center = tar_brir(fg_w_delay[:, 1, :]) # 1 is for center channel 
+                        foreground, _ = audio_transforms_0_db(fg_side, fg_center)
                     # Make precedence distractors
                     if lead_channel:
                         bg_w_delay = precedence_shift_signal(bg,

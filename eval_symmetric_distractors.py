@@ -17,6 +17,8 @@ from argparse import ArgumentParser
 from corpus.speaker_room_dataset import SpeakerRoomDataset
 from tqdm.auto import tqdm
 from datetime import datetime
+import sys
+
 
 torch.set_float32_matmul_precision('medium') # use same as training
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
@@ -44,6 +46,7 @@ class Spatialize(torch.nn.Module):
         return spatialized
 
 def run_eval(args):
+    
     model_name = args.model_name
     checkpoint_path = args.ckpt_path
     cue_type = args.cue_type
@@ -79,10 +82,15 @@ def run_eval(args):
     coch_gram = model.coch_gram.cuda()
 
     # set up dataset and dataloader
+    if args.modulated_ssn_distractors:
+        print("Using modulated ssn distractors")
+    
     dataset = SpeakerRoomDataset(manifest_path='/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl',
                                 excerpt_path='/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl',
                                 cue_type=cue_type,
-                                sr=model_in_sr) 
+                                sr=model_in_sr,
+                                symmetric_distractor_test=True,
+                                modulated_ssn_distractors=args.modulated_ssn_distractors) 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
 
     new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
@@ -101,7 +109,10 @@ def run_eval(args):
                 ])
         audio_transforms_test_db = audio_transforms_test_db.cuda()
 
-        log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR"        
+        if args.modulated_ssn_distractors:
+            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_modulated_ssn"
+        else:
+            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR"        
         print(log_name)
         output_name = str(experiment_dir) + log_name + '.pkl'
         if idx % 10 == 0:
@@ -140,12 +151,12 @@ def run_eval(args):
 
         with torch.no_grad(): 
             for batch in tqdm(dataloader):
-                cue, fg, bg, label, confusion = batch
+                cue, fg, bg, bg_2, label, dist_word_label, dist_word_label2 = batch
                 # spatialize signals 
                 cue = tar_brir(cue.cuda())
                 foreground = tar_brir(fg.cuda())
                 background_l = dist_brir_l(bg.cuda())
-                background_r = dist_brir_r(bg.cuda())
+                background_r = dist_brir_r(bg_2.cuda())
                 ## set to desired SNR and SPL 
                 cue, _ = audio_transforms_0_db(cue, None)
                 # Set left/right distractor to same level and mix
@@ -158,9 +169,13 @@ def run_eval(args):
                 # Unpack desired metrics 
                 preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach().numpy().astype('int')
                 true_word = label.numpy().astype('int')
-                con_word = confusion.numpy().astype('int')
+                dist_word_label = dist_word_label.numpy().astype('int')
+                dist_word_label2 = dist_word_label2.numpy().astype('int')
                 accuracy = (preds == true_word).astype('int')
-                cons = (preds == con_word).astype('int')
+                # confusion made if preds == dist_word_label or dist_word_label2
+                cons_1 = (preds == dist_word_label).astype('int')
+                cons_2 = (preds == dist_word_label2).astype('int')
+                cons = np.bitwise_or(cons_1, cons_2) # get union of confusions
                 accuracies.append(accuracy)
                 confusions.append(cons)
                 pred_list.append(preds)
@@ -250,6 +265,11 @@ def cli_main():
         "--overwrite",
         action=argparse.BooleanOptionalAction,
         help="If true, will overwrite existing results",
+    )
+    parser.add_argument(
+        "--modulated_ssn_distractors",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will use festen and plomp style modulated ssn maskers as distractors"
     )
 
     args = parser.parse_args()

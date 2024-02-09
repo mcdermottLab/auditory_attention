@@ -1,6 +1,3 @@
-# Following is originally copied from PyTorch RNN-T ASR Example:
-# https://github.com/pytorch/audio/tree/820b383b3b21fc06e91631a5b1e6ea1557836216/examples/asr/librispeech_emformer_rnnt
-
 import pathlib
 from argparse import ArgumentParser
 import os
@@ -104,7 +101,6 @@ def run_train(args):
         # precision=16,# 16 if 'binaural' in args.config else 32,
         default_root_dir=args.exp_dir / config_path.stem,
         max_epochs=config['hparas']['epochs'],
-
        # log_every_n_steps = 10,
         # detect_anomaly=True,
         benchmark=True,

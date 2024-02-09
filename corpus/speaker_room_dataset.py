@@ -6,6 +6,10 @@ import pickle
 import soundfile as sf
 import soxr
 import torch
+import sys 
+
+sys.path.append('/om2/user/imgriff/datasets/spatial_audio_pipeline/spatial_audio_util/')
+import util_audio 
 
 from pathlib import Path
 
@@ -15,7 +19,7 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
     foreground excerpts from Spoken Wikipedia.  Backgrounds are 
     either also from SWC.
     """
-    def __init__(self, manifest_path, excerpt_path, cue_type, sr=20_000):
+    def __init__(self, manifest_path, excerpt_path, cue_type, sr=20_000, symmetric_distractor_test=False, modulated_ssn_distractors=False):
         """
         Args:
             manifest_path (str): path to pandas manifest with trials defined
@@ -27,6 +31,8 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
         self.excerpts = pd.read_pickle(excerpt_path)
         self.cue_type = cue_type
         self.sr = sr 
+        self.symmetric_distractor_test = symmetric_distractor_test
+        self.modulated_ssn_distractors = modulated_ssn_distractors
 
         self.class_map, self.word_2_class = self.class_map()
 
@@ -67,7 +73,27 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
         dist_word = self.manifest['bg_word'][index]
         dist_word_label = self.word_2_class[dist_word]
 
-        return cue, src, bg, word_label, dist_word_label
+        if not self.symmetric_distractor_test:
+            return cue, src, bg, word_label, dist_word_label
+
+        elif self.symmetric_distractor_test:
+            bg_man_ix2 = np.random.choice(self.manifest.index)
+            bg_src_ix2 = self.manifest['bg_src_ix'][bg_man_ix2]
+            bg_2 = self.get_excerpt(self.excerpts.iloc[bg_src_ix2])
+            dist_word2 = self.manifest['bg_word'][bg_man_ix2]
+            dist_word_label2 = self.word_2_class[dist_word2]
+            if self.modulated_ssn_distractors:
+                # get modulated speech-shaped noise for distractor 1 and 2 
+                bg = bg.numpy()
+                bg_2 = bg_2.numpy()
+                bg_noise = util_audio.spectrally_matched_noise(bg, self.sr)
+                bg = util_audio.festen_plomp_fluctuating_noise(bg, bg_noise, sr=self.sr, two_band_cutoff=None)
+                bg_noise2 = util_audio.spectrally_matched_noise(bg_2, self.sr)
+                bg_2 = util_audio.festen_plomp_fluctuating_noise(bg_2, bg_noise2, sr=self.sr, two_band_cutoff=None)
+                bg = torch.from_numpy(bg).float()
+                bg_2 = torch.from_numpy(bg_2).float()
+            return cue, src, bg, bg_2, word_label, dist_word_label, dist_word_label2
+
 
     def __len__(self):
         return self.dataset_len

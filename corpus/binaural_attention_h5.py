@@ -103,10 +103,10 @@ class H5Dataset(torch.utils.data.Dataset):
         self.mono_sanity_check = mono_sanity_check
         self.clean_percentage = clean_percentage
         self.batch_ixs = np.arange(self.batch_size)
-        # if self.skip_negative_elev:
-        #     print("Skipping negative elevations")
-        # else:
-        #     print("Including negative elevations")
+        if self.skip_negative_elev:
+            print("Skipping negative elevations")
+        else:
+            print("Including negative elevations")
 
         if "v02" in self.file_path:
             self.voice_key = "voice_cue_rand_loc"
@@ -215,6 +215,7 @@ class H5Dataset(torch.utils.data.Dataset):
             elev = self.dataset[self.label_key[2]][start:end]
             loc = self.azim_elev_to_label(azim, elev)
             label = np.stack((word, loc), axis=1)
+
 
         if self.run_mono:
             # average l & r channels
@@ -387,11 +388,10 @@ class H5DatasetV06(torch.utils.data.Dataset):
         if scene_type == "mixed":
             self.voice_and_loc_size = int(batch_size * mixture_percentages['voice_and_location'])
             self.voice_only_percent_size = int(batch_size * mixture_percentages['voice_only'])
-
         if self.task == 'word':
             self.label_key = 'word_int'
         elif self.task == 'location':
-            self.label_key = ('label_loc_target_azim', 'label_loc_target_elev')
+            self.label_key = ['label_loc_target_azim', 'label_loc_target_elev']
         elif self.task == 'word_and_location':
             self.label_key = ('word_int', 'label_loc_target_azim', 'label_loc_target_elev')
 
@@ -400,9 +400,16 @@ class H5DatasetV06(torch.utils.data.Dataset):
 
     def azim_elev_to_label(self, azim, elev):
         if self.skip_negative_elev:
-            return np.array(((elev / 10) * 72) + (azim / 5) + 1, dtype=np.int64)
+            return np.array(((elev / 10) * 72) + (azim / 5), dtype=np.int64)
         else:
             return np.array((((elev + 30) / 10) * 72) + (azim / 5), dtype=np.int64)
+
+    def label_to_azim_elev(self, label):
+        """
+        """
+        elev = np.array((label // 72) * 10)
+        azim = np.array((label % 72) * 5)
+        return np.array(azim).astype(float), np.array(elev).astype(float)
 
     def __getitem__(self, index):
         """
@@ -441,9 +448,8 @@ class H5DatasetV06(torch.utils.data.Dataset):
         elif self.task == 'location':
             azim = self.dataset[self.label_key[0]][start:end]
             elev = self.dataset[self.label_key[1]][start:end]
-            label = []
-            for azim, elev in zip(azim, elev):
-                label.append(self.azim_elev_to_label(azim, elev))
+            label = self.azim_elev_to_label(azim, elev)
+
         else:
             word = self.dataset[self.label_key[0]][start:end]
             azim = self.dataset[self.label_key[1]][start:end]

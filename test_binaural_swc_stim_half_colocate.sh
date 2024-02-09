@@ -21,8 +21,8 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #                  --array_id $SLURM_ARRAY_TASK_ID \
 #                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 
-python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v06.yaml \
-                 --ckpt_pat attn_cue_models/word_task_half_co_loc_v06/checkpoints/epoch=1-step=19544.ckpt \
+python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v07.yaml \
+                 --ckpt_pat attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 

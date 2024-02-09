@@ -70,11 +70,11 @@ def run_eval(args):
         audio_transforms = at.AudioCompose([
                 at.AudioToTensor(),
                 # at.CombineWithRandomDBSNR(low_snr=snr, high_snr=snr), 
-                at.RMSNormalizeForegroundAndBackground(rms_level=0.1),  # 0.02 is the default for the swc-based models 
+                at.RMSNormalizeForegroundAndBackground(rms_level=0.1),  # 0.1 is the default for the swc-based models 
                 at.UnsqueezeAudio(dim=0),
                 at.AudioToAudioRepresentation(**audio_config),
             ])
-    if 'diotic' in  args.config:
+    if 'mono' not in args.config:
         print(f"Using diotic input")
         audio_transforms = at.AudioCompose([
                     at.AudioToTensor(),
@@ -119,21 +119,21 @@ def run_eval(args):
                                              num_workers=args.n_jobs)
     
     # If binaural, get BRIRs for test room and spatialize to center
-    spatialize = None
-    if config['audio']['rep_kwargs']['binaural'] and not config['corpus'].get('mono_sanity_check', False):
-        print("Spatializing to center")
-        new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
-        only14_manifest = new_room_manifest[(new_room_manifest['src_dist'] == 1.4) & (new_room_manifest['index_room'] == 0)]
-        # 0 azim, 0 elev
-        df_row = only14_manifest[(only14_manifest['src_azim'] == 0) & (only14_manifest['src_elev'] == 0)]
-        h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{df_row["index_room"].values[0]}.hdf5'
-        index_brir = df_row['index_brir'].values[0]
-        sr_src = df_row['sr'].values[0]
-        with h5py.File(h5_fn, 'r') as f:
-            brir = f['brir'][index_brir]
-        if config['audio']['rep_kwargs']['sr'] != sr_src:
-            brir = soxr.resample(brir.astype(np.float32), sr_src, config['audio']['rep_kwargs']['sr'])
-        spatialize = Spatialize(brir, model_sr=config['audio']['rep_kwargs']['sr']).cuda()
+    # spatialize = None
+    # if config['audio']['rep_kwargs']['binaural'] and not config['corpus'].get('mono_sanity_check', False):
+    #     print("Spatializing to center")
+    #     new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
+    #     only14_manifest = new_room_manifest[(new_room_manifest['src_dist'] == 1.4) & (new_room_manifest['index_room'] == 0)]
+    #     # 0 azim, 0 elev
+    #     df_row = only14_manifest[(only14_manifest['src_azim'] == 0) & (only14_manifest['src_elev'] == 0)]
+    #     h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{df_row["index_room"].values[0]}.hdf5'
+    #     index_brir = df_row['index_brir'].values[0]
+    #     sr_src = df_row['sr'].values[0]
+    #     with h5py.File(h5_fn, 'r') as f:
+    #         brir = f['brir'][index_brir]
+    #     if config['audio']['rep_kwargs']['sr'] != sr_src:
+    #         brir = soxr.resample(brir.astype(np.float32), sr_src, config['audio']['rep_kwargs']['sr'])
+    #     spatialize = Spatialize(brir, model_sr=config['audio']['rep_kwargs']['sr']).cuda()
 
     # set up output file 
     out_dir = args.exp_dir / model_name 
@@ -152,9 +152,9 @@ def run_eval(args):
             cue = cue.cuda()
             mixture = mixture.cuda()
 
-            if spatialize:
-                cue = spatialize(cue)
-                mixture = spatialize(mixture)
+            # if spatialize:
+            #     cue = spatialize(cue)
+            #     mixture = spatialize(mixture)
 
             if coch_gram: # if cochleagram is not part of model arch. 
                 cue, mixture = coch_gram(cue, mixture)

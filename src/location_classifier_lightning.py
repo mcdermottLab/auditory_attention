@@ -24,8 +24,14 @@ class LocationClassifier(LightningModule):
     def __init__(
         self,
         config: dict,
+        ckpt_path: str, 
     ):
         super().__init__()
+        # load checkpoint path
+        checkpoint = torch.load(ckpt_path)
+        # remove 'model._orig_mod._orig_mod' from the keys in state_dict 
+        checkpoint['state_dict'] = {k.replace('model._orig_mod.', ''):v for k,v in checkpoint['state_dict'].items()}
+        # unbox config 
         # Make config sent to init
         self.config = config
         self.audio_config = config['audio']
@@ -35,7 +41,6 @@ class LocationClassifier(LightningModule):
         self.multi_task = self.corpora_config['task'] == 'word_and_location'
 
         self.corpora_name = config.get('corpora_name', False)
-        self.run_timit = self.corpora_name == 'TIMIT'
 
         # set dataset as attribute
         self.dataset = BinauralAttentionDataset 
@@ -55,20 +60,21 @@ class LocationClassifier(LightningModule):
 
         self.test_step = self._test_step
 
-        if self.run_timit:
-            self.test_step = self.test_timit 
-            self.audio_transforms = at.AudioCompose([
-                at.AudioToTensor(),
-                at.UnsqueezeAudio(dim=0),
-            ])
+        # if self.run_timit:
+        #     self.test_step = self.test_timit 
+        #     self.audio_transforms = at.AudioCompose([
+        #         at.AudioToTensor(),
+        #         at.UnsqueezeAudio(dim=0),
+        #     ])
 
         # Init Model
         # Get model architecture
-        model = BaseAuditoryNetworkForTransfer(**self.model_config).load_from_checkpoint(checkpoint_path=ckpt_path, strict=False)
-        self.classifier = torch.nn.Linear(self.model_config['fc_size'], config['model']['num_classes']['num_locs'])
-        # check if torch version 2 or greater - if so, compile model
-        self.model = torch.compile(model, mode="reduce-overhead")
-        self.model.freeze()
+        aud_base = BaseAuditoryNetworkForTransfer(**self.model_config)
+        aud_base.load_state_dict(checkpoint['state_dict'], strict=False) # strict=False to skip attn weights 
+        for param in aud_base.parameters():
+            param.requires_grad = False  
+        self.model = torch.compile(aud_base, mode="reduce-overhead")
+        self.classifier = torch.nn.Linear(config['model']['fc_size'], config['model']['num_classes']['num_locs'])
 
         # Add input rep to model or audio transforms
         self.rep_on_gpu = self.audio_config['rep_kwargs']['rep_on_gpu']
@@ -89,11 +95,8 @@ class LocationClassifier(LightningModule):
                          'test_confusion': self.test_confusion
                         }
 
-        # Constraints
-
     def _step(self, batch, batch_idx, step_type):
         if batch is None:
-            print(f"Batch on step {batch_idx} was None")
             return None
         input_aud, labels = batch
 
@@ -119,9 +122,8 @@ class LocationClassifier(LightningModule):
                     total_norm += param_norm.item() ** 2
             total_norm = total_norm**0.5
             return total_norm
-        grad_norm = _get_grad_norm(self.model.parameters())
+        grad_norm = _get_grad_norm(self.classifier.parameters())
         self.log("grad_norm", torch.tensor(grad_norm), prog_bar=True, on_step=True, on_epoch=False)
-
 
     def configure_optimizers(self):
         # Optimizer
@@ -141,7 +143,7 @@ class LocationClassifier(LightningModule):
         return [self.optimizer]#, schedule
 
     def forward(self, input_aud: torch.tensor):
-        with torch.nograd:
+        with torch.no_grad():
             representations = self.model(input_aud)
         outputs = self.classifier(representations)
         # Outputs here are logits
@@ -160,7 +162,6 @@ class LocationClassifier(LightningModule):
     def _extract_labels(self, samples: List):
         # idx=3 is harcoded - sample in samples is list of (cue, foreground, background, label)
         return torch.tensor([sample[3] for sample in samples]).type(torch.LongTensor)
-
 
     def _extract_features(self, samples: List, sample_ix: Union[int, list]):
         # hardcode none for bg noise here - scenes are pre-mixed
@@ -183,7 +184,7 @@ class LocationClassifier(LightningModule):
     def _collate_fn(self, samples: List):
         # samples is a single-element list holding a tuple batches
         samples = samples[0]
-        aud_features, _ = self.audio_transforms(samples[0], None)
+        aud_features, _ = self.audio_transforms(samples[1], None)
         labels = torch.from_numpy(samples[3]).type(torch.LongTensor)
         return aud_features, labels
 

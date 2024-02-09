@@ -164,27 +164,8 @@ class BaseAuditoryNetworkForTransfer(nn.Module):
     ''' CNN wrapper, includes relu and layer-norm if applied'''
 
     def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout, fc_size=512, global_avg_cue=False, num_classes={"num_words":998, "num_locs":504}, double_size=False, **kwargs):
-        super(CNN2DExtractor, self).__init__()
+        super(BaseAuditoryNetworkForTransfer, self).__init__()
         # Setup
-        print(f"{num_classes=}")
-        self.dual_task = False
-        if isinstance(num_classes, dict):
-            class_keys = num_classes.keys()
-            if ("num_words" in class_keys) and not ("num_locs" in class_keys):
-                # only_word 
-                num_classes = num_classes['num_words']
-                print('Model performing word task')
-            elif ("num_locs" in class_keys) and not ("num_words" in class_keys):
-                # only_loc
-                num_classes = num_classes['num_locs']
-                print('Model performing location task')
-
-            elif ("num_locs" in class_keys) and ("num_words" in class_keys):
-                self.dual_task = True
-                num_words = num_classes['num_words']
-                num_locs = num_classes['num_locs']
-                print('Model performing both location and word tasks')
-
         self.input_sr = input_sr
         self.out_channels = out_channels
         self.kernel = kernel

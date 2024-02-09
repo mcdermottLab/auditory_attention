@@ -7,7 +7,7 @@
 #SBATCH --time=1:00:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0-2 # 0-29 if running 5 per job 
+#SBATCH --array=0-24 # 0-29 if running 5 per job; 0-8 for just freyman conds
 #SBATCH -x dgx001,dgx002
 
 module load openmind8/anaconda/3-2022.10
@@ -17,9 +17,18 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 which python3
 python3 eval_precedence.py --config config/binaural_attn/word_task_standard_v07.yaml \
-                 --ckpt_path attn_cue_models/word_task_standard_v07/checkpoints/epoch=2-step=50074.ckpt \
-                 --test_manifest binaural_test_manifests/precedence_distractor_conditions_co_loc_conditions.pkl \
+                 --ckpt_path attn_cue_models/word_task_standard_v07/checkpoints/epoch=3-step=67111.ckpt \
+                 --test_manifest binaural_test_manifests/freymen_1999_test_conds.pkl \
                  --model_name word_task_standard_v07 --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test \
-                 --cue_type voice_and_location --overwrite --n_per_job 5
+                 --cue_type voice_and_location --overwrite --n_per_job 1
 
+
+
+# which python3
+# python3 eval_precedence.py --config config/binaural_attn/word_task_standard_v07.yaml \
+#                  --ckpt_path attn_cue_models/word_task_standard_v07/checkpoints/epoch=3-step=65111.ckpt \
+#                  --test_manifest binaural_test_manifests/precedence_distractor_conditions.pkl \
+#                  --model_name word_task_standard_v07 --location_idx $SLURM_ARRAY_TASK_ID \
+#                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test \
+#                  --cue_type voice_and_location --overwrite --n_per_job 5
