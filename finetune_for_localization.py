@@ -3,9 +3,6 @@ import torch
 import numpy as np 
 import pathlib
 from pathlib import Path
-import importlib
-import IPython.display as ipd
-import src.spatial_attn_lightning as binaural_lightning 
 import yaml
 import os
 import pickle
@@ -36,21 +33,29 @@ def run_train(args):
     config_path = pathlib.Path(config_path)
     config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
 
+    # add transfer learning config
     config['model']['num_classes']['num_locs'] = 504 # 360 azimuth and 90 in elevation
     del config['model']['num_classes']['num_words']
-    config['hparas']['batch_size'] = 192
-
+    config['hparas']['batch_size'] = 40
     config['corpus']['task'] = "location"
     config['corpus']['skip_negative_elev'] = True
+    n_layers = args.array_id 
+    config['model']['n_layers'] = n_layers
+    with_projection = False
+    config['model']['with_projection'] = with_projection
+    with_projection_str = 'with_projection' if with_projection else 'no_projection'
+    config['model']['projection_size'] = 512
 
     config['hparas']['lr'] = 0.0001
     config['num_workers'] = args.n_jobs
     checkpoint_path = args.ckpt_path
     model = LocationClassifier(config, ckpt_path=checkpoint_path)
-
+    conv_modules = {name:module for name, module in model.model._orig_mod.model_dict.named_children() if 'conv' in name or 'relu' in name}
+    classifier_layer = list(conv_modules.keys())[-1]
     callbacks = []
 
-    checkpoint_dir = args.exp_dir / f"{config_path.stem}/checkpoints"
+    model_dir = args.exp_dir / config_path.stem / f"{config_path.stem}_{classifier_layer}_{with_projection_str}"
+    checkpoint_dir = model_dir / "checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
     callbacks.append(ModelCheckpoint(
@@ -71,7 +76,7 @@ def run_train(args):
         ))
 
     trainer = Trainer(
-        default_root_dir= args.exp_dir / config_path.stem,
+        default_root_dir= model_dir,
         precision="32",
         max_epochs=config['hparas']['epochs'],
         num_nodes=1,
@@ -127,6 +132,12 @@ def cli_main():
     type=int,
     help="Number of CPUs for dataloader. (Default: 0)",
     )
+    parser.add_argument(
+        "--array_id",
+        default=0,
+        type=int,
+        help="Slurm array task ID",
+    )  
     parser.add_argument('--random_seed', default=0, type=int, help='Random seed for dataset.')
     parser.add_argument('--resume_training', default=False, help='Resume training from checkpoint.')
     parser.add_argument('--negative_elevs', default=False, help='Use negative elevations in training.')

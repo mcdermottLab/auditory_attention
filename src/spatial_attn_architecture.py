@@ -163,7 +163,7 @@ class CNN2DExtractor(nn.Module):
 class BaseAuditoryNetworkForTransfer(nn.Module):
     ''' CNN wrapper, includes relu and layer-norm if applied'''
 
-    def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout, fc_size=512, global_avg_cue=False, num_classes={"num_words":998, "num_locs":504}, double_size=False, **kwargs):
+    def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, n_layers=None, **kwargs):
         super(BaseAuditoryNetworkForTransfer, self).__init__()
         # Setup
         self.input_sr = input_sr
@@ -176,7 +176,7 @@ class BaseAuditoryNetworkForTransfer(nn.Module):
         self.pool_padding = pool_padding
         self.attn = attn
         self.frequency_dim = 40
-        self.n_layers = len(out_channels)
+        self.n_layers = n_layers if n_layers else len(out_channels)
 
         self.input_channels = kwargs.get('input_channels', 2)
 
@@ -189,7 +189,7 @@ class BaseAuditoryNetworkForTransfer(nn.Module):
             nIn = self.input_channels if idx == 0 else out_channels[idx - 1]
             nOut = out_channels[idx]
             # Convolutional block:
-            if self.pool_stride[idx] != -1:
+            if self.pool_stride[idx] != -1 and idx != self.n_layers - 1:
                 block = nn.Sequential(nn.LayerNorm([nIn, self.output_height, self.output_len]),
                                     conv2d_same.create_conv2d_pad(nIn, nOut, self.kernel[idx], stride=self.stride[idx], padding=self.padding[idx]),
                                     nn.ReLU(),
@@ -212,16 +212,11 @@ class BaseAuditoryNetworkForTransfer(nn.Module):
                 self.output_len = int(np.floor((self.output_len - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
 
         self.output_size = self.output_height * nOut * self.output_len
-        self.fullyconnected = nn.Linear(self.output_size, fc_size)
-        self.relufc = nn.ReLU()
 
     def forward(self, x):
         # pass cue through cnn & store reps
         x = self.model_dict["norm_coch_rep"](x)
         for idx in range(self.n_layers):
             x = self.model_dict[f'conv_block_{idx}'](x)
-        x = x
         x = x.view(x.size(0), self.output_size) # B x FC size
-        x = self.fullyconnected(x)        
-        x = self.relufc(x)
         return x 

@@ -74,7 +74,16 @@ class LocationClassifier(LightningModule):
         for param in aud_base.parameters():
             param.requires_grad = False  
         self.model = torch.compile(aud_base, mode="reduce-overhead")
-        self.classifier = torch.nn.Linear(config['model']['fc_size'], config['model']['num_classes']['num_locs'])
+        # add classifier to model
+        with_projection = self.model_config.get('with_projection', False)
+        if with_projection:
+            self.classifier = torch.nn.Sequential(
+                torch.nn.Linear(aud_base.output_size, config['model']['projection_size']),
+                torch.nn.ReLU(),
+                torch.nn.Linear(config['model']['projection_size'], config['model']['num_classes']['num_locs'])
+            )   
+        else:
+            self.classifier = torch.nn.Linear(aud_base.output_size, config['model']['num_classes']['num_locs'])
         self.classifier = torch.compile(self.classifier, mode="reduce-overhead")
 
         # Add input rep to model or audio transforms

@@ -1,13 +1,14 @@
 #!/bin/bash
 #SBATCH --job-name=finetune_localization
-#SBATCH --output=outLogs/finetune_binaural_attn_v07_%j.out
-#SBATCH --error=outLogs/finetune_binaural_attn_v07_%j.err
+#SBATCH --output=outLogs/finetune_binaural_attn_v07_%A_%a.out
+#SBATCH --error=outLogs/finetune_binaural_attn_v07_%A_%a.err
 #SBATCH --mem=24GB
 #SBATCH -N 1
 #SBATCH --cpus-per-task=4
 #SBATCH --time=1-00:00:00
-#SBATCH --partition=mcdermott
-#SBATCH --gres=gpu:a100:1
+#SBATCH --partition=use-everything
+#SBATCH --gres=gpu:1 --constraint=40GB
+#SBATCH --array=0-6
 
 #source /etc/profile.d/modules.sh
 #module use /cm/shared/modulefiles
@@ -28,3 +29,4 @@ python3 finetune_for_localization.py --config config/binaural_attn/word_task_sta
                                      --ckpt_path attn_cue_models/word_task_standard_v07/checkpoints/epoch=3-step=67111.ckpt \
                                      --gpus 1 --n_jobs 4  \
                                      --exp_dir finetune_localization \
+                                     --array_id $SLURM_ARRAY_TASK_ID

@@ -6,8 +6,8 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --time=3:00:00
 #SBATCH --partition=mcdermott
-#SBATCH --gres=gpu:a100:1
-#SBATCH -x node055
+#SBATCH --gres=gpu:a100:1 
+#SBATCH -x dgx001,dgx002,node093,node114
 
 # module load /openmind/miniconda
 module load openmind8/anaconda/3-2022.10

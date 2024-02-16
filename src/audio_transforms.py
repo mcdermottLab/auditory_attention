@@ -621,6 +621,7 @@ class CombineWithRandomDBSNR(torch.nn.Module):
         # TODO: filter out the signals that are only foreground or only background.
         # For now, to align with the jsinv3 dataset, we include the infinite SNR
         # cases
+
         if rms_foreground == 0: # No foreground condition (just noise)
             noise_scale_factor = 1
         elif rms_background == 0:
