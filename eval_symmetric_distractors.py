@@ -1,0 +1,281 @@
+import h5py
+import numpy as np
+import os
+import pandas as pd
+import pathlib
+import pickle
+import scipy.stats as stats
+import soxr
+#! change below to spatial_attn_lighting if want to use with modular 
+import src.spatial_attn_lightning as attn_tracking_lightning
+import src.audio_transforms as at
+import torch
+import yaml
+
+import argparse
+from argparse import ArgumentParser
+from corpus.speaker_room_dataset import SpeakerRoomDataset
+from tqdm.auto import tqdm
+from datetime import datetime
+import sys
+
+
+torch.set_float32_matmul_precision('medium') # use same as training
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
+
+# make torch.nn.Module version of spatilaize
+class Spatialize(torch.nn.Module):
+    def __init__(self, ir, model_sr=50_000):
+        super(Spatialize, self).__init__()
+        ir = torch.flip(torch.from_numpy(ir), dims=[0]).float()
+        self.n_taps = ir.shape[0]
+        ir = ir.T.unsqueeze(1)
+        # set center crop of 2.5 seconds relative to model_sr
+        self.start_frame = int(model_sr * 0.25)
+        self.end_frame = int(model_sr * 2.75)
+
+        self.register_buffer("ir", ir)
+
+    def forward(self, words):
+        n_words = words.shape[0]
+        # pad last dim of words with ir.shape[0] - 1 zeros
+        words_padded = torch.nn.functional.pad(words, (self.n_taps - 1, 0))
+        spatialized = torch.nn.functional.conv1d(words_padded.view(n_words, 1, -1), self.ir)
+        # resize to desired shape
+        spatialized = spatialized[:, :, self.start_frame:self.end_frame]
+        return spatialized
+
+def run_eval(args):
+    
+    model_name = args.model_name
+    checkpoint_path = args.ckpt_path
+    cue_type = args.cue_type
+
+    # load model config 
+    config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
+    config['num_workers'] = args.n_jobs
+    config['hparas']['batch_size'] = 30 # config['data']['loader']['batch_size'] // args.gpus
+    # get model input sr for brir resampling
+    model_in_sr = config['audio']['rep_kwargs']['sr']
+
+    idx = args.location_idx
+    test_dict = pickle.load(open(args.test_manifest, 'rb'))
+    n_per_job = args.n_per_job
+    start = idx * n_per_job
+    end = start + n_per_job
+
+    experiment_dir = f"{args.exp_dir}/{model_name}"
+    if not os.path.exists(experiment_dir):
+        os.makedirs(experiment_dir)
+    model = attn_tracking_lightning.BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config, strict=False).cuda()
+    # define audio transforms to standardize eval transforms across models (v05 skips BinauralCombineWithRandomDBSNR)
+    audio_transforms_0_db = at.AudioCompose([
+                        at.AudioToTensor(),
+                        at.BinauralCombineWithRandomDBSNR(low_snr=0,    # is 0 dB
+                                                        high_snr=0), # is 0 dB 
+                        at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+                ])
+
+    audio_transforms_0_db = audio_transforms_0_db.cuda()
+    # to inference mode 
+    model = model.eval()
+    coch_gram = model.coch_gram.cuda()
+
+    # set up dataset and dataloader
+    if args.modulated_ssn_distractors:
+        print("Using modulated ssn distractors")
+    
+    dataset = SpeakerRoomDataset(manifest_path='/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl',
+                                excerpt_path='/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl',
+                                cue_type=cue_type,
+                                sr=model_in_sr,
+                                symmetric_distractor_test=True,
+                                modulated_ssn_distractors=args.modulated_ssn_distractors) 
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
+
+    new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
+    only14_manifest = new_room_manifest[(new_room_manifest['src_dist'] == 1.4) & (new_room_manifest['index_room'] == 0)]
+    
+    for idx in range(start,end):
+        target_loc = test_dict[idx]['target_loc']
+        distract_loc = test_dict[idx]['distract_loc']
+        threshold_snr = test_dict[idx]['snr']
+
+        audio_transforms_test_db = at.AudioCompose([
+                        at.AudioToTensor(),
+                        at.BinauralCombineWithRandomDBSNR(low_snr=threshold_snr,    
+                                                        high_snr=threshold_snr), 
+                        at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+                ])
+        audio_transforms_test_db = audio_transforms_test_db.cuda()
+
+        if args.modulated_ssn_distractors:
+            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_modulated_ssn"
+        else:
+            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR"        
+        print(log_name)
+        output_name = str(experiment_dir) + log_name + '.pkl'
+        if idx % 10 == 0:
+            print("Overwrite ", args.overwrite)
+        if not args.overwrite and os.path.exists(output_name):
+            continue
+
+        ir_dict = dict()
+        for loc in ['target', 'distractor_l', 'distractor_r']:
+            if loc == 'target':
+                coords = target_loc
+            elif loc == 'distractor_r':
+                coords = distract_loc.copy()
+                coords[0] = 360 - coords[0] if coords[0] != 0 else 0 
+            elif loc == 'distractor_l':
+                coords = distract_loc.copy()
+            df_row = only14_manifest[(only14_manifest['src_azim'] == coords[0]) & (only14_manifest['src_elev'] == coords[1])]
+            h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{df_row["index_room"].values[0]}.hdf5'
+            index_brir = df_row['index_brir'].values[0]
+            sr_src = df_row['sr'].values[0]
+            with h5py.File(h5_fn, 'r') as f:
+                brir = f['brir'][index_brir]
+            if model_in_sr != sr_src:
+                brir = soxr.resample(brir.astype(np.float32), sr_src, model_in_sr)
+            ir_dict[loc] = brir.astype(np.float32)
+
+        tar_brir = Spatialize(ir_dict['target'], model_sr=model_in_sr).cuda()
+        dist_brir_l = Spatialize(ir_dict['distractor_l'], model_sr=model_in_sr).cuda()
+        dist_brir_r = Spatialize(ir_dict['distractor_r'], model_sr=model_in_sr).cuda()
+
+        output_dict = {'results': None, 'confusions': None}
+        accuracies = []
+        confusions = []
+        pred_list = []
+        true_word_int = []
+
+        with torch.no_grad(): 
+            for batch in tqdm(dataloader):
+                cue, fg, bg, bg_2, label, dist_word_label, dist_word_label2 = batch
+                # spatialize signals 
+                cue = tar_brir(cue.cuda())
+                foreground = tar_brir(fg.cuda())
+                background_l = dist_brir_l(bg.cuda())
+                background_r = dist_brir_r(bg_2.cuda())
+                ## set to desired SNR and SPL 
+                cue, _ = audio_transforms_0_db(cue, None)
+                # Set left/right distractor to same level and mix
+                mixed_bg, _ = audio_transforms_0_db(background_l, background_r)
+                # Set foreground to distractor at given SNR, then set to 60dB  
+                mixture, _ = audio_transforms_test_db(foreground, mixed_bg)
+                
+                cue, mixture = coch_gram(cue, mixture)
+                logits = model(cue, mixture, None)
+                # Unpack desired metrics 
+                preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach().numpy().astype('int')
+                true_word = label.numpy().astype('int')
+                dist_word_label = dist_word_label.numpy().astype('int')
+                dist_word_label2 = dist_word_label2.numpy().astype('int')
+                accuracy = (preds == true_word).astype('int')
+                # confusion made if preds == dist_word_label or dist_word_label2
+                cons_1 = (preds == dist_word_label).astype('int')
+                cons_2 = (preds == dist_word_label2).astype('int')
+                cons = np.bitwise_or(cons_1, cons_2) # get union of confusions
+                accuracies.append(accuracy)
+                confusions.append(cons)
+                pred_list.append(preds)
+                true_word_int.append(true_word)
+        accuracies = np.concatenate(accuracies)
+        confusions = np.concatenate(confusions)
+        preds = np.concatenate(pred_list)
+        true_word_int = np.concatenate(true_word_int)
+
+        # Prep output then save for this test 
+        output_dict['results'] = accuracies
+        output_dict['confusions'] = confusions
+        output_dict['preds'] = preds
+        output_dict['true_word_int'] = true_word_int
+        
+        print(f"Test {distract_loc[0]} azimuth distractor at {threshold_snr} SNR")
+        print(f"Accuracy: {accuracies.mean()}")
+        print(f"Confusions: {confusions.mean()}")
+
+        with open(output_name, 'wb') as f:
+            pickle.dump(output_dict, f)
+
+def cli_main():
+    parser = ArgumentParser()
+    parser.add_argument('--config', type=str, default="", help='Path to model config.')
+    parser.add_argument(
+        "--exp_dir",
+        default=pathlib.Path("./exp"),
+        type=pathlib.Path,
+        help="Directory to save checkpoints and logs to. (Default: './exp')",
+    )
+    parser.add_argument(
+        "--test_manifest",
+        default=pathlib.Path("/om2/user/imgriff/Auditory-Attention/speaker_room_0_elev_conditions.pkl"),
+        type=pathlib.Path,
+        help="path manifest of target and distractor locations to use for evaluation",
+    )
+    parser.add_argument(
+        "--ckpt_path",
+        default=pathlib.Path("./exp"),
+        type=pathlib.Path,
+        help="path to checkpoint (Default: './exp')",
+    )
+    parser.add_argument(
+        "--cue_type",
+        default='voice',
+        type=str,
+        help="type of cue to use (Default: 'voice')",
+    )
+    parser.add_argument(
+        "--model_name",
+        default='BinauralAttn_Word_Task_Voice_Cue',
+        type=str,
+        help="Name of model to use in file name.",
+    )
+    parser.add_argument(
+        "--location_idx",
+        type=int,
+        help="index into saved location dictionary",
+    )
+    parser.add_argument(
+        "--n_per_job",
+        default=10,
+        type=int,
+        help="Number location conditions to run per job. (Default: 10)",
+    )
+    parser.add_argument(
+        "--num_nodes",
+        default=1,
+        type=int,
+        help="Number of nodes to use for training. (Default: 1)",
+    )
+    parser.add_argument(
+        "--gpus",
+        default=1,
+        type=int,
+        help="Number of GPUs per node to use for training. (Default: 1)",
+    )
+    parser.add_argument(
+        "--n_jobs",
+        default=0,
+        type=int,
+        help="Number of CPUs for dataloader. (Default: 0)",
+    )
+    # create overwrite flag to handle overwrite of existing results
+    parser.add_argument(
+        "--overwrite",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will overwrite existing results",
+    )
+    parser.add_argument(
+        "--modulated_ssn_distractors",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will use festen and plomp style modulated ssn maskers as distractors"
+    )
+
+    args = parser.parse_args()
+
+    run_eval(args)
+
+
+if __name__ == "__main__":
+    cli_main()

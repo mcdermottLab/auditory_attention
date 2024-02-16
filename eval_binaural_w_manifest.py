@@ -8,12 +8,15 @@ import scipy.stats as stats
 import soxr
 #! change below to spatial_attn_lighting if want to use with modular 
 import src.spatial_attn_lightning as attn_tracking_lightning
+import src.audio_transforms as at
 import torch
 import yaml
 
+import argparse
 from argparse import ArgumentParser
 from corpus.speaker_room_dataset import SpeakerRoomDataset
 from tqdm.auto import tqdm
+from datetime import datetime
 
 torch.set_float32_matmul_precision('medium') # use same as training
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
@@ -30,19 +33,24 @@ os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 
 # make torch.nn.Module version of spatilaize
 class Spatialize(torch.nn.Module):
-    def __init__(self, ir):
+    def __init__(self, ir, model_sr=50_000):
         super(Spatialize, self).__init__()
-        ir = torch.flip(torch.from_numpy(ir), dims=[0])
+        ir = torch.flip(torch.from_numpy(ir), dims=[0]).float()
+        self.n_taps = ir.shape[0]
         ir = ir.T.unsqueeze(1)
-        self.ir = torch.nn.Parameter(ir, requires_grad=False)
+        # set center crop of 2.5 seconds relative to model_sr
+        self.start_frame = int(model_sr * 0.25)
+        self.end_frame = int(model_sr * 2.75)
+
+        self.register_buffer("ir", ir)
 
     def forward(self, words):
         n_words = words.shape[0]
         # pad last dim of words with ir.shape[0] - 1 zeros
-        words_padded = torch.nn.functional.pad(words, (self.ir.shape[0] - 1, 0))
+        words_padded = torch.nn.functional.pad(words, (self.n_taps - 1, 0))
         spatialized = torch.nn.functional.conv1d(words_padded.view(n_words, 1, -1), self.ir)
         # resize to desired shape
-        spatialized = spatialized[:, :, 12500:137500]
+        spatialized = spatialized[:, :, self.start_frame:self.end_frame]
         return spatialized
 
 def run_eval(args):
@@ -52,9 +60,11 @@ def run_eval(args):
 
     config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
     config['num_workers'] = args.n_jobs
-    config['hparas']['batch_size'] = 40 # config['data']['loader']['batch_size'] // args.gpus
+    config['hparas']['batch_size'] = 30 # config['data']['loader']['batch_size'] // args.gpus
     config['noise_kwargs']['low_snr'] = 0
     config['noise_kwargs']['high_snr'] = 0
+    # get model input sr for brir resampling
+    model_in_sr = config['audio']['rep_kwargs']['sr']
 
     #TODO handle multiple elevations
     idx = args.location_idx
@@ -67,14 +77,26 @@ def run_eval(args):
     end = start + n_per_job
 
     experiment_dir = f"{args.exp_dir}/{model_name}"
+    if not os.path.exists(experiment_dir):
+        os.makedirs(experiment_dir)
     model = attn_tracking_lightning.BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config, strict=False).cuda()
-    audio_transforms = model.audio_transforms.cuda()
+    # define audio transforms to standardize eval transforms across models (v05 skips BinauralCombineWithRandomDBSNR)
+    audio_transforms = at.AudioCompose([
+                    at.AudioToTensor(),
+                    at.BinauralCombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'],    # is 0 dB
+                                                      high_snr=config['noise_kwargs']['high_snr']), # is 0 dB 
+                    at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+            ])
+    audio_transforms = audio_transforms.cuda()
     # to inference mode 
     model = model.eval()
     coch_gram = model.coch_gram.cuda()
 
     # set up dataset and dataloader
-    dataset = SpeakerRoomDataset('/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl', '/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl', cue_type)
+    dataset = SpeakerRoomDataset(manifest_path='/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl',
+                                excerpt_path='/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl',
+                                cue_type=cue_type,
+                                sr=model_in_sr) 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
 
     new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
@@ -84,8 +106,13 @@ def run_eval(args):
         target_loc = loc_dict[idx][0]
         distract_loc = loc_dict[idx][1]
 
-        log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}"
+        log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}"        
         print(log_name)
+        output_name = str(experiment_dir) + log_name + '.pkl'
+        if idx % 10 == 0:
+            print("Overwrite ", args.overwrite)
+        if not args.overwrite and os.path.exists(output_name):
+            continue
         ir_dict = dict()
         for loc in ['target', 'distractor', 'cue']:
             if loc == 'target':
@@ -103,13 +130,13 @@ def run_eval(args):
             sr_src = df_row['sr'].values[0]
             with h5py.File(h5_fn, 'r') as f:
                 brir = f['brir'][index_brir]
-            sr = 50000
-            brir = soxr.resample(brir.astype(np.float32), sr_src, sr)
-            ir_dict[loc] = brir
+            if model_in_sr != sr_src:
+                brir = soxr.resample(brir.astype(np.float32), sr_src, model_in_sr)
+            ir_dict[loc] = brir.astype(np.float32)
 
-        tar_brir = Spatialize(ir_dict['target']).cuda()
-        dist_brir = Spatialize(ir_dict['distractor']).cuda()
-        cue_brir = Spatialize(ir_dict['cue']).cuda()
+        tar_brir = Spatialize(ir_dict['target'], model_sr=model_in_sr).cuda()
+        dist_brir = Spatialize(ir_dict['distractor'], model_sr=model_in_sr).cuda()
+        cue_brir = Spatialize(ir_dict['cue'], model_sr=model_in_sr).cuda()
 
         output_dict = {'results': None, 'confusions': None}
         accuracies = []
@@ -153,9 +180,8 @@ def run_eval(args):
         output_dict['preds'] = preds
         output_dict['true_word_int'] = true_word_int
 
-        if not os.path.exists(experiment_dir):
-            os.makedirs(experiment_dir)
-        with open(str(experiment_dir) + log_name + '.pkl', 'wb') as f:
+
+        with open(output_name, 'wb') as f:
             pickle.dump(output_dict, f)
 
 def cli_main():
@@ -214,7 +240,12 @@ def cli_main():
         type=int,
         help="Number of CPUs for dataloader. (Default: 0)",
     )
-
+    # create overwrite flag to handle overwrite of existing results
+    parser.add_argument(
+        "--overwrite",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will overwrite existing results",
+    )
 
     args = parser.parse_args()
 

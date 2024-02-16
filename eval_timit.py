@@ -101,14 +101,24 @@ def run_eval(args):
 
     logger = CSVLogger(experiment_dir, name=log_name)
 
-    trainer = Trainer(
-        default_root_dir=experiment_dir,
-        deterministic=True,
-        num_nodes=args.num_nodes,
-        gpus=args.gpus,
-        accelerator="gpu" if args.gpus > 0 else 'cpu',
-        logger=logger
-    )
+    if torch.__version__ >= '2.0.0':
+        trainer = Trainer(
+            default_root_dir=experiment_dir,
+            deterministic=True,
+            num_nodes=args.num_nodes,
+            devices=args.gpus,
+            accelerator="gpu" if args.gpus > 0 else 'cpu',
+            logger=logger
+        )
+    else:
+        trainer = Trainer(
+            default_root_dir=experiment_dir,
+            deterministic=True,
+            num_nodes=args.num_nodes,
+            gpus=args.gpus,
+            accelerator="gpu" if args.gpus > 0 else 'cpu',
+            logger=logger
+        )  
     
     # load model checkpoint 
     print(checkpoint_path)

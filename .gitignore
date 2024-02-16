@@ -166,3 +166,7 @@ tests/sample_data/gigaspeech_words-10k.vocab
 prelim_binaural_figs/avg_perf_confusion_at_0_elev.pdf
 prelim_binaural_figs/diff_min_same_confusion_at_0_elev.pdf
 *.ckpt
+*.png 
+*.svg
+*.pdf
+*.h5

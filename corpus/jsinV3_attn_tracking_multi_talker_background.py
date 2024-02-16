@@ -52,8 +52,11 @@ class H5Dataset(torch.utils.data.Dataset):
         """
         self.file_path = path
         self.dataset = None
-        self.transform = transform[0]
-        self.bg_transform = transform[1]
+        if transform:
+            self.transform = transform[0]
+            self.bg_transform = transform[1]
+        else:
+            self.transform = None 
         self.target_keys = target_keys
         self.n_talkers = n_talkers
         print(self.n_talkers)
@@ -131,6 +134,9 @@ class H5Dataset(torch.utils.data.Dataset):
                 fg_target[target_key] = self.dataset['sources'][target_paths[0]][target_paths[1]][index]
                 if target_key == 'noise/labels_binary_via_int':
                     fg_target[target_key] = fg_target[target_key].astype(np.float32)
+
+        if self.demo and not self.transform:
+            return foreground, background, fg_cue, fg_target
         if self.demo:
             return foreground, background, signal, fg_cue, fg_target
         return signal, fg_cue, fg_target

@@ -60,11 +60,18 @@ class BinauralAttentionModule(LightningModule):
         # set dataset as attribute
         self.dataset = BinauralAttentionDataset 
 
-        self.audio_transforms = at.AudioCompose([
-            at.AudioToTensor(),
-            at.BinauralCombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
-            at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
-        ])
+        if 'v05' in self.corpora_config['root']:
+            # signals are pre-combined and normalized - normalize again for certainty 
+            self.audio_transforms = at.AudioCompose([
+                at.AudioToTensor(),
+                at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+            ])
+        else:
+            self.audio_transforms = at.AudioCompose([
+                at.AudioToTensor(),
+                at.BinauralCombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
+                at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+            ])
 
         self.test_step = self._test_step
 
@@ -76,9 +83,6 @@ class BinauralAttentionModule(LightningModule):
             ])
 
         # Init Model
-        # fc_attn_only = self.model_config.get('fc_attn_only', False) 
-        # fc_size = self.model_config.get('fc_size', 4096)
-        # global_avg_cue = self.model_config.get('global_avg_cue', False)
         # Get model architecture
         model = CNN2DExtractor(**self.model_config) 
         # check if torch version 2 or greater - if so, compile model
@@ -87,16 +91,6 @@ class BinauralAttentionModule(LightningModule):
         # Add input rep to model or audio transforms
         self.rep_on_gpu = self.audio_config['rep_kwargs']['rep_on_gpu']
         self.coch_gram = cm.AttnAudioInputRepresentation(**self.audio_config)
-        # if  self.rep_on_gpu:
-        #     self.model = cm.AttnSequentialAttacker(
-        #         cm.AttnAudioInputRepresentation(**self.audio_config),
-        #         self.model
-        #     )
-        # else:
-        #     self.audio_transforms = at.AudioCompose([
-        #         self.audio_transforms,
-        #         at.AudioToAudioRepresentation(**self.audio_config)
-        #     ])
 
         # Losses
         self.loss_fn = torch.nn.CrossEntropyLoss()
@@ -130,13 +124,9 @@ class BinauralAttentionModule(LightningModule):
         if self.constrain_slope:
             self.slope_constraint = AttnSlopeConstraint(min_val=0)
 
-        # Optimizer
-        opt = getattr(torch.optim, self.hparas_config['optimizer'])
-        model_params = [{'params': self.model.parameters()}]
-        self.optimizer = opt(model_params, lr=self.hparas_config['lr'], eps=self.hparas_config['eps'])       
-        
     def _step(self, batch, batch_idx, step_type):
         if batch is None:
+            print(f"Batch on step {batch_idx} was None")
             return None
         cue_features, cue_mask_ixs, scene_features, labels = batch
 
@@ -164,6 +154,19 @@ class BinauralAttentionModule(LightningModule):
 
         return loss
 
+    def on_before_optimizer_step(self, _):
+        def _get_grad_norm(params, scale=1):
+            """Compute grad norm given a gradient scale."""
+            total_norm = 0.0
+            for p in params:
+                if p.grad is not None:
+                    param_norm = (p.grad.detach().data / scale).norm(2)
+                    total_norm += param_norm.item() ** 2
+            total_norm = total_norm**0.5
+            return total_norm
+        grad_norm = _get_grad_norm(self.model.parameters())
+        self.log("grad_norm", torch.tensor(grad_norm), prog_bar=True, on_step=True, on_epoch=False)
+
     def on_before_zero_grad(self, *args, **kwargs):
         for module in self.attn_modules:
             module.apply(self.bias_constraint)
@@ -171,7 +174,21 @@ class BinauralAttentionModule(LightningModule):
                 module.apply(self.slope_constraint)
 
     def configure_optimizers(self):
-        return [self.optimizer]
+        # Optimizer
+        opt = getattr(torch.optim, self.hparas_config['optimizer'])
+        model_params = [{'params': self.model.parameters()}]
+        self.optimizer = opt(model_params, lr=self.hparas_config['lr'], eps=self.hparas_config['eps'])       
+        ## New for v05 dataset - use lr Scheduler 
+        # lr_schedule = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 
+        #                                                        mode='max', # monitoring val_acc, want max
+        #                                                        factor=0.1,
+        #                                                        patience=0.25, # wait a quarter epoch if plateaued
+        #                                                        threshold=0.0001,
+        #                                                        threshold_mode='rel',
+        #                                                        min_lr=1e-7, 
+        #                                                        verbose=True)
+        # schedule = {"scheduler":lr_schedule, "monitor": self.config['val_metric']}
+        return [self.optimizer]#, schedule
 
     def forward(self, cue: torch.tensor, scene: torch.tensor, cue_mask_ixs: torch.tensor):
         outputs = self.model(cue, scene, cue_mask_ixs)
@@ -227,6 +244,7 @@ class BinauralAttentionModule(LightningModule):
 
     def test_timit(self, batch, batch_idx):
         cue_features, cue_mask_ixs, scene_features, labels = batch
+        cue_features, scene_features = self.coch_gram(cue_features, scene_features)
         self.log(f"true_word_ix", labels.float(), on_step=True, on_epoch=False)
         # self() is self.forward()  
         fg_outputs = self(cue_features, scene_features, cue_mask_ixs) 
@@ -268,10 +286,11 @@ class BinauralAttentionModule(LightningModule):
         return features
 
     def _collate_fn(self, samples: List):
+        # samples is a single-element list holding a tuple batches
         samples = samples[0]
-        cue_features = self.audio_transforms(samples[0], None)[0]
+        cue_features, _ = self.audio_transforms(samples[0], None)
         cue_mask_ixs = None
-        scene_features = self.audio_transforms(samples[1], samples[2])[0]
+        scene_features, _ = self.audio_transforms(samples[1], samples[2])
         labels = torch.from_numpy(samples[3]).type(torch.LongTensor)
         return cue_features, cue_mask_ixs, scene_features, labels
 
@@ -303,6 +322,7 @@ class BinauralAttentionModule(LightningModule):
             batch_size=1,
             num_workers=self.config['num_workers'],
             collate_fn=self._collate_fn,
+            shuffle=False
         )
         return dataloader
 

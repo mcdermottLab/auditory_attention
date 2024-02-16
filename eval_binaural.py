@@ -38,6 +38,8 @@ def run_eval(args):
     config['hparas']['batch_size'] = 30 # config['data']['loader']['batch_size'] // args.gpus
     config['noise_kwargs']['low_snr'] = 0
     config['noise_kwargs']['high_snr'] = 0
+    model_in_sr = config['audio']['rep_kwargs']['sr']
+
 
     #TODO handle multiple elevations
     idx = args.location_idx
@@ -86,8 +88,9 @@ def run_eval(args):
             sr_src = df_row['sr'].values[0]
             with h5py.File(h5_fn, 'r') as f:
                 brir = f['brir'][index_brir]
-            sr = 50000
-            brir = soxr.resample(brir.astype(np.float32), sr_src, sr)
+            # if different sampling rates, resample brir to match model input rate 
+            if model_in_sr != sr_src:
+                brir = soxr.resample(brir.astype(np.float32), sr_src, model_in_sr)
             ir_dict[loc] = brir
 
         tar_brir = torch.from_numpy(ir_dict['target'])
@@ -98,7 +101,11 @@ def run_eval(args):
         cue_brir = torch.flip(cue_brir, dims=[0])
 
         # can find way to re_init more efficiently
-        dataset = SpeakerRoomDataset('/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl', '/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl', cue_type)
+        dataset = SpeakerRoomDataset(manifest_path='/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl',
+                                    excerpt_path='/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl',
+                                    cue_type=cue_type,
+                                    sr=model_in_sr)
+        
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
 
         output_dict = {'results': None, 'confusions': None}
