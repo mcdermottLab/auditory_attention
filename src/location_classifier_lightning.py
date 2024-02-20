@@ -84,7 +84,7 @@ class LocationClassifier(LightningModule):
             )   
         else:
             self.classifier = torch.nn.Linear(aud_base.output_size, config['model']['num_classes']['num_locs'])
-        self.classifier = torch.compile(self.classifier, mode="reduce-overhead")
+        # self.classifier = torch.compile(self.classifier, mode="reduce-overhead")
 
         # Add input rep to model or audio transforms
         self.rep_on_gpu = self.audio_config['rep_kwargs']['rep_on_gpu']

@@ -6,7 +6,7 @@ from src.layers import conv2d_same
 from src.custom_modules import HannPooling2d
 
 class SimpleAttentionalGain(nn.Module):
-    def __init__(self, frequency_dim, cnn_channels, global_avg_cue=False):
+    def __init__(self, frequency_dim, cnn_channels, global_avg_cue=False, n_cue_frames=None, **kwargs):
         super(SimpleAttentionalGain, self).__init__()
         self.frequency_dim = frequency_dim
         if global_avg_cue:
@@ -18,6 +18,8 @@ class SimpleAttentionalGain(nn.Module):
         self.bias = nn.Parameter(torch.zeros(1)) # init gain scaling to zero
         self.slope = nn.Parameter(torch.ones(1)) # init slope to one
         self.threshold = nn.Parameter(torch.zeros(1)) # init threshold to zero
+        self.n_cue_frames = n_cue_frames # duration of cue in frames - full cue if None
+    
         self.reset_parameters() 
 
     def reset_parameters(self):
@@ -28,6 +30,12 @@ class SimpleAttentionalGain(nn.Module):
     def forward(self, cue, mixture, cue_mask_ixs):
         ## Process cue 
         # time average - same as nn op, but is compat with compile 
+        if self.n_cue_frames:
+            cue_dur = cue.shape[-1]
+            diff = (cue_dur - self.n_cue_frames) // 2
+            frame_start = diff 
+            frame_end = int(cue_dur - diff)
+            cue = cue[..., frame_start : frame_end]
         cue = cue.mean(axis=-1,keepdim=True)
         # cue = self.time_average(cue)
         # apply threshold shift
@@ -47,7 +55,8 @@ class SimpleAttentionalGain(nn.Module):
 class CNN2DExtractor(nn.Module):
     ''' CNN wrapper, includes relu and layer-norm if applied'''
 
-    def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout, fc_size=512, global_avg_cue=False, num_classes={"num_words":998, "num_locs":504}, double_size=False, **kwargs):
+    def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
+                  fc_size=512, global_avg_cue=False, num_classes={"num_words":998, "num_locs":504}, residual_attn=False, double_size=False, n_cue_frames=None, **kwargs):
         super(CNN2DExtractor, self).__init__()
         # Setup
         print(f"{num_classes=}")
@@ -82,12 +91,16 @@ class CNN2DExtractor(nn.Module):
         self.n_layers = len(out_channels)
 
         self.input_channels = kwargs.get('input_channels', 2)
+        self.n_cue_frames = n_cue_frames
+        self.residual_attn = residual_attn
+        if residual_attn:
+            print(f"Using residual attention")
 
         self.model_dict = nn.ModuleDict()
         self.output_height = self.frequency_dim
         self.output_len = 20000 # softcode eventually
         self.model_dict["norm_coch_rep"]= nn.LayerNorm([self.input_channels, self.frequency_dim, self.output_len])
-        self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, self.input_channels, global_avg_cue=global_avg_cue)
+        self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, self.input_channels, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
 
         for idx in range(self.n_layers):
             nIn = self.input_channels if idx == 0 else out_channels[idx - 1]
@@ -110,14 +123,18 @@ class CNN2DExtractor(nn.Module):
             else:
                 self.output_height = int(np.floor((self.output_height - kernel[idx][0] + 2 * padding[idx][0]) / stride[idx][0]) + 1)
                 self.output_len = int(np.floor((self.output_len -  kernel[idx][1] + 2 * padding[idx][1]) / stride[idx][1]) + 1)
+                if self.n_cue_frames:
+                    self.n_cue_frames = int(np.floor((self.n_cue_frames - kernel[idx][1] + 2 * padding[idx][1]) / stride[idx][1]) + 1)
             if self.pool_stride[idx] != -1:
                 # pooling layers
                 self.output_height = int(np.floor((self.output_height - pool_size[idx][0] + 2 * pool_padding[idx][0]) / pool_stride[idx][0]) + 1)
                 self.output_len = int(np.floor((self.output_len - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
+                if self.n_cue_frames:
+                    self.n_cue_frames = int(np.floor((self.n_cue_frames - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
             # Attentional block:
             if self.attn[idx] == 1:
-                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nOut, global_avg_cue=global_avg_cue)
-
+                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nOut, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
+                
         self.output_size = self.output_height * nOut * self.output_len
         self.fullyconnected = nn.Linear(self.output_size, fc_size)
         self.relufc = nn.ReLU()
@@ -130,22 +147,30 @@ class CNN2DExtractor(nn.Module):
             self.classification = nn.Linear(fc_size, num_classes)
 
     def forward(self, cue=None, mixture=None, cue_mask_ixs=None):
-        # pass cue through cnn & store reps
         if cue == None:
             mixture = self.model_dict["norm_coch_rep"](mixture)
             for idx in range(self.n_layers):
                 mixture = self.model_dict[f'conv_block_{idx}'](mixture)
+                # print(f"conv_block_{idx}, {mixture.max(), mixture.min()}")
             out = mixture
 
         else:
             cue = self.model_dict["norm_coch_rep"](cue)
             mixture = self.model_dict["norm_coch_rep"](mixture)
-            attn = self.model_dict["attn_block_in"](cue, mixture, cue_mask_ixs)
+            if self.residual_attn:
+                attn = self.model_dict["attn_block_in"](cue, mixture, cue_mask_ixs) + mixture
+            else:
+                attn = self.model_dict["attn_block_in"](cue, mixture, cue_mask_ixs)
             for idx in range(self.n_layers):
                 cue = self.model_dict[f'conv_block_{idx}'](cue)
                 attn = self.model_dict[f'conv_block_{idx}'](attn)
+                # print(f"conv_block_{idx} pre attn, {attn.max(), attn.min()}")
                 if self.attn[idx] == 1:
-                    attn = self.model_dict[f'attn{idx}'](cue, attn, cue_mask_ixs)
+                    if self.residual_attn:
+                        attn = self.model_dict[f'attn{idx}'](cue, attn, cue_mask_ixs) + attn
+                    else:
+                        attn = self.model_dict[f'attn{idx}'](cue, attn, cue_mask_ixs)
+                    # print(f"conv_block_{idx} post attn, {attn.max(), attn.min()}")
             out = attn
 
         out = out.view(out.size(0), self.output_size) # B x FC size
@@ -206,7 +231,7 @@ class BaseAuditoryNetworkForTransfer(nn.Module):
             else:
                 self.output_height = int(np.floor((self.output_height - kernel[idx][0] + 2 * padding[idx][0]) / stride[idx][0]) + 1)
                 self.output_len = int(np.floor((self.output_len -  kernel[idx][1] + 2 * padding[idx][1]) / stride[idx][1]) + 1)
-            if self.pool_stride[idx] != -1:
+            if self.pool_stride[idx] != -1 and idx != self.n_layers - 1:
                 # pooling layers
                 self.output_height = int(np.floor((self.output_height - pool_size[idx][0] + 2 * pool_padding[idx][0]) / pool_stride[idx][0]) + 1)
                 self.output_len = int(np.floor((self.output_len - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)

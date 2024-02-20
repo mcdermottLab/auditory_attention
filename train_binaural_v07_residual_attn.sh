@@ -23,7 +23,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #module add openmind/cuda/12.3
 
 which python3
-python3 spatialtrain.py --config config/binaural_attn/word_task_20p_loc_v07_wider_SNR.yaml \
+python3 spatialtrain.py --config config/binaural_attn/word_task_20p_loc_v07_wider_SNR_residual_attn.yaml \
                  --gpus 4 --n_jobs 4 --resume_training True \
                  --exp_dir attn_cue_models \
 

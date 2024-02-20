@@ -29,19 +29,18 @@ def run_train(args):
         config_path = model_config[args.job_id]
         config_path = config_path.split("/Auditory-Attention/")[-1]
 
-    print(config_path)
     config_path = pathlib.Path(config_path)
     config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
 
     # add transfer learning config
     config['model']['num_classes']['num_locs'] = 504 # 360 azimuth and 90 in elevation
     del config['model']['num_classes']['num_words']
-    config['hparas']['batch_size'] = 40
+    config['hparas']['batch_size'] = 64
     config['corpus']['task'] = "location"
     config['corpus']['skip_negative_elev'] = True
     n_layers = args.array_id 
     config['model']['n_layers'] = n_layers
-    with_projection = False
+    with_projection = True
     config['model']['with_projection'] = with_projection
     with_projection_str = 'with_projection' if with_projection else 'no_projection'
     config['model']['projection_size'] = 512
@@ -49,11 +48,14 @@ def run_train(args):
     config['hparas']['lr'] = 0.0001
     config['num_workers'] = args.n_jobs
     checkpoint_path = args.ckpt_path
+    print(f"Training with config: {config_path.stem}")
+    print(f"Using checkpoint: {checkpoint_path}")
+    print(f"Using {n_layers} layers")
     model = LocationClassifier(config, ckpt_path=checkpoint_path)
     conv_modules = {name:module for name, module in model.model._orig_mod.model_dict.named_children() if 'conv' in name or 'relu' in name}
     classifier_layer = list(conv_modules.keys())[-1]
+    print(f"Using classifier layer: {classifier_layer}")
     callbacks = []
-
     model_dir = args.exp_dir / config_path.stem / f"{config_path.stem}_{classifier_layer}_{with_projection_str}"
     checkpoint_dir = model_dir / "checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -74,20 +76,23 @@ def run_train(args):
             save_weights_only=True,
             verbose=True,
         ))
-
+    print("Init trainer")
     trainer = Trainer(
         default_root_dir= model_dir,
         precision="32",
         max_epochs=config['hparas']['epochs'],
         num_nodes=1,
+        num_sanity_val_steps=2,
         # benchmark=True,
         devices=args.gpus, # was gpus=1,
         val_check_interval=500,
-        # gradient_clip_val=100,
+        gradient_clip_val=100,
         accelerator="gpu",
         profiler=None,
         callbacks=callbacks
     )
+    print("training")
+
     trainer.fit(model)
 
 
