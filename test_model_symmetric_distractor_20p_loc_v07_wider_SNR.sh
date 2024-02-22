@@ -7,7 +7,7 @@
 #SBATCH --time=0:15:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0-56
+#SBATCH --array=0-55%20 # 0-55 normally
 #SBATCH -x dgx001,dgx002
 
 module load openmind8/anaconda/3-2022.10
@@ -17,7 +17,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 which python3
 python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_20p_loc_v07_wider_SNR.yaml \
-                 --ckpt_path attn_cue_models/word_task_20p_loc_v07_wider_SNR/checkpoints/epoch=1-step=25434.ckpt \
+                 --ckpt_path attn_cue_models/word_task_20p_loc_v07_wider_SNR/checkpoints/epoch=0-step=10000.ckpt \
                  --test_manifest binaural_test_manifests/symmetric_distractor_conditions.pkl \
                  --model_name word_task_20p_loc_v07_wider_SNR --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/symmetric_distractor_test \

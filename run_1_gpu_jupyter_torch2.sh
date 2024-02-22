@@ -2,12 +2,12 @@
 #SBATCH --job-name=jupyter_notebook
 #SBATCH --output=outLogs/notebook%j.out
 #SBATCH --error=outLogs/notebook%j.err
-#SBATCH --mem=12Gb
+#SBATCH --mem=8Gb
 #SBATCH --cpus-per-task=2
 #SBATCH --time=3:00:00
 #SBATCH --partition=mcdermott
-#SBATCH --gres=gpu:a100:1 
-#SBATCH -x dgx001,dgx002,node093,node114,node107
+#SBATCH --gres=gpu:1  --constraint=20GB
+#SBATCH -x dgx001,dgx002,node093,node114,node107,node115,node109
 
 # module load /openmind/miniconda
 module load openmind8/anaconda/3-2022.10

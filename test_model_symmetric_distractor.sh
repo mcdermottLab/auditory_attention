@@ -7,7 +7,7 @@
 #SBATCH --time=0:15:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0-56 #0-56
+#SBATCH --array=27-30,37 #0-55
 #SBATCH -x dgx001,dgx002
 
 module load openmind8/anaconda/3-2022.10

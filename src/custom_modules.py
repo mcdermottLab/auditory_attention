@@ -169,7 +169,7 @@ class AttnAudioInputRepresentation(ch.nn.Module):
     representation for training, ie using a mel spectrogram or a
     cochleagram.
     '''
-    def __init__(self, rep_type, rep_kwargs, compression_type, compression_kwargs):
+    def __init__(self, rep_type, rep_kwargs, compression_type, compression_kwargs, **kwargs):
         super(AttnAudioInputRepresentation, self).__init__()
         self.rep_type = rep_type
         self.rep_kwargs = rep_kwargs

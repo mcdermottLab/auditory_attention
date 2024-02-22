@@ -17,7 +17,7 @@ import torchaudio.transforms as T
 downsampling_reps = {'SincWithKaiserWindow': chcochleagram.downsampling.SincWithKaiserWindow,
                      'TorchTransformsResample': T.Resample}
 
-def ch_demean(x, dim=0):
+def ch_demean(x, dim=0, mean_keepdim=False):
     '''
     Helper function to mean-subtract tensor.
     Args
@@ -28,22 +28,26 @@ def ch_demean(x, dim=0):
     -------
     x_demean (tensor): mean-subtracted tensor
     '''
-    x_demean = torch.sub(x, torch.mean(x, dim=dim))
+    x_demean = torch.sub(x, torch.mean(x, dim=dim, keepdim=mean_keepdim))
     return x_demean
 
 
-def ch_global_demean(x):
+def ch_global_demean(x, v2=False, dim=(-2,-1)):
     '''
     Helper function to globally mean-subtract tensor.
 
     Args
     ----
     x (tensor): tensor to be mean-subtracted
+    v2 (bool):  whether to use updated de-mean method
+    dim (tuple): kwarg for torch.mean (dim along which to compute mean)
 
     Returns
     -------
     x_demean (tensor): mean-subtracted tensor
     '''
+    if v2:
+        return ch_demean(x, dim=dim, mean_keepdim=True)
     x_demean = torch.sub(x, torch.mean(x))
     return x_demean
 
@@ -548,9 +552,10 @@ class BinauralRMSNormalizeForegroundAndBackground(torch.nn.Module):
     Returns:
         foreground_wav, background_wav
     """
-    def __init__(self, rms_level=0.1):
+    def __init__(self, rms_level=0.1, v2_demean=False):
         super(BinauralRMSNormalizeForegroundAndBackground, self).__init__()
         self.rms_level=rms_level
+        self.v2_demean=v2_demean
 
     def forward(self, foreground_wav, background_wav):
         """
@@ -561,7 +566,7 @@ class BinauralRMSNormalizeForegroundAndBackground(torch.nn.Module):
                 the background audio sample
         """
         if foreground_wav is not None:
-            foreground_wav = ch_global_demean(foreground_wav)
+            foreground_wav = ch_global_demean(foreground_wav, v2=self.v2_demean)
             rms_foreground = ch_global_rms(foreground_wav)
             if rms_foreground !=0:
                 foreground_wav = foreground_wav * self.rms_level / rms_foreground
@@ -570,7 +575,7 @@ class BinauralRMSNormalizeForegroundAndBackground(torch.nn.Module):
 #                 raise ValueError("Trying to RMS Normalize a signal that is all zeros")
 
         if background_wav is not None:
-            background_wav = ch_global_demean(background_wav)
+            background_wav = ch_global_demean(background_wav, v2=self.v2_demean)
             rms_background = ch_global_rms(background_wav)
             if rms_background !=0:
                 background_wav = background_wav * self.rms_level / rms_background
@@ -650,9 +655,10 @@ class BinauralCombineWithRandomDBSNR(torch.nn.Module):
         signal_in_noise, None
 
     """
-    def __init__(self, low_snr=-10, high_snr=10):
+    def __init__(self, low_snr=-10, high_snr=10, v2_demean=False):
         self.low_snr=low_snr
         self.high_snr=high_snr
+        self.v2_demean = v2_demean
         super(BinauralCombineWithRandomDBSNR, self).__init__()
 
     def forward(self, foreground_wav, background_wav):
@@ -670,8 +676,8 @@ class BinauralCombineWithRandomDBSNR(torch.nn.Module):
         rand_db_snr = random.uniform(self.low_snr, self.high_snr)
         rms_ratio = np.power(10.0, rand_db_snr / 20.0)
         # Demean signal and noise before computing rms
-        foreground_wav = ch_global_demean(foreground_wav)
-        background_wav = ch_global_demean(background_wav)
+        foreground_wav = ch_global_demean(foreground_wav, v2=self.v2_demean)
+        background_wav = ch_global_demean(background_wav, v2=self.v2_demean)
 
         rms_foreground = ch_global_rms(foreground_wav)
         rms_background = ch_global_rms(background_wav)

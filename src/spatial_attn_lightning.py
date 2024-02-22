@@ -10,7 +10,7 @@ from pytorch_lightning import LightningModule
 import src.audio_transforms as at
 import src.audio_attention_transforms as aat
 import src.custom_modules as cm
-from src.spatial_attn_architecture import CNN2DExtractor
+from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN
 from corpus.binaural_attention_h5 import BinauralAttentionDataset
 
 ## TO DO:  Import new dataset class
@@ -59,7 +59,6 @@ class BinauralAttentionModule(LightningModule):
 
         # set dataset as attribute
         self.dataset = BinauralAttentionDataset 
-
         if 'v05' in self.corpora_config['root']:
             # signals are pre-combined and normalized - normalize again for certainty 
             self.audio_transforms = at.AudioCompose([
@@ -67,10 +66,15 @@ class BinauralAttentionModule(LightningModule):
                 at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
             ])
         else:
+            v2_demean = self.audio_config.get('v2_demean', False)
+            if v2_demean:
+                print("Using explicit dim specificaion for demeaning in audio transforms")
             self.audio_transforms = at.AudioCompose([
                 at.AudioToTensor(),
-                at.BinauralCombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'], high_snr=config['noise_kwargs']['high_snr']),
-                at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+                at.BinauralCombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'],
+                                                  high_snr=config['noise_kwargs']['high_snr'],
+                                                  v2_demean=v2_demean),
+                at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02, v2_demean=v2_demean), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
             ])
 
         self.test_step = self._test_step
@@ -84,7 +88,11 @@ class BinauralAttentionModule(LightningModule):
 
         # Init Model
         # Get model architecture
-        model = CNN2DExtractor(**self.model_config) 
+        norm_first = self.model_config.get('norm_first', True)
+        if norm_first == False:
+            model = BinauralAuditoryAttentionCNN(**self.model_config)
+        else:
+            model = CNN2DExtractor(**self.model_config) 
         # check if torch version 2 or greater - if so, compile model
         self.model = torch.compile(model, mode="reduce-overhead")
 

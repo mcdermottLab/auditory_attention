@@ -93,8 +93,9 @@ def run_eval(args):
                                 modulated_ssn_distractors=args.modulated_ssn_distractors) 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
 
-    new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
-    only14_manifest = new_room_manifest[(new_room_manifest['src_dist'] == 1.4) & (new_room_manifest['index_room'] == 0)]
+    # use anechoic BRIRs for testing
+    new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/ruggles_shinncunningham_2011/manifest_brir.pdpkl')
+    only14_manifest = new_room_manifest[(new_room_manifest['index_room'] == 0)]
     
     for idx in range(start,end):
         target_loc = test_dict[idx]['target_loc']
@@ -119,7 +120,7 @@ def run_eval(args):
             print("Overwrite ", args.overwrite)
         if not args.overwrite and os.path.exists(output_name):
             continue
-
+        
         ir_dict = dict()
         for loc in ['target', 'distractor_l', 'distractor_r']:
             if loc == 'target':
@@ -130,7 +131,7 @@ def run_eval(args):
             elif loc == 'distractor_l':
                 coords = distract_loc.copy()
             df_row = only14_manifest[(only14_manifest['src_azim'] == coords[0]) & (only14_manifest['src_elev'] == coords[1])]
-            h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{df_row["index_room"].values[0]}.hdf5'
+            h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/ruggles_shinncunningham_2011/room0000.hdf5'
             index_brir = df_row['index_brir'].values[0]
             sr_src = df_row['sr'].values[0]
             with h5py.File(h5_fn, 'r') as f:
