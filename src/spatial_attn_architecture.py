@@ -3,6 +3,7 @@ import numpy as np
 import torch.nn as nn
 from collections import OrderedDict
 from src.layers import conv2d_same
+from src.layers import padding as pad_utils
 from src.custom_modules import HannPooling2d
 
 class SimpleAttentionalGain(nn.Module):
@@ -103,14 +104,14 @@ class CNN2DExtractor(nn.Module):
         self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, self.input_channels, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
 
         for idx in range(self.n_layers):
-            print(f"output height: {self.output_height}, output len: {self.output_len}")
+            # print(f"output height: {self.output_height}, output len: {self.output_len}")
             
             nIn = self.input_channels if idx == 0 else out_channels[idx - 1]
             nOut = out_channels[idx]
-            print(f"nIn: {nIn}, nOut: {nOut}")
+            # print(f"nIn: {nIn}, nOut: {nOut}")
             # Convolutional block:
             if self.pool_stride[idx] != -1:
-                print(f'nIn: {nIn}, nOut: {nOut}, kernel: {self.kernel[idx]}, stride: {self.stride[idx]}, padding: {self.padding[idx]}')
+                # print(f'nIn: {nIn}, nOut: {nOut}, kernel: {self.kernel[idx]}, stride: {self.stride[idx]}, padding: {self.padding[idx]}')
 
                 block = nn.Sequential(nn.LayerNorm([nIn, self.output_height, self.output_len]),
                                     conv2d_same.create_conv2d_pad(nIn, nOut, self.kernel[idx], stride=self.stride[idx], padding=self.padding[idx]),
@@ -120,6 +121,7 @@ class CNN2DExtractor(nn.Module):
                 block = nn.Sequential(nn.LayerNorm([nIn, self.output_height, self.output_len]),
                                     conv2d_same.create_conv2d_pad(nIn, nOut, self.kernel[idx], stride=self.stride[idx], padding=self.padding[idx]),
                                     nn.ReLU())
+
             self.model_dict[f'conv_block_{idx}'] = block
 
             # Compute output shapes using conv formula [(Height - Filter + 2Pad)/ Stride]+1
@@ -194,7 +196,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
 
     def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
                   fc_size=512, global_avg_cue=False, num_classes={"num_words":800, "num_locs":504}, frequency_dim=40,
-                  residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, **kwargs):
+                  residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, ln_affine=True, **kwargs):
         super(BinauralAuditoryAttentionCNN, self).__init__()
         # Setup
         print(f"{num_classes=}")
@@ -236,6 +238,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
         self.input_channels = kwargs.get('input_channels', 2)
         self.n_cue_frames = n_cue_frames
         self.residual_attn = residual_attn
+        self.ln_affine = ln_affine
         if residual_attn:
             print(f"Using residual attention")
 
@@ -260,33 +263,39 @@ class BinauralAuditoryAttentionCNN(nn.Module):
                 # is SimpleAttentionalGain(self.frequency_dim, self.input_channels, ... ) when ix == 0; normal for ix > 0 
                 self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nIn, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
 
-            # Convolutional block:
-            if self.norm_first:
-                # print(f'nIn: {nIn}, nOut: {nOut}, kernel: {self.kernel[idx]}, stride: {self.stride[idx]}, padding: {self.padding[idx]}')
+            # pre-compute conv output sizes - will assign to self.output_height and self.output_len after defining block
+            # Sizes will be used for normalization layers, but depend on order of norm and conv 
+            # norm -> conv gets prior output shapes, conv -> norm gets new output shapes)
+            # compute output shapes using conv formula [(Height + 2Pad - dilation * (kernel - 1) -1) /  Stride] + 1
+            # ignoring dilation since it's not used in this model (dilation = 1)
+            if self.padding[idx] == 'same':
+                pass
+            else:
+                conv_padding, _ = pad_utils.get_padding_value(self.padding[idx], self.kernel[idx], stride=self.stride[idx])
+                output_height = int(np.floor((self.output_height + (2 * conv_padding[0]) - (kernel[idx][0] - 1) - 1) / stride[idx][0]) + 1)
+                output_len = int(np.floor((self.output_len + (2 * conv_padding[1]) -  (kernel[idx][1] - 1) - 1) / stride[idx][1]) + 1)
+                if self.n_cue_frames:
+                    n_cue_frames =  int(np.floor((self.n_cue_frames + (2 * conv_padding[1]) -  (kernel[idx][1] - 1) - 1) / stride[idx][1]) + 1)
 
+
+            if self.norm_first:
+                print(f'nIn: {nIn}, nOut: {nOut}, kernel: {self.kernel[idx]}, stride: {self.stride[idx]}, padding: {self.padding[idx]}')
                 # if norm before conv, can use prior output shapes for norm layer
-                block = nn.Sequential(nn.LayerNorm([nIn, self.output_height, self.output_len]),
+                print(f"output height: {self.output_height}, output len: {self.output_len}")
+
+                block = nn.Sequential(nn.LayerNorm([nIn, self.output_height, self.output_len], elementwise_affine=self.ln_affine),
                                     conv2d_same.create_conv2d_pad(nIn, nOut, self.kernel[idx], stride=self.stride[idx], padding=self.padding[idx]),
                                     nn.ReLU())
             else:  
                 # if norm after conv, use new output shapes for norm layer
-                # print(f'nIn: {nIn}, nOut: {nOut}, kernel: {self.kernel[idx]}, stride: {self.stride[idx]}, padding: {self.padding[idx]}')
+                print(f'nIn: {nIn}, nOut: {nOut}, kernel: {self.kernel[idx]}, stride: {self.stride[idx]}, padding: {self.padding[idx]}')
+                print(f"output height: {output_height}, output len: {output_len}")
                 block = nn.Sequential(conv2d_same.create_conv2d_pad(nIn, nOut, self.kernel[idx], stride=self.stride[idx], padding=self.padding[idx]),
                                     nn.ReLU(),
-                                    nn.LayerNorm([nOut, self.output_height, self.output_len]))
-
+                                    nn.LayerNorm([nOut, output_height, output_len], elementwise_affine=self.ln_affine))
+            # update post-conv init
+            self.output_height, self.output_len = output_height, output_len
             self.model_dict[f'conv_block_{idx}'] = block
-
-                            
-            # pre-compute output shapes from this layer's conv op 
-            # Compute output shapes using conv formula [(Height - Filter + 2Pad)/ Stride]+1
-            if self.padding[idx] == 'same':
-                pass
-            else:
-                self.output_height = int(np.floor((self.output_height - kernel[idx][0] + 2 * padding[idx][0]) / stride[idx][0]) + 1)
-                self.output_len = int(np.floor((self.output_len -  kernel[idx][1] + 2 * padding[idx][1]) / stride[idx][1]) + 1)
-                if self.n_cue_frames:
-                    self.n_cue_frames = int(np.floor((self.n_cue_frames - kernel[idx][1] + 2 * padding[idx][1]) / stride[idx][1]) + 1)
 
             if self.pool_stride[idx] != -1:
                 self.model_dict[f'hann_pool_{idx}'] = HannPooling2d(stride=self.pool_stride[idx], pool_size=self.pool_size[idx], padding=self.pool_padding[idx])

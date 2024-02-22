@@ -10,8 +10,11 @@ import torch.nn.functional as F
 # Calculate symmetric padding for a convolution
 def get_padding(kernel_size: int, stride: int = 1, dilation: int = 1, **_) -> int:
     if isinstance(kernel_size, list):
-        h_pad = ((stride - 1) + dilation * (kernel_size[0] - 1)) // 2
-        w_pad = ((stride - 1) + dilation * (kernel_size[1] - 1)) // 2
+        stride_h, stride_w = stride if isinstance(stride, list) else [stride, stride]
+        dilation_h, dilation_w = dilation if isinstance(dilation, list) else [dilation, dilation]
+        kernel_h, kernel_w = kernel_size if isinstance(kernel_size, list) else [kernel_size, kernel_size]
+        h_pad = ((stride_h - 1) + dilation_h * (kernel_h - 1)) // 2
+        w_pad = ((stride_w - 1) + dilation_w * (kernel_w - 1)) // 2
         return [h_pad, w_pad]
 
     padding = ((stride - 1) + dilation * (kernel_size - 1)) // 2
