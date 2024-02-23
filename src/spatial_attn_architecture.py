@@ -269,7 +269,8 @@ class BinauralAuditoryAttentionCNN(nn.Module):
             # compute output shapes using conv formula [(Height + 2Pad - dilation * (kernel - 1) -1) /  Stride] + 1
             # ignoring dilation since it's not used in this model (dilation = 1)
             if self.padding[idx] == 'same':
-                pass
+                output_height = self.output_height
+                output_len = self.output_len
             else:
                 conv_padding, _ = pad_utils.get_padding_value(self.padding[idx], self.kernel[idx], stride=self.stride[idx])
                 output_height = int(np.floor((self.output_height + (2 * conv_padding[0]) - (kernel[idx][0] - 1) - 1) / stride[idx][0]) + 1)
@@ -277,19 +278,17 @@ class BinauralAuditoryAttentionCNN(nn.Module):
                 if self.n_cue_frames:
                     n_cue_frames =  int(np.floor((self.n_cue_frames + (2 * conv_padding[1]) -  (kernel[idx][1] - 1) - 1) / stride[idx][1]) + 1)
 
-
             if self.norm_first:
-                print(f'nIn: {nIn}, nOut: {nOut}, kernel: {self.kernel[idx]}, stride: {self.stride[idx]}, padding: {self.padding[idx]}')
+                # print(f'nIn: {nIn}, nOut: {nOut}, kernel: {self.kernel[idx]}, stride: {self.stride[idx]}, padding: {self.padding[idx]}')
+                # print(f"output height: {self.output_height}, output len: {self.output_len}")
                 # if norm before conv, can use prior output shapes for norm layer
-                print(f"output height: {self.output_height}, output len: {self.output_len}")
-
                 block = nn.Sequential(nn.LayerNorm([nIn, self.output_height, self.output_len], elementwise_affine=self.ln_affine),
                                     conv2d_same.create_conv2d_pad(nIn, nOut, self.kernel[idx], stride=self.stride[idx], padding=self.padding[idx]),
                                     nn.ReLU())
             else:  
+                # print(f'nIn: {nIn}, nOut: {nOut}, kernel: {self.kernel[idx]}, stride: {self.stride[idx]}, padding: {self.padding[idx]}')
+                # print(f"output height: {output_height}, output len: {output_len}")
                 # if norm after conv, use new output shapes for norm layer
-                print(f'nIn: {nIn}, nOut: {nOut}, kernel: {self.kernel[idx]}, stride: {self.stride[idx]}, padding: {self.padding[idx]}')
-                print(f"output height: {output_height}, output len: {output_len}")
                 block = nn.Sequential(conv2d_same.create_conv2d_pad(nIn, nOut, self.kernel[idx], stride=self.stride[idx], padding=self.padding[idx]),
                                     nn.ReLU(),
                                     nn.LayerNorm([nOut, output_height, output_len], elementwise_affine=self.ln_affine))

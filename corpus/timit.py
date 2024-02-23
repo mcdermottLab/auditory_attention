@@ -233,7 +233,7 @@ class TIMIT_CV_Compat_Prepaired(Dataset):
 
 
 class TIMIT_Binaural_Compat_Prepaired(Dataset):
-    def __init__(self, root, mode='test', demo=False, clean_targets=False, run_mono=False, **kwargs):
+    def __init__(self, root, mode='test', demo=False, clean_targets=False, run_mono=False, model_sr=50_000, **kwargs):
         """
         Builds a pytorch dataset from a pandas dataframe that has cues and mixtures pre-cut
         Args:
@@ -244,7 +244,7 @@ class TIMIT_Binaural_Compat_Prepaired(Dataset):
         self.demo = demo 
         self.dataset_len = self.dataset.shape[0]
         # use params for high quality upsampling 
-        self.upsample = T.Resample(20_000, 50_000,
+        self.upsample = T.Resample(20_000, model_sr,
                                 lowpass_filter_width=64,
                                 rolloff=0.9475937167399596,
                                 beta=14.769656459379492,

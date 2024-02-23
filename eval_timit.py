@@ -5,6 +5,7 @@ import pathlib
 from argparse import ArgumentParser
 import yaml
 import pickle
+import torch
 
 from pytorch_lightning import Trainer, seed_everything
 # from pytorch_lightning.callbacks import ModelCheckpoint
@@ -12,7 +13,6 @@ from pytorch_lightning.loggers import CSVLogger
 # from src.attn_tracking_lightning import AttentionalTrackingModule
 # from src.attentional_tracking_control_lightning import AttnTrackingControlModule
 # from src.attn_rove_rms_lightning import AttnRoveRMSModule
-
 
 seed_everything(1)
 
@@ -41,7 +41,7 @@ def run_eval(args):
         config['corpus']['root'] = cv_eval_h5_path
         config['loader']['num_workers'] = args.n_jobs
         config['loader']['batch_size'] = 32
-    elif 'binaural' in model_name.lower() or 'mono' in model_name.lower():
+    elif 'binaural' in model_name.lower() or 'mono' in model_name.lower() or 'v0' in model_name.lower():
         config['hparas']['batch_size'] = 1
         config['num_workers'] = args.n_jobs
         config['data'] = {}

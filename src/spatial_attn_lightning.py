@@ -336,8 +336,11 @@ class BinauralAttentionModule(LightningModule):
 
     def test_dataloader(self): # dumy placeholder no longer - fixed
         if self.run_timit:
+            print("Using TIMIT dataste")
             from corpus.timit import TIMIT_Binaural_Compat_Prepaired
-            dataset = TIMIT_Binaural_Compat_Prepaired(**self.corpora_config, mode='test')
+            dataset = TIMIT_Binaural_Compat_Prepaired(**self.config['data']['corpus'],
+                                                      model_sr=self.audio_config['rep_kwargs']['sr'],
+                                                      mode='test')
                                         # clean_targets = self.corpora_config.get('clean_targets', False))
         else:
             dataset = self.dataset(**self.corpora_config, mode='test')
