@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=train_new_monaural_attn_
-#SBATCH --output=outLogs/train_new_monaural_attn_%j.out
-#SBATCH --error=outLogs/train_new_monaural_attn_%j.err
+#SBATCH --job-name=train_new_binaural_attn_
+#SBATCH --output=outLogs/train_new_binaural_attn_%j.out
+#SBATCH --error=outLogs/train_new_binaural_attn_%j.err
 #SBATCH --mem=100Gb
 #SBATCH -N 1
 #SBATCH --cpus-per-task=16
-#SBATCH --time=12:00:00
+#SBATCH --time=2-00:00:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:a100:4
 ##SBATCH -w apollo001
