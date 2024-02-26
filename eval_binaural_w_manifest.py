@@ -21,16 +21,6 @@ from datetime import datetime
 torch.set_float32_matmul_precision('medium') # use same as training
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 
-# make spatialized a nn module
-# def spatialize(words, ir):
-#     """Uses pytorch to convolve all sounds in words with 2 channel IR given in ir"""
-#     n_words = words.shape[0]
-#     words_padded = [torch.nn.functional.pad(word, (ir.shape[0] - 1, 0)) for word in words]
-#     ir = ir.T.unsqueeze(1)
-#     words_padded = torch.stack(words_padded)
-#     spatialized = torch.nn.functional.conv1d(words_padded.view(n_words, 1, -1).cuda(), ir.cuda()).cuda()
-#     return spatialized
-
 # make torch.nn.Module version of spatilaize
 class Spatialize(torch.nn.Module):
     def __init__(self, ir, model_sr=50_000):
@@ -100,8 +90,12 @@ def run_eval(args):
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
 
     new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
-    only14_manifest = new_room_manifest[(new_room_manifest['src_dist'] == 1.4) & (new_room_manifest['index_room'] == 0)]
-    
+    ## Get room ix based on test
+    if 'front_back' in experiment_dir:
+        room_ix = 1 # 1 is room rotated for compat with human front-back experiment
+    else:
+        room_ix = 0
+    only14_manifest = new_room_manifest[(new_room_manifest['src_dist'] == 1.4) & (new_room_manifest['index_room'] == room_ix)]
     for idx in range(start,end):
         target_loc = loc_dict[idx][0]
         distract_loc = loc_dict[idx][1]
@@ -125,7 +119,7 @@ def run_eval(args):
                 else:
                     coords = target_loc
             df_row = only14_manifest[(only14_manifest['src_azim'] == coords[0]) & (only14_manifest['src_elev'] == coords[1])]
-            h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{df_row["index_room"].values[0]}.hdf5'
+            h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{room_ix}.hdf5'
             index_brir = df_row['index_brir'].values[0]
             sr_src = df_row['sr'].values[0]
             with h5py.File(h5_fn, 'r') as f:
@@ -151,9 +145,7 @@ def run_eval(args):
                 cue = cue_brir(cue.cuda())
                 foreground = tar_brir(fg.cuda())
                 background = dist_brir(bg.cuda())
-                # cue = np.array(spatialize(cue.cuda(), cue_brir)[:, :, 12500:137500])
-                # foreground = np.array(spatialize(fg.cuda(), tar_brir)[:, :, 12500:137500])
-                # background = np.array(spatialize(bg.cuda(), dist_brir)[:, :, 12500:137500])
+
                 cue = audio_transforms(cue, None)[0]
                 mixture = audio_transforms(foreground, background)[0]
                 # cue = cue.cuda()

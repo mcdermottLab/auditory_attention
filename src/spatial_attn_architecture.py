@@ -322,6 +322,8 @@ class BinauralAuditoryAttentionCNN(nn.Module):
             for idx in range(self.n_layers):
                 mixture = self.model_dict[f'conv_block_{idx}'](mixture)
                 # print(f"conv_block_{idx}, {mixture.max(), mixture.min()}")
+                if self.pool_stride[idx] != -1:
+                    mixture = self.model_dict[f'hann_pool_{idx}'](mixture)
             out = mixture
 
         else:
