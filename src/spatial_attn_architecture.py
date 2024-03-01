@@ -171,6 +171,7 @@ class CNN2DExtractor(nn.Module):
             for idx in range(self.n_layers):
                 cue = self.model_dict[f'conv_block_{idx}'](cue)
                 attn = self.model_dict[f'conv_block_{idx}'](attn)
+                # print('mixture acts ',  attn)
                 # print(f"conv_block_{idx} pre attn, {attn.max(), attn.min()}")
                 if self.attn[idx] == 1:
                     if self.residual_attn:
@@ -359,6 +360,233 @@ class BinauralAuditoryAttentionCNN(nn.Module):
             return self.classification(out)
 
 
+class BaseAuditoryAttentionForTransferV1(nn.Module):
+    ''' CNN wrapper, includes relu and layer-norm if applied'''
+
+    def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
+                  global_avg_cue=False, residual_attn=False, double_size=False, n_cue_frames=None,  n_layers=None, **kwargs):
+        super(BaseAuditoryAttentionForTransferV1, self).__init__()
+        # Setup
+        self.input_sr = input_sr
+        self.out_channels = out_channels
+        self.kernel = kernel
+        self.stride = stride
+        self.padding = padding
+        self.pool_stride = pool_stride
+        self.pool_size = pool_size
+        self.pool_padding = pool_padding
+        self.attn = attn
+        self.frequency_dim = 40
+        self.n_layers = n_layers
+
+        self.input_channels = kwargs.get('input_channels', 2)
+        self.n_cue_frames = n_cue_frames
+        self.residual_attn = residual_attn
+        if residual_attn:
+            print(f"Using residual attention")
+
+        self.model_dict = nn.ModuleDict()
+        self.output_height = self.frequency_dim
+        self.output_len = 20000 # softcode eventually
+        self.model_dict["norm_coch_rep"]= nn.LayerNorm([self.input_channels, self.frequency_dim, self.output_len])
+        self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, self.input_channels, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
+
+        for idx in range(self.n_layers):
+            # print(f"output height: {self.output_height}, output len: {self.output_len}")
+            
+            nIn = self.input_channels if idx == 0 else out_channels[idx - 1]
+            nOut = out_channels[idx]
+            # print(f"nIn: {nIn}, nOut: {nOut}")
+            # Convolutional block:
+            if self.pool_stride[idx] != -1:
+                # print(f'nIn: {nIn}, nOut: {nOut}, kernel: {self.kernel[idx]}, stride: {self.stride[idx]}, padding: {self.padding[idx]}')
+
+                block = nn.Sequential(nn.LayerNorm([nIn, self.output_height, self.output_len]),
+                                    conv2d_same.create_conv2d_pad(nIn, nOut, self.kernel[idx], stride=self.stride[idx], padding=self.padding[idx]),
+                                    nn.ReLU(),
+                                    HannPooling2d(stride=self.pool_stride[idx], pool_size=self.pool_size[idx], padding=self.pool_padding[idx]))
+            else:
+                block = nn.Sequential(nn.LayerNorm([nIn, self.output_height, self.output_len]),
+                                    conv2d_same.create_conv2d_pad(nIn, nOut, self.kernel[idx], stride=self.stride[idx], padding=self.padding[idx]),
+                                    nn.ReLU())
+
+            self.model_dict[f'conv_block_{idx}'] = block
+
+            # Compute output shapes using conv formula [(Height - Filter + 2Pad)/ Stride]+1
+            if self.padding[idx] == 'same':
+                pass
+            else:
+                self.output_height = int(np.floor((self.output_height - kernel[idx][0] + 2 * padding[idx][0]) / stride[idx][0]) + 1)
+                self.output_len = int(np.floor((self.output_len -  kernel[idx][1] + 2 * padding[idx][1]) / stride[idx][1]) + 1)
+                if self.n_cue_frames:
+                    self.n_cue_frames = int(np.floor((self.n_cue_frames - kernel[idx][1] + 2 * padding[idx][1]) / stride[idx][1]) + 1)
+            if self.pool_stride[idx] != -1:
+                # pooling layers
+                self.output_height = int(np.floor((self.output_height - pool_size[idx][0] + 2 * pool_padding[idx][0]) / pool_stride[idx][0]) + 1)
+                self.output_len = int(np.floor((self.output_len - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
+                if self.n_cue_frames:
+                    self.n_cue_frames = int(np.floor((self.n_cue_frames - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
+            # Attentional block:
+            if self.attn[idx] == 1:
+                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nOut, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
+                
+        self.output_size = self.output_height * nOut * self.output_len
+
+    def forward(self, cue=None, mixture=None, cue_mask_ixs=None):
+        if cue == None:
+            mixture = self.model_dict["norm_coch_rep"](mixture)
+            for idx in range(self.n_layers):
+                mixture = self.model_dict[f'conv_block_{idx}'](mixture)
+                # print(f"conv_block_{idx}, {mixture.max(), mixture.min()}")
+            out = mixture
+
+        else:
+            cue = self.model_dict["norm_coch_rep"](cue)
+            mixture = self.model_dict["norm_coch_rep"](mixture)
+            if self.residual_attn:
+                attn = self.model_dict["attn_block_in"](cue, mixture, cue_mask_ixs) + mixture
+            else:
+                attn = self.model_dict["attn_block_in"](cue, mixture, cue_mask_ixs)
+            for idx in range(self.n_layers):
+                cue = self.model_dict[f'conv_block_{idx}'](cue)
+                attn = self.model_dict[f'conv_block_{idx}'](attn)
+                # print('mixture acts ',  attn)
+                # print(f"conv_block_{idx} pre attn, {attn.max(), attn.min()}")
+                if self.attn[idx] == 1:
+                    if self.residual_attn:
+                        attn = self.model_dict[f'attn{idx}'](cue, attn, cue_mask_ixs) + attn
+                    else:
+                        attn = self.model_dict[f'attn{idx}'](cue, attn, cue_mask_ixs)
+                    # print(f"conv_block_{idx} post attn, {attn.max(), attn.min()}")
+            out = attn
+
+        out = out.view(out.size(0), self.output_size) # B x FC size
+        return out 
+
+
+class BaseAuditoryAttentionForTransferV2(nn.Module):
+
+    def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
+                global_avg_cue=False, frequency_dim=40, residual_attn=False, n_cue_frames=None, starting_output_len = 20000,
+                norm_first=True, ln_affine=True, n_layers=None, **kwargs):
+        super(BaseAuditoryAttentionForTransfer, self).__init__()
+        self.input_sr = input_sr
+        self.out_channels = out_channels
+        self.kernel = kernel
+        self.stride = stride
+        self.padding = padding
+        self.pool_stride = pool_stride
+        self.pool_size = pool_size
+        self.pool_padding = pool_padding
+        self.attn = attn
+        self.frequency_dim = frequency_dim
+        self.n_layers = len(out_channels)
+        self.norm_first = norm_first
+        if norm_first:
+            print(f"Conv block order: LN -> Conv -> ReLU")
+        elif not norm_first:
+            print(f"Conv block order: Conv -> ReLU -> LN")
+
+        self.input_channels = kwargs.get('input_channels', 2)
+        self.n_cue_frames = n_cue_frames
+        self.residual_attn = residual_attn
+        self.ln_affine = ln_affine
+        if residual_attn:
+            print(f"Using residual attention")
+
+        self.model_dict = nn.ModuleDict()
+        self.output_height = frequency_dim
+        self.output_len = starting_output_len # softcode eventually
+        self.n_layers = n_layers if n_layers else len(out_channels)
+
+
+        # build architecture
+        self.model_dict["norm_coch_rep"]= nn.LayerNorm([self.input_channels, self.frequency_dim, self.output_len])
+        # self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, self.input_channels, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
+
+        for idx in range(self.n_layers):
+            nIn = self.input_channels if idx == 0 else out_channels[idx - 1]
+            nOut = out_channels[idx]
+            # print(f"nIn: {nIn}, nOut: {nOut}")
+
+            # Attentional block:
+            if self.attn[idx] == 1:
+                # is SimpleAttentionalGain(self.frequency_dim, self.input_channels, ... ) when ix == 0; normal for ix > 0 
+                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nIn, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
+
+            # pre-compute conv output sizes - will assign to self.output_height and self.output_len after defining block
+            # Sizes will be used for normalization layers, but depend on order of norm and conv 
+            # norm -> conv gets prior output shapes, conv -> norm gets new output shapes)
+            # compute output shapes using conv formula [(Height + 2Pad - dilation * (kernel - 1) -1) /  Stride] + 1
+            # ignoring dilation since it's not used in this model (dilation = 1)
+            if self.padding[idx] == 'same':
+                output_height = self.output_height
+                output_len = self.output_len
+            else:
+                conv_padding, _ = pad_utils.get_padding_value(self.padding[idx], self.kernel[idx], stride=self.stride[idx])
+                output_height = int(np.floor((self.output_height + (2 * conv_padding[0]) - (kernel[idx][0] - 1) - 1) / stride[idx][0]) + 1)
+                output_len = int(np.floor((self.output_len + (2 * conv_padding[1]) -  (kernel[idx][1] - 1) - 1) / stride[idx][1]) + 1)
+                if self.n_cue_frames:
+                    n_cue_frames =  int(np.floor((self.n_cue_frames + (2 * conv_padding[1]) -  (kernel[idx][1] - 1) - 1) / stride[idx][1]) + 1)
+
+            if self.norm_first:
+                # print(f'nIn: {nIn}, nOut: {nOut}, kernel: {self.kernel[idx]}, stride: {self.stride[idx]}, padding: {self.padding[idx]}')
+                # print(f"output height: {self.output_height}, output len: {self.output_len}")
+                # if norm before conv, can use prior output shapes for norm layer
+                block = nn.Sequential(nn.LayerNorm([nIn, self.output_height, self.output_len], elementwise_affine=self.ln_affine),
+                                    conv2d_same.create_conv2d_pad(nIn, nOut, self.kernel[idx], stride=self.stride[idx], padding=self.padding[idx]),
+                                    nn.ReLU())
+            else:  
+                # print(f'nIn: {nIn}, nOut: {nOut}, kernel: {self.kernel[idx]}, stride: {self.stride[idx]}, padding: {self.padding[idx]}')
+                # print(f"output height: {output_height}, output len: {output_len}")
+                # if norm after conv, use new output shapes for norm layer
+                block = nn.Sequential(conv2d_same.create_conv2d_pad(nIn, nOut, self.kernel[idx], stride=self.stride[idx], padding=self.padding[idx]),
+                                    nn.ReLU(),
+                                    nn.LayerNorm([nOut, output_height, output_len], elementwise_affine=self.ln_affine))
+            # update post-conv init
+            self.output_height, self.output_len = output_height, output_len
+            self.model_dict[f'conv_block_{idx}'] = block
+
+            if self.pool_stride[idx] != -1:
+                self.model_dict[f'hann_pool_{idx}'] = HannPooling2d(stride=self.pool_stride[idx], pool_size=self.pool_size[idx], padding=self.pool_padding[idx])
+                # Compute output shapes for pooling layers using conv formula [(Height - Filter + 2Pad)/ Stride]+1
+                self.output_height = int(np.floor((self.output_height - pool_size[idx][0] + 2 * pool_padding[idx][0]) / pool_stride[idx][0]) + 1)
+                self.output_len = int(np.floor((self.output_len - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
+                if self.n_cue_frames:
+                    self.n_cue_frames = int(np.floor((self.n_cue_frames - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
+
+        self.output_size = self.output_height * nOut * self.output_len
+
+    def forward(self, cue=None, mixture=None, cue_mask_ixs=None):
+        if cue == None:
+            mixture = self.model_dict["norm_coch_rep"](mixture)
+            for idx in range(self.n_layers):
+                mixture = self.model_dict[f'conv_block_{idx}'](mixture)
+                # print(f"conv_block_{idx}, {mixture.max(), mixture.min()}")
+                if self.pool_stride[idx] != -1:
+                    mixture = self.model_dict[f'hann_pool_{idx}'](mixture)
+            out = mixture
+
+        else:
+            cue = self.model_dict["norm_coch_rep"](cue)
+            attn = self.model_dict["norm_coch_rep"](mixture)
+            for idx in range(self.n_layers):
+                if self.attn[idx] == 1:
+                    if self.residual_attn:
+                        attn = self.model_dict[f'attn{idx}'](cue, attn, cue_mask_ixs) + attn
+                    else:
+                        attn = self.model_dict[f'attn{idx}'](cue, attn, cue_mask_ixs)
+                # print(f"conv_block_{idx} post gain max and min: {attn.max().item(), attn.min().item()}")
+                cue = self.model_dict[f'conv_block_{idx}'](cue)
+                attn = self.model_dict[f'conv_block_{idx}'](attn)
+                # print(f"conv_block_{idx} post conv and norm max and min: {attn.max().item(), attn.min().item()}")
+                if self.pool_stride[idx] != -1:
+                    cue = self.model_dict[f'hann_pool_{idx}'](cue)
+                    attn = self.model_dict[f'hann_pool_{idx}'](attn)
+
+            out = attn
+        out = out.view(out.size(0), self.output_size) # B x FC size
+        return out
 
 
 class BaseAuditoryNetworkForTransfer(nn.Module):

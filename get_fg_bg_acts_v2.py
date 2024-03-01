@@ -15,6 +15,7 @@ from corpus.jsinV3_attn_tracking_multi_talker_background import jsinV3_attn_trac
 import src.audio_transforms as at
 import torchaudio.transforms as T
 from tqdm.auto import tqdm
+import pickle
 
 torch.set_float32_matmul_precision('high')
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -79,6 +80,15 @@ def get_activations(args):
                                               transform=None,
                                               demo=True)
 
+    # set up label re-mapping from SWC to CV labels 
+    word_and_speaker_encodings = pickle.load( open( "/om2/user/imgriff/projects/Auditory-Attention/word_and_speaker_encodings_jsinv3.pckl", "rb" )) 
+    # key is int, val is word
+    wsn_class_map = word_and_speaker_encodings['word_idx_to_word']
+    # key is word, val is int
+    cv_class_map = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", "rb" )) 
+    # map wsn class int key to cv class int value 
+    class_remap = {ix:(cv_class_map[word] if word in cv_class_map else -1) for ix, word in wsn_class_map.items()}
+
     def collate_fn(batch):
         #apply transforsms to batch
         cues = []
@@ -94,7 +104,7 @@ def get_activations(args):
             foregrounds.append(audio_transforms(fg, None)[0])
             backgrounds.append(audio_transforms(bg, None)[0])
             mixtures.append(audio_transforms(fg, bg)[0])
-            labels.append(label)
+            labels.append(class_remap[label])
 
         cues = torch.stack(cues)
         foregrounds = torch.stack(foregrounds)
@@ -126,6 +136,7 @@ def get_activations(args):
     relu_fc = model.model._orig_mod.relufc
     modules = {**conv_modules, **{'relufc': relu_fc}}
     # dicts to store activations
+    cue_reps = {}
     fg_reps = {}
     bg_reps = {}
     mixture_reps = {}
@@ -138,6 +149,7 @@ def get_activations(args):
         else:
             module[2].register_forward_hook(get_activation(name)) # [2] is relu 
         # lists to save acts in per-layer
+        cue_reps[name] = []
         fg_reps[name] = []
         bg_reps[name] = []
         mixture_reps[name] = []
@@ -146,14 +158,19 @@ def get_activations(args):
     model = model.eval().cuda()
 
     # add cochleagram to dicts 
+    cue_reps['cochleagram'] = []
     mixture_reps['cochleagram'] = []
     fg_reps['cochleagram'] = []
     bg_reps['cochleagram'] = []
-
+    mixture_accs = []
+    fg_accs = []
     # get activations 
+    n_acts = 0
     with torch.no_grad():
         for ix, batch in tqdm(enumerate(dataloader),  total = n_activations-1):
             fg_cue, foreground, background, mixture, fg_target = batch
+            if fg_target == -1:
+                continue
 
             # send to device
             foreground, background, mixture = foreground.cuda(), background.cuda(), mixture.cuda()
@@ -164,15 +181,28 @@ def get_activations(args):
             foreground, background = coch_gram(foreground, background)
   
             # save inputs
+            cue_reps['cochleagram'].append(fg_cue.view(1,-1).cpu())
             mixture_reps['cochleagram'].append(mixture.view(1,-1).cpu())
             fg_reps['cochleagram'].append(foreground.view(1,-1).cpu())
             bg_reps['cochleagram'].append(background.view(1,-1).cpu())
 
             if not args.attention:
                 fg_cue = None 
-    
+            
+            # run cue only:
+            model(None, fg_cue, None)
+            for layer in cue_reps.keys():
+                if layer == 'cochleagram':
+                    continue 
+                cue_reps[layer].append(activations[layer].view(1,-1).cpu())
+                    
             # run mixture
-            model(fg_cue, mixture, None)
+            preds = model(fg_cue, mixture, None)
+            # get model accuracy 
+            preds = preds.softmax(-1).argmax(-1).cpu()
+            accuracy = (preds == fg_target).int()
+            print(f"preds: {preds}, target: {fg_target}, acc: {accuracy}")
+            mixture_accs.append(accuracy)
                 
             for layer in mixture_reps.keys():
                 if layer == 'cochleagram':
@@ -180,7 +210,11 @@ def get_activations(args):
                 mixture_reps[layer].append(activations[layer].view(1,-1).cpu())
                     
             # run fg
-            model(fg_cue, foreground, None)
+            preds = model(fg_cue, foreground, None)
+            # get model accuracy 
+            preds = preds.softmax(-1).argmax(-1).cpu()
+            accuracy = (preds == fg_target).int()
+            fg_accs.append(accuracy)
                 
             for layer in fg_reps.keys():
                 if layer == 'cochleagram':
@@ -195,10 +229,14 @@ def get_activations(args):
                     continue 
                 bg_reps[layer].append(activations[layer].view(1,-1).cpu())
 
-            if ix == n_activations-1:
+            if n_acts == n_activations-1:
                 break
+            n_acts += 1 
     
     # concat
+    cue_reps = {layer:torch.concat(acts,axis=0).numpy().astype('float16')
+        for layer,acts in cue_reps.items()}
+
     mixture_reps = {layer:torch.concat(acts,axis=0).numpy().astype('float16')
         for layer,acts in mixture_reps.items()}
 
@@ -208,18 +246,26 @@ def get_activations(args):
     bg_reps = {layer:torch.concat(acts,axis=0).numpy().astype('float16')
                     for layer,acts in bg_reps.items()}
 
+    mixture_accs = torch.concat(mixture_accs,axis=0).numpy().astype('int')
+
+    fg_accs = torch.concat(fg_accs,axis=0).numpy().astype('int')
+        
+
     # save activations 
     args.model_dir.mkdir(parents=True, exist_ok=True)
     if not args.attention:
         out_name = args.model_dir / f'{model_name}_model_activations_0dB_no_attention.h5'
     else:
-        out_name = args.model_dir / f'{model_name}_model_activations_0dB.h5'
+        out_name = args.model_dir / f'{model_name}_model_activations_0dB_w_cues.h5'
     with h5py.File(out_name, 'w') as f:
         for layer in mixture_reps.keys():
             print(f'writing {layer}')
+            f.create_dataset(layer+'_cue', data=cue_reps[layer])
             f.create_dataset(layer+'_mixture', data=mixture_reps[layer])
             f.create_dataset(layer+'_fg', data=fg_reps[layer])
             f.create_dataset(layer+'_bg', data=bg_reps[layer])      
+        f.create_dataset('acc_mixture', data=mixture_accs)      
+        f.create_dataset('acc_fg', data=fg_accs)      
 
 
 

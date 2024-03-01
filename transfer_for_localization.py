@@ -45,7 +45,7 @@ def run_train(args):
     with_projection_str = 'with_projection' if with_projection else 'no_projection'
     config['model']['projection_size'] = 512
 
-    config['hparas']['lr'] = 0.0001
+    config['hparas']['lr'] = 0.01
     config['num_workers'] = args.n_jobs
     checkpoint_path = args.ckpt_path
     print(f"Training with config: {config_path.stem}")
@@ -85,7 +85,7 @@ def run_train(args):
         num_sanity_val_steps=2,
         # benchmark=True,
         devices=args.gpus, # was gpus=1,
-        val_check_interval=500,
+        val_check_interval=2000,
         gradient_clip_val=100,
         accelerator="gpu",
         profiler=None,

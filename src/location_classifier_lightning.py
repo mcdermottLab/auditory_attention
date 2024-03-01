@@ -10,7 +10,7 @@ from pytorch_lightning import LightningModule
 import src.audio_transforms as at
 import src.audio_attention_transforms as aat
 import src.custom_modules as cm
-from src.spatial_attn_architecture import BaseAuditoryNetworkForTransfer
+from src.spatial_attn_architecture import BaseAuditoryAttentionForTransferV1, BaseAuditoryAttentionForTransferV2
 from corpus.binaural_attention_h5 import BinauralAttentionDataset
 
 ## TO DO:  Import new dataset class
@@ -69,7 +69,14 @@ class LocationClassifier(LightningModule):
 
         # Init Model
         # Get model architecture
-        aud_base = BaseAuditoryNetworkForTransfer(**self.model_config)
+        norm_first = self.model_config.get('norm_first', True)
+        new_module = self.model_config.get('new_module', False)
+        if norm_first == False or new_module:
+            print("Using BaseAuditoryAttentionForTransferV2")
+            aud_base = BaseAuditoryAttentionForTransferV2(**self.model_config)
+        else:
+            print("Using BaseAuditoryAttentionForTransferV1")
+            aud_base = BaseAuditoryAttentionForTransferV1(**self.model_config)
         aud_base.load_state_dict(checkpoint['state_dict'], strict=False) # strict=False to skip attn weights 
         for param in aud_base.parameters():
             param.requires_grad = False  
@@ -163,7 +170,7 @@ class LocationClassifier(LightningModule):
 
     def forward(self, input_aud: torch.tensor):
         with torch.no_grad():
-            representations = self.model(input_aud)
+            representations = self.model(input_aud, input_aud, None)
         outputs = self.classifier(representations)
         # Outputs here are logits
         return outputs

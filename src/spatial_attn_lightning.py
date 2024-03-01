@@ -89,12 +89,16 @@ class BinauralAttentionModule(LightningModule):
         # Init Model
         # Get model architecture
         norm_first = self.model_config.get('norm_first', True)
-        if norm_first == False:
-            model = BinauralAuditoryAttentionCNN(**self.model_config)
+        new_module = self.model_config.get('new_module', False)
+        if norm_first == False or new_module:
+            print("Using BinauralAuditoryAttentionCNN")
+            self.model = BinauralAuditoryAttentionCNN(**self.model_config)
         else:
-            model = CNN2DExtractor(**self.model_config) 
+            self.model = CNN2DExtractor(**self.model_config) 
         # check if torch version 2 or greater - if so, compile model
-        self.model = torch.compile(model, mode="reduce-overhead")
+        getting_acts = self.config.get('getting_acts', False)
+        if not getting_acts:
+            self.model = torch.compile(self.model, mode="reduce-overhead")
 
         # Add input rep to model or audio transforms
         self.rep_on_gpu = self.audio_config['rep_kwargs']['rep_on_gpu']

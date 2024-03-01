@@ -17,7 +17,7 @@ export HDF5_USE_FILE_LOCKING=FALSE
 source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_25p_loc_v07_LN_last_valid_time_no_affine.yaml \
-                 --ckpt_pat attn_cue_models/word_task_25p_loc_v07_LN_last_valid_time_no_affine/checkpoints/epoch=2-step=32288.ckpt \
+                 --ckpt_pat attn_cue_models/word_task_25p_loc_v07_LN_last_valid_time_no_affine/checkpoints/epoch=3-step=49432.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 
