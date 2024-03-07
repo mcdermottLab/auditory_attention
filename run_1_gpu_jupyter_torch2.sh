@@ -5,7 +5,7 @@
 #SBATCH --mem=8Gb
 #SBATCH --cpus-per-task=2
 #SBATCH --time=3:00:00
-#SBATCH --partition=mcdermott
+#SBATCH --partition=normal
 #SBATCH --gres=gpu:1  --constraint=20GB
 #SBATCH -x dgx001,dgx002,node093,node114,node107,node115,node109
 
