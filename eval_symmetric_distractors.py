@@ -3,6 +3,7 @@ import numpy as np
 import os
 import pandas as pd
 import pathlib
+from pathlib import Path
 import pickle
 import scipy.stats as stats
 import soxr
@@ -107,9 +108,13 @@ def run_eval(args):
             test_manifest_path = test_dict[idx]['test_room_meta']['room_manifest']
             test_room_idx = test_dict[idx]['test_room_meta']['index_room']
             new_room_manifest = pd.read_pickle(test_manifest_path)
-            only14_manifest = new_room_manifest[(new_room_manifest['index_room'] == test_room_idx)]
+            only14_manifest = new_room_manifest[(new_room_manifest['index_room'] == test_room_idx)  & (new_room_manifest['src_dist'] == 1.4)]
             h5_fn = test_dict[idx]['test_room_meta']['h5_fn']
-            room_str = f'eval_room{test_room_idx:04}'
+            if 'eval' in Path(args.test_manifest).stem:
+                room_str = f'eval_room{test_room_idx:04}'
+            else:
+                room_str = f'mitb46_room{test_room_idx:04}'
+
 
         elif new_room_manifest == None:
             # use anechoic BRIRs for testing

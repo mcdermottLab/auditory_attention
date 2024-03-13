@@ -107,10 +107,20 @@ def run(args):
                 momentum=0.9,
                 weight_decay=5e-4,
             )
+    lr_str = ''
+
+
+    n_steps = args.n_steps
+
+    if args.with_lr_cycle:
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer,
+                                                        max_lr=0.1,
+                                                        total_steps=n_steps)
+        lr_str = f"_{args.learning_rate}_init_lr_w_cycle"
+
 
     loss_fn =  torch.nn.CrossEntropyLoss()
 
-    n_steps = args.n_steps
 
     best_loss = 0
     best_distractor = None
@@ -118,6 +128,7 @@ def run(args):
     early_stop = EARLYSTOP
 
     cue_cg = None 
+    
     for step in (pbar := tqdm(range(n_steps))):
         optimizer.zero_grad()
         mixture, _ = audio_transforms(fg, distractor)
@@ -135,6 +146,7 @@ def run(args):
             early_stop = EARLYSTOP
             # add best loss to tqdm progress bar 
             pbar.set_postfix_str(f"Best loss: {best_loss:.3f} Current loss: {loss.detach().item():.3f} Early stop: {early_stop}")
+       
         else:
             early_stop -= 1 
 
@@ -146,15 +158,18 @@ def run(args):
 
         loss.backward()
         optimizer.step()
+        if args.with_lr_cycle:
+            scheduler.step()    
 
     print(f"Best final loss: {best_loss:.3f}")
-    # 
+    
     # save signals as h5, tracking the model name and dataset index
     output_path = Path(args.output_path)
     output_path = output_path / config_path.stem
     output_path.mkdir(parents=True, exist_ok=True)
     # format dataset_ix as 4 digit string
-    output_file = output_path / f"{config_path.stem}_distractor_{dataset_ix:04d}.h5"
+    output_file = output_path / f"{config_path.stem}_distractor_{dataset_ix:04d}{lr_str}.h5"
+    print(output_file)
     # convert torch tensors to numpy 
     cue = prep_torch_to_numpy(cue)
     fg = prep_torch_to_numpy(fg)
@@ -168,7 +183,7 @@ def run(args):
         f.create_dataset('init_distractor', data=init_distractor, dtype=np.float32)
         f.create_dataset('best_distractor', data=best_distractor, dtype=np.float32)
         f.create_dataset('best_step', data=np.array([best_step]), dtype=np.int32)
-        f.create_dataset('best_loss', data=np.array([best_loss.detach().item()]), dtype=np.float32)
+        f.create_dataset('best_loss', data=np.array([best_loss]), dtype=np.float32)
         f.create_dataset('dataset_ix', data=np.array([dataset_ix]), dtype=np.int32)
         f.create_dataset('learning_rate', data=np.array([args.learning_rate]), dtype=np.float32)
 
@@ -183,5 +198,6 @@ if __name__ == "__main__":
     parser.add_argument("--early_stop", type=int,  default=1000, help="Number of steps before early stopping")
     parser.add_argument("--n_steps", type=int,  default=10000, help="Number of steps for optimization")
     parser.add_argument("--learning_rate", type=float,  default=0.1, help="Learning rate for optimization")
+    parser.add_argument("--with_lr_cycle", action='store_true', help="Use one cycle learning rate schedule")
     args = parser.parse_args()
     run(args)

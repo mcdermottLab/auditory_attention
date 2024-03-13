@@ -7,7 +7,7 @@
 #SBATCH --time=0:15:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=1-575  # 0-575
+#SBATCH --array=0-575  # 0-575
 #SBATCH -x dgx001,dgx002
 
 module load openmind8/anaconda/3-2022.10
@@ -21,5 +21,5 @@ python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_ha
                  --test_manifest binaural_test_manifests/symmetric_distractor_conditions_neg_15_to_6_dBSNR_eval_rooms.pkl \
                  --model_name word_task_half_co_loc_v07 --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/symmetric_distractor_test \
-                 --cue_type voice_and_location --no-overwrite --n_per_job 1
+                 --cue_type voice_and_location --overwrite --n_per_job 1
 

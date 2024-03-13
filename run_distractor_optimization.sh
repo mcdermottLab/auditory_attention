@@ -4,10 +4,10 @@
 #SBATCH --error=outLogs/distractor_optimization_%A_%a.err
 #SBATCH --mem=4Gb
 #SBATCH --cpus-per-task=1
-#SBATCH --time=2:00:00
+#SBATCH --time=1:00:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=14GB
-#SBATCH --array=1-20# 0-2
+#SBATCH --array=0-20 # 0-20
 #SBATCH -x dgx001,dgx002
 
 module load openmind8/anaconda/3-2022.10
@@ -18,5 +18,8 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 python3 optimize_distractor.py --config_path config/binaural_attn/word_task_half_co_loc_v07.yaml \
                  --checkpoint_path attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt \
                 --output_path distractor_optimization/ \
-                --n_steps 5000 --early_stop 500
+                --n_steps 5000 --early_stop 500 \
+                --job_ix $SLURM_ARRAY_TASK_ID \
+                --learning_rate 0.01 \
+                --with_lr_cycle
 
