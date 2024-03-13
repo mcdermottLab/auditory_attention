@@ -147,7 +147,7 @@ def run(args):
         loss.backward()
         optimizer.step()
 
-    print(f"Best final loss: {best_loss.detach().item():.3f}")
+    print(f"Best final loss: {best_loss:.3f}")
     # 
     # save signals as h5, tracking the model name and dataset index
     output_path = Path(args.output_path)
