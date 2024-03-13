@@ -10,7 +10,7 @@ from pytorch_lightning import LightningModule
 import src.audio_transforms as at
 import src.audio_attention_transforms as aat
 import src.custom_modules as cm
-from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, CueDurationCNN
+from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, BinauralControlCNN 
 from corpus.binaural_attention_h5 import BinauralAttentionDataset
 
 ## TO DO:  Import new dataset class
@@ -90,10 +90,10 @@ class BinauralAttentionModule(LightningModule):
         # Get model architecture
         norm_first = self.model_config.get('norm_first', True)
         new_module = self.model_config.get('new_module', False)
-        cue_duration_test = self.config.get('cue_duration_test', False)
-        if cue_duration_test:
-            print("Using cue durration test architecture")
-            self.model = CueDurationCNN(**self.model_config)
+        control_arch = self.model_config.get('control_arch', False)
+        if control_arch:
+            print("Using BinauralControlCNN")
+            self.model = BinauralControlCNN(**self.model_config)
         elif norm_first == False or new_module:
             print("Using BinauralAuditoryAttentionCNN")
             self.model = BinauralAuditoryAttentionCNN(**self.model_config)
