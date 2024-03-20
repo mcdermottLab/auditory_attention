@@ -16,7 +16,12 @@ export HDF5_USE_FILE_LOCKING=FALSE
 source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 python3 eval_texture_backgrounds.py --config config/binaural_attn/word_task_standard_v08.yaml \
-                 --ckpt_pat attn_cue_models/word_task_standard_v08/checkpoints/epoch=3-step=51756.ckpt \
+                 --ckpt_pat attn_cue_models/word_task_standard_v08/checkpoints/epoch=0-step=6000.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir texture_mono_eval/ \
+
+# python3 eval_texture_backgrounds.py --config config/binaural_attn/word_task_standard_v08.yaml \
+#                  --ckpt_pat attn_cue_models/word_task_standard_v08/checkpoints/epoch=3-step=51756.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir texture_mono_eval/ \
 

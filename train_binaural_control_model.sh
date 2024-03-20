@@ -24,6 +24,6 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 which python3
 python3 spatialtrain.py --config config/binaural_attn/word_task_v08_control_no_attn.yaml \
-                 --gpus 4 --n_jobs 4 --resume_training True \
+                 --gpus 4 --n_jobs 4  \
                  --exp_dir attn_cue_models \
 

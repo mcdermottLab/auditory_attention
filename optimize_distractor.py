@@ -90,22 +90,30 @@ def run(args):
 
     cue, _ = diotic_transforms(cue, None)
     fg, _ = diotic_transforms(fg, None)
+    bg, _ = diotic_transforms(bg, None)
     # push to gpu 
     cue = cue.cuda().unsqueeze(0)
     fg = fg.cuda().unsqueeze(0)
+    
     label = torch.tensor(label).unsqueeze(0).cuda()
 
     # init as noise 
-    distractor = (torch.rand_like(fg) * NOISESCALE).cuda()
+    if args.opt_bg:
+        distractor = bg.detach().clone().cuda().unsqueeze(0)
+        opt_bg_str = '_opt_bg'
+    else:
+        distractor = (torch.rand_like(fg) * NOISESCALE).cuda()
+        opt_bg_str = '_opt_noise'
+
     init_distractor = distractor.detach().clone().cpu()
     distractor.requires_grad_(True)
     distractor.retain_grad()
 
-    optimizer = torch.optim.SGD(
+    optimizer = torch.optim.AdamW(
                 [distractor],
                 lr=args.learning_rate,
-                momentum=0.9,
-                weight_decay=5e-4,
+                # momentum=0.9,
+                # weight_decay=5e-4,
             )
     lr_str = ''
 
@@ -131,6 +139,8 @@ def run(args):
     
     for step in (pbar := tqdm(range(n_steps))):
         optimizer.zero_grad()
+        # mixture, _ = audio_transforms(fg, distractor)
+        # mixture, _ = audio_transforms(fg, distractor)
         mixture, _ = audio_transforms(fg, distractor)
         if cue_cg == None:
             cue_cg, mixture = coch_transform(cue, mixture)
@@ -168,7 +178,7 @@ def run(args):
     output_path = output_path / config_path.stem
     output_path.mkdir(parents=True, exist_ok=True)
     # format dataset_ix as 4 digit string
-    output_file = output_path / f"{config_path.stem}_distractor_{dataset_ix:04d}{lr_str}.h5"
+    output_file = output_path / f"{config_path.stem}_distractor_{dataset_ix:04d}{lr_str}_adamw_{opt_bg_str}.h5"
     print(output_file)
     # convert torch tensors to numpy 
     cue = prep_torch_to_numpy(cue)
@@ -199,5 +209,6 @@ if __name__ == "__main__":
     parser.add_argument("--n_steps", type=int,  default=10000, help="Number of steps for optimization")
     parser.add_argument("--learning_rate", type=float,  default=0.1, help="Learning rate for optimization")
     parser.add_argument("--with_lr_cycle", action='store_true', help="Use one cycle learning rate schedule")
+    parser.add_argument("--opt_bg", action='store_true', help="Optimize background instead of noise")
     args = parser.parse_args()
     run(args)
