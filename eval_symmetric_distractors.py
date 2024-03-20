@@ -3,6 +3,7 @@ import numpy as np
 import os
 import pandas as pd
 import pathlib
+from pathlib import Path
 import pickle
 import scipy.stats as stats
 import soxr
@@ -92,15 +93,36 @@ def run_eval(args):
                                 symmetric_distractor_test=True,
                                 modulated_ssn_distractors=args.modulated_ssn_distractors) 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
-
-    # use anechoic BRIRs for testing
-    new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/ruggles_shinncunningham_2011/manifest_brir.pdpkl')
-    only14_manifest = new_room_manifest[(new_room_manifest['index_room'] == 0)]
     
+    # use anechoic BRIRs for testing
+    new_room_manifest = None 
+    only14_manifest = None
+    
+
     for idx in range(start,end):
         target_loc = test_dict[idx]['target_loc']
         distract_loc = test_dict[idx]['distract_loc']
         threshold_snr = test_dict[idx]['snr']
+
+        if test_dict[idx].get('test_room_meta', False):
+            test_manifest_path = test_dict[idx]['test_room_meta']['room_manifest']
+            test_room_idx = test_dict[idx]['test_room_meta']['index_room']
+            new_room_manifest = pd.read_pickle(test_manifest_path)
+            only14_manifest = new_room_manifest[(new_room_manifest['index_room'] == test_room_idx)  & (new_room_manifest['src_dist'] == 1.4)]
+            h5_fn = test_dict[idx]['test_room_meta']['h5_fn']
+            if 'eval' in Path(args.test_manifest).stem:
+                room_str = f'eval_room{test_room_idx:04}'
+            else:
+                room_str = f'mitb46_room{test_room_idx:04}'
+
+
+        elif new_room_manifest == None:
+            # use anechoic BRIRs for testing
+            new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/ruggles_shinncunningham_2011/manifest_brir.pdpkl')
+            h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/ruggles_shinncunningham_2011/room0000.hdf5'
+            only14_manifest = new_room_manifest[(new_room_manifest['index_room'] == 0)]
+            room_str = f'ruggles_shinncunningham_2011_room0000'
+
 
         audio_transforms_test_db = at.AudioCompose([
                         at.AudioToTensor(),
@@ -111,9 +133,9 @@ def run_eval(args):
         audio_transforms_test_db = audio_transforms_test_db.cuda()
 
         if args.modulated_ssn_distractors:
-            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_modulated_ssn"
+            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_modulated_ssn_{room_str}"
         else:
-            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR"        
+            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_{room_str}"        
         print(log_name)
         output_name = str(experiment_dir) + log_name + '.pkl'
         if idx % 10 == 0:
@@ -131,7 +153,6 @@ def run_eval(args):
             elif loc == 'distractor_l':
                 coords = distract_loc.copy()
             df_row = only14_manifest[(only14_manifest['src_azim'] == coords[0]) & (only14_manifest['src_elev'] == coords[1])]
-            h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/ruggles_shinncunningham_2011/room0000.hdf5'
             index_brir = df_row['index_brir'].values[0]
             sr_src = df_row['sr'].values[0]
             with h5py.File(h5_fn, 'r') as f:
@@ -192,7 +213,7 @@ def run_eval(args):
         output_dict['preds'] = preds
         output_dict['true_word_int'] = true_word_int
         
-        print(f"Test {distract_loc[0]} azimuth distractor at {threshold_snr} SNR")
+        print(f"Test {distract_loc[0]} azimuth distractor at {threshold_snr} SNR in {room_str}")
         print(f"Accuracy: {accuracies.mean()}")
         print(f"Confusions: {confusions.mean()}")
 
