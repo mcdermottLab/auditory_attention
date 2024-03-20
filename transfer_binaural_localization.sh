@@ -6,9 +6,9 @@
 #SBATCH -N 1
 #SBATCH --cpus-per-task=2
 #SBATCH --time=1-00:00:00
-#SBATCH --partition=normal   
-#SBATCH --gres=gpu:1 --constraint=60GB
-#SBATCH --array=0,3,5,7#1-8 # 0-7 are valid
+#SBATCH --partition=mcdermott   
+#SBATCH --gres=gpu:1 --constraint=40GB
+#SBATCH --array=7 #1-8 # 0-7 are valid
 
 #source /etc/profile.d/modules.sh
 #module use /cm/shared/modulefiles
@@ -22,13 +22,11 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 #module add openmind/cudnn/11.5-v8.3.3.40
 #module add openmind/cuda/12.3
-# 
 
 which python3
 python3 transfer_for_localization.py --config config/binaural_attn/word_task_standard_v07.yaml \
-                                     --ckpt_path attn_cue_models/word_task_standard_v07/checkpoints/epoch=3-step=67111.ckpt \
+                                     --ckpt_path /om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models/word_task_standard_v07/checkpoints/epoch=3-step=67111.ckpt \
                                      --gpus 1 --n_jobs 2  \
                                      --exp_dir transfer_localization \
                                      --array_id $SLURM_ARRAY_TASK_ID \
-                                     --resume_training
-
+                                     --lim_train_batches 100

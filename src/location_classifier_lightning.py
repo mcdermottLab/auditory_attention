@@ -126,6 +126,7 @@ class LocationClassifier(LightningModule):
         self.accuracy[step_type](outputs, labels)
         self.log(f"{step_type}_loss", loss.detach(), on_step=True, on_epoch=False, prog_bar=True)
         self.log(f"{step_type}_acc", self.accuracy[step_type], on_step=False, on_epoch=True, prog_bar=True)
+        self.log("learning_rate", self.optimizer.param_groups[0]['lr'], prog_bar=True, on_step=True, on_epoch=False)
 
         return loss
 
@@ -146,27 +147,22 @@ class LocationClassifier(LightningModule):
         # Optimizer
         opt = getattr(torch.optim, self.hparas_config['optimizer'])
         model_params = [{'params': self.classifier.parameters()}] ## Use classifier params not model params 
-        self.optimizer = opt(model_params, lr=self.hparas_config['lr'], eps=self.hparas_config['eps'])       
+        # OneCycleLR ignores the learning rate passed into the optimizer, so we don't define it
+        self.optimizer = opt(model_params, eps=self.hparas_config['eps'])       
         ## New for v05 dataset - use lr Scheduler 
-        lr_schedule = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 
-                                                               mode='max', # monitoring val_acc, want max
-                                                               factor=0.1,
-                                                               patience=0.25, # wait a quarter epoch if plateaued
-                                                               threshold=0.0001,
-                                                               threshold_mode='rel',
-                                                               min_lr=1e-7, 
-                                                               verbose=True)
+        lr_schedule = torch.optim.lr_scheduler.OneCycleLR(self.optimizer,
+                                                        max_lr = 0.001,
+                                                        total_steps = 10000,
+                                                        div_factor = 10,
+                                                        final_div_factor = 100,
+                                                        )
         # self.schedule = {"scheduler":lr_schedule, "monitor": self.config['val_metric']}
         return {
                 "optimizer": self.optimizer,
-                "lr_scheduler": {
-                    "scheduler": lr_schedule,
-                    "monitor": self.config['val_metric'],
-                    "frequency": 1,
-                    # If "monitor" references validation metrics, then "frequency" should be set to a
-                    # multiple of "trainer.check_val_every_n_epoch".
-                },
-            }
+                "lr_scheduler": {'scheduler':lr_schedule,
+                                 'interval': 'step',
+                                 }
+                }
 
     def forward(self, input_aud: torch.tensor):
         with torch.no_grad():
@@ -186,7 +182,7 @@ class LocationClassifier(LightningModule):
 
 
     def _extract_labels(self, samples: List):
-        # idx=3 is harcoded - sample in samples is list of (cue, foreground, background, label)
+        # idx=3 is hardcoded - sample in samples is list of (cue, foreground, background, label)
         return torch.tensor([sample[3] for sample in samples]).type(torch.LongTensor)
 
     def _extract_features(self, samples: List, sample_ix: Union[int, list]):
@@ -239,7 +235,7 @@ class LocationClassifier(LightningModule):
         )
         return dataloader
 
-    def test_dataloader(self): # dumy placeholder no longer - fixed
+    def test_dataloader(self): # dummy placeholder no longer - fixed
         if self.run_timit:
             from corpus.timit import TIMIT_Binaural_Compat_Prepaired
             dataset = TIMIT_Binaural_Compat_Prepaired(**self.corpora_config, mode='test')
