@@ -18,8 +18,8 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 python3 optimize_distractor.py --config_path config/binaural_attn/word_task_half_co_loc_v07.yaml \
                  --checkpoint_path attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt \
                 --output_path distractor_optimization/ \
-                --n_steps 5000 --early_stop 500 \
+                --n_steps 10000 --early_stop 500 \
                 --job_ix $SLURM_ARRAY_TASK_ID \
-                --learning_rate 0.01 \
-                --with_lr_cycle
+                --learning_rate 0.00001 \
+                --opt_bg
 

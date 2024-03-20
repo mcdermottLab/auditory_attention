@@ -18,7 +18,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 python3 eval_timit.py --gpus 1 --n_jobs 2 --exp_dir popham_mono_eval \
                       --test_manifest "timit_popham_2018_test_conditions.pkl" \
-                      --model_name "word_task_half_co_loc_v07" \
-                      --config_name "config/binaural_attn/word_task_half_co_loc_v07.yaml" \
-                      --ckpt_path "attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt" \
+                      --model_name "word_task_standard_v08" \
+                      --config_name "config/binaural_attn/word_task_standard_v08.yaml" \
+                      --ckpt_path "attn_cue_models/word_task_standard_v08/checkpoints/epoch=3-step=51756-v1.ckpt" \
                       --array_id $SLURM_ARRAY_TASK_ID
