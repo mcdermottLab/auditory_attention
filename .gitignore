@@ -142,7 +142,7 @@ results_figs
 binaural_eval
 confidenceScorers
 pre_train_word_loc
-
+Denmark_2024
 
 
 # swap file
@@ -171,4 +171,3 @@ prelim_binaural_figs/diff_min_same_confusion_at_0_elev.pdf
 *.pdf
 *.h5
 .hparams.yaml
-
