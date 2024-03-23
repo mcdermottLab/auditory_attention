@@ -140,6 +140,7 @@ lightning_logs
 behavioral_experiments
 results_figs
 binaural_eval
+popham_mono_eval
 confidenceScorers
 pre_train_word_loc
 Denmark_2024

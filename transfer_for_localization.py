@@ -45,7 +45,7 @@ def run_train(args):
     with_projection_str = 'with_projection' if with_projection else 'no_projection'
     config['model']['projection_size'] = 512
 
-    config['hparas']['lr'] = 0.01
+    config['hparas']['lr'] = 0.0001
     config['num_workers'] = args.n_jobs
     checkpoint_path = args.ckpt_path
     print(f"Training with config: {config_path.stem}")
@@ -89,7 +89,8 @@ def run_train(args):
         gradient_clip_val=100,
         accelerator="gpu",
         profiler=None,
-        callbacks=callbacks
+        callbacks=callbacks,
+        lim_train_batches = args.lim_train_batches,
     )
     print("training")
 
@@ -146,6 +147,7 @@ def cli_main():
     parser.add_argument('--random_seed', default=0, type=int, help='Random seed for dataset.')
     parser.add_argument('--resume_training', default=False, help='Resume training from checkpoint.')
     parser.add_argument('--negative_elevs', default=False, help='Use negative elevations in training.')
+    parser.add_argument('--lim_train_batches', default=1.0, help='Limit the number of training batches.')
     args = parser.parse_args()
 
     run_train(args)
