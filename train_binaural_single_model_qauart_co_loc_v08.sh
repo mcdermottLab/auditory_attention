@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --time=1-00:00:00
 #SBATCH --partition=mcdermott
-#SBATCH --gres=gpu:A100-MCDERMOTT:4
+#SBATCH --gres=gpu:a100:4
 ##SBATCH -w apollo001
 
 #source /etc/profile.d/modules.sh
