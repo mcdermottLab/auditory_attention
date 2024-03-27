@@ -7,7 +7,7 @@
 #SBATCH --time=00:20:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=16GB
-#SBATCH --array=0-5,7-9 #0-9 total
+#SBATCH --array=9,11 #0-11 total
 #SBATCH -x dgx001,dgx002
 
 

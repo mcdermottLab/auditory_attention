@@ -25,6 +25,8 @@ task_name_dict = {
     'inharmonic_target_harmonic_distractor_0dB_SNR.pdpkl': "_inharmonic_target_harmonic_distractor_",
     'harmonic_target_whispered_distractor_0dB_SNR.pdpkl': "_harmonic_target_whispered_distractor_",
     'whispered_target_harmonic_distractor_0dB_SNR.pdpkl': "_whispered_target_harmonic_distractor_",
+    'inharmonic_target_whispered_distractor_0dB_SNR.pdpkl': "_inharmonic_target_whispered_distractor_",
+    'whispered_target_inharmonic_distractor_0dB_SNR.pdpkl': "_whispered_target_inharmonic_distractor_",
 }
 
 def run_eval(args):
