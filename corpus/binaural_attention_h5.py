@@ -17,6 +17,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
     def __init__(self, root, cue_type, task, batch_size=1, skip_negative_elev=False, mode='train',
                  with_cue_free=False, run_mono=False, mono_sanity_check=False, clean_percentage=0.0, v05=False, v06=False,
                  gender_balanced=False,
+                 mostly_same_dist=False,
                  mixture_percentages={'voice_and_location':.33, 'voice_only':.33, "location_only":.33}, **kwargs):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the
@@ -38,6 +39,9 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
             if gender_balanced:
                 print("Using gender balanced training set")
                 self.all_hdf5_files = list(Path(root).glob(f"train_gender_balanced/{self.hdf5_glob}"))
+            elif mostly_same_dist:
+                print("Using 70% same-sex distractor training set")
+                self.all_hdf5_files = list(Path(root).glob(f"train_70p_1dist_same_sex/{self.hdf5_glob}"))
             else:
                 self.all_hdf5_files = list(Path(root).glob(f"train/{self.hdf5_glob}"))
             # screen dead files 

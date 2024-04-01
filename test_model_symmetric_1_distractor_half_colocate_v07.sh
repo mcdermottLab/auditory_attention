@@ -21,5 +21,5 @@ python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_ha
                 --test_manifest binaural_test_manifests/symmetric_distractor_conditions_neg_15_to_6_dBSNR_eval_rooms.pkl \
                 --model_name word_task_half_co_loc_v07 --location_idx $SLURM_ARRAY_TASK_ID \
                 --gpus 1 --n_jobs 2 --exp_dir binaural_eval/symmetric_distractor_test \
-                --cue_type voice_and_location --no-overwrite --n_per_job 1 --run_1_distractor
+                --cue_type voice_and_location --no-overwrite --n_per_job 1 --modulated_ssn_distractors # --run_1_distractor
 

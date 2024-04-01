@@ -5,8 +5,8 @@
 #SBATCH --mem=100Gb
 #SBATCH -N 1
 #SBATCH --cpus-per-task=16
-#SBATCH --time=4-00:00:00
-#SBATCH --partition=mcdermott
+#SBATCH --time=2-00:00:00
+#SBATCH --partition=normal
 #SBATCH --gres=gpu:a100:4
 ##SBATCH -w apollo001
 
@@ -23,7 +23,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #module add openmind/cuda/12.3
 
 which python3
-python3 spatialtrain.py --config config/binaural_attn/word_task_standard_v08.yaml \
+python3 spatialtrain.py --config config/binaural_attn/word_task_standard_v08_70p_same_dist.yaml \
                  --gpus 4 --n_jobs 4 --resume_training True \
                  --exp_dir attn_cue_models \
 
