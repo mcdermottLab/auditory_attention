@@ -1,6 +1,7 @@
 import torch
 import librosa
 import pickle
+import pandas as pd 
 from pathlib import Path
 
 
@@ -41,6 +42,53 @@ class SWCMonoTestSet(torch.utils.data.Dataset):
         word = self.word_key[int(excerpt_path.stem)]
         word_label = self.word_2_class[word]
         return cue_signal, mixture_signal, word_label
+
+    def __len__(self):
+        return self.len
+
+
+
+class SWCMonoTestSetUnfamililarLanguage(torch.utils.data.Dataset):
+    def __init__(self, manifest_path, model_sr, distractor_language="english", label_type="WSN"):
+
+        self.dataset = pd.read_pickle(manifest_path)
+        self.len = self.dataset.shape[0]
+        self.sr = model_sr
+        self.label_type = label_type
+        self.word_2_class = self.get_class_map()
+        self.distractor_language = distractor_language
+        if self.distractor_language == 'english':
+            self.distractor_col = 'distractor_src_fn'
+        elif self.distractor_language == 'dutch':
+            self.distractor_col = 'nl_distractor_src_fn'
+        if self.distractor_language == 'mandarin':
+            self.distractor_col = 'zh_distractor_src_fn'
+        self.dataset = self.dataset[["src_fn",
+                                     "cue_src_fn",
+                                     self.distractor_col,
+                                     "word_int"]].values
+        print(f"Evaluating using distractors from: {self.distractor_col}")
+
+    def get_class_map(self):
+        """
+        Loads the mapping between the word IDX and human readable word map. 
+        """
+        if self.label_type == "WSN":
+            ## load WSN vocab mapping 
+            word_and_speaker_encodings = pickle.load( open( "/om2/user/imgriff/projects/Auditory-Attention/word_and_speaker_encodings_jsinv3.pckl", "rb" )) 
+            word_2_class = word_and_speaker_encodings['word_to_idx']
+        elif self.label_type == "CV":
+            word_2_class = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", "rb" )) 
+        return word_2_class
+
+    def __getitem__(self, index):
+        # get stimulus 
+        target_path, cue_path, dist_path, word_int = self.dataset[index]
+        target, _ = librosa.load(target_path, sr=self.sr)
+        cue, _ = librosa.load(cue_path, sr=self.sr)
+        distractor, _ = librosa.load(dist_path, sr=self.sr)
+
+        return cue, target, distractor, word_int
 
     def __len__(self):
         return self.len
