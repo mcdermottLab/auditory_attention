@@ -140,7 +140,8 @@ def main(args):
     print("Starting stimuli generation...") 
 
     # get subset of array to run
-    start = args.array_ix * args.n_trials_per_job
+    n_conds = 12 
+    start = (args.array_ix % n_conds) * args.n_trials_per_job
     stop = start + args.n_trials_per_job 
     if abs(len(excerpts) - stop) < 10:
         stop = len(excerpts) 

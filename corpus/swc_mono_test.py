@@ -6,12 +6,19 @@ from pathlib import Path
 
 
 class SWCMonoTestSet(torch.utils.data.Dataset):
-    def __init__(self, stim_path, cond_ix, model_sr, label_type="WSN"):
+    """
+    Dataset class for evaluation on pre-cut mixtures used in human diotic experiments.
+    """
+    def __init__(self, stim_path, cond_ix, model_sr, label_type="WSN", popham_stim=False):
         stim_path = Path(stim_path) / f"condition_{cond_ix:02d}"
         self.walker = list(stim_path.glob("*.wav"))
-        with open("/om2/user/imgriff/projects/Auditory-Attention/human_saddler_attn_expmt_cond_map.pkl", "rb") as f:
-            self.stim_cond_map = pickle.load(f)
-        # get word key 
+        if popham_stim:
+            with open("/om2/user/imgriff/projects/torch_2_aud_attn/swc_popham_exmpt_2024_cond_manifest.pkl", "rb") as f:
+                self.stim_cond_map = pickle.load(f)
+        else:
+            with open("/om2/user/imgriff/projects/Auditory-Attention/human_saddler_attn_expmt_cond_map.pkl", "rb") as f:
+                self.stim_cond_map = pickle.load(f)
+        # get word key - shared for saddler attn and popham expmt 
         with open("/om2/user/imgriff/projects/Auditory-Attention/human_saddler_attn_expmt_word_key.pkl", "rb") as f:
             self.word_key = pickle.load(f)       
         self.len = len(self.walker)
@@ -45,8 +52,7 @@ class SWCMonoTestSet(torch.utils.data.Dataset):
 
     def __len__(self):
         return self.len
-
-
+   
 
 class SWCMonoTestSetUnfamililarLanguage(torch.utils.data.Dataset):
     def __init__(self, manifest_path, model_sr, distractor_language="english", label_type="WSN"):
