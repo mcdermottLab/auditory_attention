@@ -59,6 +59,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
                   residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, ln_affine=True, v08=False, **kwargs):
         super(BinauralAuditoryAttentionCNN, self).__init__()
         # Setup
+        print('v08', v08)
         print(f"{num_classes=}")
         self.dual_task = False
         if isinstance(num_classes, dict):
@@ -112,11 +113,12 @@ class BinauralAuditoryAttentionCNN(nn.Module):
             coch_affine = self.ln_affine
         else:
             coch_affine = True
+        print('coch_affine:', coch_affine)
         self.model_dict["norm_coch_rep"]= nn.LayerNorm([self.input_channels, self.frequency_dim, self.output_len], elementwise_affine=coch_affine)
         # self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, self.input_channels, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
 
         for idx in range(self.n_layers):
-        
+
             # print(f"output height: {self.output_height}, output len: {self.output_len}")
 
             nIn = self.input_channels if idx == 0 else out_channels[idx - 1]

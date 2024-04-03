@@ -8,7 +8,7 @@
 #SBATCH --time=1-00:00:00
 #SBATCH --partition=mcdermott   
 #SBATCH --gres=gpu:1 --constraint=40GB
-#SBATCH --array=7 #1-8 # 0-7 are valid
+#SBATCH --array=0-3 #1-8 # 0-7 are valid
 
 #source /etc/profile.d/modules.sh
 #module use /cm/shared/modulefiles
@@ -28,5 +28,5 @@ python3 transfer_for_localization.py --config config/binaural_attn/word_task_sta
                                      --ckpt_path /om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models/word_task_standard_v07/checkpoints/epoch=3-step=67111.ckpt \
                                      --gpus 1 --n_jobs 2  \
                                      --exp_dir transfer_localization \
-                                     --array_id $SLURM_ARRAY_TASK_ID \
-                                     --lim_train_batches 100
+                                     --array_id 7 \
+                                     --condition $SLURM_ARRAY_TASK_ID

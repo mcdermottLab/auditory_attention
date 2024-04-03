@@ -17,7 +17,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 which python3
 python3 eval_precedence.py --config /om2/user/imgriff/projects/torch_2_aud_attn/config/binaural_attn/word_task_quarter_co_loc_v08.yaml \
-                 --ckpt_path /om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models/word_task_quarter_co_loc_v08/checkpoints/epoch=1-step=21252.ckpt \
+                 --ckpt_path /om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models/word_task_quarter_co_loc_v08/checkpoints/epoch=3-step=53756-v1.ckpt \
                  --test_manifest /om2/user/imgriff/projects/torch_2_aud_attn/binaural_test_manifests/freymen_1999_test_conds.pkl \
                  --model_name word_task_quarter_co_loc_v08 --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test \

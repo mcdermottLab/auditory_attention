@@ -57,15 +57,15 @@ def run_eval(args):
     if harmonic: 
         config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/harmonic_timit/all_targets_harmonic_single_distractor_0dB_SNR_jitter_fn_render.pdpkl'
         task_name = "_harmonic_speech_jitter_render_"    
-        
+
     elif whispered:
         config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/whispered_timit/all_targets_whispered_single_distractor_0dB_SNR.pdpkl'
         task_name = "_whispered_speech_"
-        
+
     elif inharmonic:
         config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/inharmonic_timit/all_targets_inharmonic_single_distractor_0dB_SNR.pdpkl'
         task_name = "_inharmonic_speech_"
-            
+
     else:
         if clean_targets:
             config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/clean_timit_targets_attn_task_0.1rms.pdpkl'
@@ -79,13 +79,12 @@ def run_eval(args):
         config['corpus']['clean_targets'] = config['data']['corpus']['clean_targets']
         if "mono" in model_name.lower():
             config['corpus']['run_mono'] = True
-    
 
     log_name = f"TIMIT{task_name}attn_task_{snr}_all_targets_{model_name}"
 
 
     print(log_name)
-        
+
 #     checkpoint_dir = args.exp_dir / "checkpoints"
 #     print(checkpoint_dir)
 #     # get latest checkpoint
@@ -183,7 +182,7 @@ def cli_main():
         "--test_manifest",
         default=pathlib.Path(""),
         type=pathlib.Path,
-        help="Path to config for test manifest mappig to array_id",
+        help="Path to config for test manifest mapping to array_id",
     )
     parser.add_argument(
         "--harmonic",

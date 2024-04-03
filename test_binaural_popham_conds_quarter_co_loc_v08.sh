@@ -6,8 +6,9 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --time=3:00:00
 #SBATCH --partition=use-everything
-#SBATCH --gres=gpu:1 --constraint=12GB
+#SBATCH --gres=gpu:1 --constraint=16GB
 #SBATCH --array=0-5 #0-5 total
+#SBATCH -x dgx001,dgx002
 
 
 module load openmind8/anaconda/3-2022.10
@@ -20,5 +21,5 @@ python3 eval_timit.py --gpus 1 --n_jobs 2 --exp_dir popham_mono_eval \
                       --test_manifest "/om2/user/imgriff/projects/torch_2_aud_attn/timit_popham_2018_test_conditions.pkl" \
                       --model_name "word_task_quarter_co_loc_v08" \
                       --config_name "/om2/user/imgriff/projects/torch_2_aud_attn/config/binaural_attn/word_task_quarter_co_loc_v08.yaml" \
-                      --ckpt_path "/om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models/word_task_quarter_co_loc_v08/checkpoints/epoch=1-step=21252.ckpt" \
+                      --ckpt_path "/om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models/word_task_quarter_co_loc_v08/checkpoints/epoch=3-step=53756-v1.ckpt" \
                       --array_id $SLURM_ARRAY_TASK_ID
