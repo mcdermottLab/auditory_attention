@@ -501,6 +501,27 @@ class CenterCropForegroundRandomCropBackground(torch.nn.Module):
         return foreground_wav, background_wav
 
 
+class TimeReverseBackgroundSignal(torch.nn.Module):
+    """
+    Time reverses the background signal.
+    """
+    def __init__(self, time_dim=[-1]):
+        super(TimeReverseBackgroundSignal, self).__init__()
+        self.time_dim = time_dim
+
+    def forward(self, foreground_wav, background_wav):
+        """
+        Args:
+            foreground_wav (torch.Tensor): the waveform that will be used as
+                the foreground audio sample (usually speech)
+            background_wav (torch.Tensor): the waveform that will be used as
+                the background audio sample
+        """
+        if background_wav is not None:
+            background_wav = torch.flip(background_wav, self.time_dim)
+        return foreground_wav, background_wav
+
+
 class RMSNormalizeForegroundAndBackground(torch.nn.Module):
     """
     RMS normalize the foreground and background sounds

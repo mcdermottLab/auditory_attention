@@ -17,7 +17,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 which python3
 python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_standard_v08.yaml \
-                 --ckpt_path attn_cue_models/word_task_standard_v08/checkpoints/epoch=3-step=51756.ckpt \
+                 --ckpt_path attn_cue_models/word_task_standard_v08/checkpoints/epoch=3-step=51756-v1.ckpt \
                  --test_manifest binaural_test_manifests/symmetric_distractor_conditions_neg_12_to_6_dBSNR.pkl \
                  --model_name word_task_standard_v08 --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/symmetric_distractor_test \

@@ -132,10 +132,17 @@ def run_eval(args):
                 ])
         audio_transforms_test_db = audio_transforms_test_db.cuda()
 
-        if args.modulated_ssn_distractors:
-            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_modulated_ssn_{room_str}"
+        if args.run_1_distractor:
+            dist_str = "_1_distractor"
+
         else:
-            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_{room_str}"        
+            dist_str = ""
+
+
+        if args.modulated_ssn_distractors:
+            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_modulated_ssn_{room_str}{dist_str}"
+        else:
+            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_{room_str}{dist_str}"        
         print(log_name)
         output_name = str(experiment_dir) + log_name + '.pkl'
         if idx % 10 == 0:
@@ -178,7 +185,10 @@ def run_eval(args):
                 cue = tar_brir(cue.cuda())
                 foreground = tar_brir(fg.cuda())
                 background_l = dist_brir_l(bg.cuda())
-                background_r = dist_brir_r(bg_2.cuda())
+                if args.run_1_distractor:
+                    background_r = None
+                else:
+                    background_r = dist_brir_r(bg_2.cuda())
                 ## set to desired SNR and SPL 
                 cue, _ = audio_transforms_0_db(cue, None)
                 # Set left/right distractor to same level and mix
@@ -287,6 +297,12 @@ def cli_main():
         "--overwrite",
         action=argparse.BooleanOptionalAction,
         help="If true, will overwrite existing results",
+    )
+    # create overwrite flag to handle overwrite of existing results
+    parser.add_argument(
+        "--run_1_distractor",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will run just 1 distractor",
     )
     parser.add_argument(
         "--modulated_ssn_distractors",

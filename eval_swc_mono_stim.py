@@ -96,13 +96,27 @@ def run_eval(args):
     coch_gram = None
     if 'v0' in args.config:
         coch_gram = model.coch_gram.cuda()
-
-    dataset = SWCMonoTestSet(stim_path=args.stim_path,
-                            cond_ix=args.array_id,
-                            model_sr=sr,
-                            label_type=label_type)
     
-    condition, snr = dataset.stim_cond_map[args.array_id]
+    if 'popham' in str(args.stim_path):
+        dataset = SWCMonoTestSet(stim_path=args.stim_path,
+                                cond_ix=args.array_id,
+                                model_sr=sr,
+                                label_type=label_type,
+                                popham_stim=True)  
+        condition_dict = dataset.stim_cond_map[args.array_id]
+        target_harm = condition_dict['target_harmonicity']
+        dist_harm = condition_dict['distractor_harmonicity']
+        dist_harm = "no" if dist_harm is None else dist_harm
+        condition = f"{target_harm}_target_{dist_harm}_distractor"
+        snr = 0 
+
+    else:
+        dataset = SWCMonoTestSet(stim_path=args.stim_path,
+                                cond_ix=args.array_id,
+                                model_sr=sr,
+                                label_type=label_type)
+        
+        condition, snr = dataset.stim_cond_map[args.array_id]
     print(f"Evaluating {model_name} on {condition} at {snr}db SNR")
 
     def collate_fn(batch):
@@ -118,23 +132,6 @@ def run_eval(args):
                                              collate_fn=collate_fn,
                                              num_workers=args.n_jobs)
     
-    # If binaural, get BRIRs for test room and spatialize to center
-    # spatialize = None
-    # if config['audio']['rep_kwargs']['binaural'] and not config['corpus'].get('mono_sanity_check', False):
-    #     print("Spatializing to center")
-    #     new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/manifest_brir.pdpkl')
-    #     only14_manifest = new_room_manifest[(new_room_manifest['src_dist'] == 1.4) & (new_room_manifest['index_room'] == 0)]
-    #     # 0 azim, 0 elev
-    #     df_row = only14_manifest[(only14_manifest['src_azim'] == 0) & (only14_manifest['src_elev'] == 0)]
-    #     h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/mit_bldg46room1004/room000{df_row["index_room"].values[0]}.hdf5'
-    #     index_brir = df_row['index_brir'].values[0]
-    #     sr_src = df_row['sr'].values[0]
-    #     with h5py.File(h5_fn, 'r') as f:
-    #         brir = f['brir'][index_brir]
-    #     if config['audio']['rep_kwargs']['sr'] != sr_src:
-    #         brir = soxr.resample(brir.astype(np.float32), sr_src, config['audio']['rep_kwargs']['sr'])
-    #     spatialize = Spatialize(brir, model_sr=config['audio']['rep_kwargs']['sr']).cuda()
-
     # set up output file 
     out_dir = args.exp_dir / model_name 
     # make dir if it doesn't exist
@@ -151,10 +148,6 @@ def run_eval(args):
             # to device 
             cue = cue.cuda()
             mixture = mixture.cuda()
-
-            # if spatialize:
-            #     cue = spatialize(cue)
-            #     mixture = spatialize(mixture)
 
             if coch_gram: # if cochleagram is not part of model arch. 
                 cue, mixture = coch_gram(cue, mixture)

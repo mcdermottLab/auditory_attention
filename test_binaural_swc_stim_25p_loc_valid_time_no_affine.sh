@@ -23,7 +23,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 
 python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_quarter_co_loc_v08.yaml \
-                 --ckpt_pat attn_cue_models/word_task_quarter_co_loc_v08/checkpoints/epoch=1-step=21252.ckpt \
+                 --ckpt_pat attn_cue_models/word_task_quarter_co_loc_v08/checkpoints/epoch=1-step=25252.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 

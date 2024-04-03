@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 import yaml
 import pickle
 import torch
+import re
 
 from pytorch_lightning import Trainer, seed_everything
 # from pytorch_lightning.callbacks import ModelCheckpoint
@@ -15,6 +16,18 @@ from pytorch_lightning.loggers import CSVLogger
 # from src.attn_rove_rms_lightning import AttnRoveRMSModule
 
 seed_everything(1)
+
+task_name_dict = {
+    'all_targets_harmonic_single_distractor_0dB_SNR_jitter_fn_render.pdpkl': "_harmonic_speech_jitter_render_",
+    'all_targets_whispered_single_distractor_0dB_SNR.pdpkl': "_whispered_speech_",
+    'all_targets_inharmonic_single_distractor_0dB_SNR.pdpkl': "_inharmonic_speech_",
+    'harmonic_target_inharmonic_distractor_0dB_SNR.pdpkl': "_harmonic_target_inharmonic_distractor_",
+    'inharmonic_target_harmonic_distractor_0dB_SNR.pdpkl': "_inharmonic_target_harmonic_distractor_",
+    'harmonic_target_whispered_distractor_0dB_SNR.pdpkl': "_harmonic_target_whispered_distractor_",
+    'whispered_target_harmonic_distractor_0dB_SNR.pdpkl': "_whispered_target_harmonic_distractor_",
+    'inharmonic_target_whispered_distractor_0dB_SNR.pdpkl': "_inharmonic_target_whispered_distractor_",
+    'whispered_target_inharmonic_distractor_0dB_SNR.pdpkl': "_whispered_target_inharmonic_distractor_",
+}
 
 def run_eval(args):
     model_name = args.model_name
@@ -30,6 +43,7 @@ def run_eval(args):
         whispered = cond_dict.get('whispered', False)
         inharmonic = cond_dict.get('inharmonic', False)
         clean_targets = cond_dict.get('clean_targets', False)
+        manifest = cond_dict.get('manifest', None)
     else:
         harmonic = args.harmonic
         whispered = args.whispered
@@ -54,18 +68,23 @@ def run_eval(args):
     config['data']['corpus']['clean_targets'] = clean_targets
     snr = 'clean' if clean_targets else '0dB_SNR'
 
-    if harmonic: 
-        config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/harmonic_timit/all_targets_harmonic_single_distractor_0dB_SNR_jitter_fn_render.pdpkl'
-        task_name = "_harmonic_speech_jitter_render_"    
+    if args.test_manifest.as_posix() != "" and manifest is not None:
+        config['data']['corpus']['root'] = manifest
+        task_name = task_name_dict[manifest.split('/')[-1]]
 
-    elif whispered:
-        config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/whispered_timit/all_targets_whispered_single_distractor_0dB_SNR.pdpkl'
-        task_name = "_whispered_speech_"
-
-    elif inharmonic:
-        config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/inharmonic_timit/all_targets_inharmonic_single_distractor_0dB_SNR.pdpkl'
-        task_name = "_inharmonic_speech_"
-
+    elif args.test_manifest.as_posix() != "" and manifest is None:
+        if harmonic: 
+            config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/harmonic_timit/all_targets_harmonic_single_distractor_0dB_SNR_jitter_fn_render.pdpkl'
+            task_name = "_harmonic_speech_jitter_render_"    
+            
+        elif whispered:
+            config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/whispered_timit/all_targets_whispered_single_distractor_0dB_SNR.pdpkl'
+            task_name = "_whispered_speech_"
+            
+        elif inharmonic:
+            config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/inharmonic_timit/all_targets_inharmonic_single_distractor_0dB_SNR.pdpkl'
+            task_name = "_inharmonic_speech_"
+            
     else:
         if clean_targets:
             config['data']['corpus']['root'] = '/om2/user/imgriff/datasets/timit/clean_timit_targets_attn_task_0.1rms.pdpkl'
