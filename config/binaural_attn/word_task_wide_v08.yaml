@@ -35,7 +35,7 @@ audio:                                  # Attributes of audio feature
 
 
 val_metric: 'val_acc'
-model_name: 'binaural_attn_standard_v08'
+model_name: 'binaural_attn_wide_v08'
 
 noise_kwargs: # parameters for background signal levels 
   low_snr: -10
@@ -45,21 +45,21 @@ hparas:                                   # Experiment hyper-parameters
   valid_step: 2000
   epochs: 1000
   optimizer: 'AdamW'
-  lr: 0.00001
+  lr: 0.0001
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 100 
   batch_size: 256                        # 576 for 8 288 for 4Gets divided by num gpus
 
 model:                                    # Model architecture
   input_sr: 10000
-  out_channels: [32, 64, 256, 512, 512, 512, 512]                       
+  out_channels: [64, 512, 512, 512, 512, 512, 512]                       
   kernel:  [[2, 34], [2, 14], [5, 5], [5, 5], [6, 6], [5, 5], [6, 6]]
   stride: [[1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1]]
   padding: ['valid_time', 'valid_time', 'valid_time', 'valid_time', 'valid_time', 'valid_time', 'valid_time']
   pool_stride: [[2, 4], [2, 4], [1, 5], [1, 4], [1, 1], [1, 1], [2, 4]] 
   pool_size: [[9, 13], [9, 13], [1, 13], [1, 13], [1, 1], [1, 1], [6, 13]]
   pool_padding: [[4,6], [4,6], [0,6], [0,6], [0,0], [0,0], [3,6]]
-  attn: [1, 0, 0, 0, 0, 0, 0]
+  attn: [1, 1, 1, 1, 1, 1, 1]
   num_classes:                         # 998 words in cv vocab
     num_words: 800
   fc_size: 512

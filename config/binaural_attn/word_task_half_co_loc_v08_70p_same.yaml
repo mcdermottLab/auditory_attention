@@ -3,6 +3,10 @@ corpus:
   cue_type: "voice_and_location"
   task: "word"
   root: '/om/scratch/Sun/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v08'
+  mostly_same_dist: True
+  mixture_percentages:
+    voice_only: 0.5
+    voice_and_location: 0.5
   v06: True                # USE v06 dataclass 
 
 audio:                                  # Attributes of audio feature
@@ -35,7 +39,7 @@ audio:                                  # Attributes of audio feature
 
 
 val_metric: 'val_acc'
-model_name: 'binaural_attn_standard_v08'
+model_name: 'binaural_attn_standard_v08_70p_same_1dist'
 
 noise_kwargs: # parameters for background signal levels 
   low_snr: -10
@@ -45,7 +49,7 @@ hparas:                                   # Experiment hyper-parameters
   valid_step: 2000
   epochs: 1000
   optimizer: 'AdamW'
-  lr: 0.00001
+  lr: 0.0001
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 100 
   batch_size: 256                        # 576 for 8 288 for 4Gets divided by num gpus
@@ -59,7 +63,7 @@ model:                                    # Model architecture
   pool_stride: [[2, 4], [2, 4], [1, 5], [1, 4], [1, 1], [1, 1], [2, 4]] 
   pool_size: [[9, 13], [9, 13], [1, 13], [1, 13], [1, 1], [1, 1], [6, 13]]
   pool_padding: [[4,6], [4,6], [0,6], [0,6], [0,0], [0,0], [3,6]]
-  attn: [1, 0, 0, 0, 0, 0, 0]
+  attn: [1, 1, 1, 1, 1, 1, 1]
   num_classes:                         # 998 words in cv vocab
     num_words: 800
   fc_size: 512

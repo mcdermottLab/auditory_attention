@@ -160,9 +160,9 @@ class LocationClassifier(LightningModule):
         # self.schedule = {"scheduler":lr_schedule, "monitor": self.config['val_metric']}
         return {
                 "optimizer": self.optimizer,
-                "lr_scheduler": {'scheduler':lr_schedule,
-                                 'interval': 'step',
-                                 }
+                "lr_scheduler": {"scheduler": lr_schedule,
+                                "interval": "step",
+                                }
                 }
 
     def forward(self, input_aud: torch.tensor):

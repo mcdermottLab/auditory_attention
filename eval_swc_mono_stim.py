@@ -82,7 +82,7 @@ def run_eval(args):
                     at.RMSNormalizeForegroundAndBackground(rms_level=0.02),  # 0.02 is the default for CV-based models 
                     at.UnsqueezeAudio(dim=0),
                     at.DuplicateChannel()
-            ])  
+            ])
     else:
         audio_transforms = at.AudioCompose([
                     at.AudioToTensor(),
@@ -96,7 +96,7 @@ def run_eval(args):
     coch_gram = None
     if 'v0' in args.config:
         coch_gram = model.coch_gram.cuda()
-    
+
     if 'popham' in str(args.stim_path):
         dataset = SWCMonoTestSet(stim_path=args.stim_path,
                                 cond_ix=args.array_id,
@@ -120,7 +120,7 @@ def run_eval(args):
     print(f"Evaluating {model_name} on {condition} at {snr}db SNR")
 
     def collate_fn(batch):
-        #apply transforsms to batch
+        #apply transforms to batch
         cues = torch.stack([audio_transforms(cue, None)[0] for cue, _, _ in batch])
         mixtures = torch.stack([audio_transforms(mix, None)[0] for _, mix,  _ in batch])
         labels = torch.tensor([label for _, _, label in batch]).type(torch.LongTensor)
@@ -131,7 +131,7 @@ def run_eval(args):
                                              shuffle=False,
                                              collate_fn=collate_fn,
                                              num_workers=args.n_jobs)
-    
+
     # set up output file 
     out_dir = args.exp_dir / model_name 
     # make dir if it doesn't exist
@@ -141,7 +141,7 @@ def run_eval(args):
         # write column header to csv
         print("writing csv header")
         csv_out.writerow(['pred_word_int', 'true_word_int', 'accuracy'])
-        
+
         # run eval 
         for i, batch in enumerate(tqdm(dataloader, desc=f"evaluating {model_name} on {condition} at {snr}dB SNR")):
             cue, mixture, word = batch

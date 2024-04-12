@@ -22,12 +22,11 @@ def run_train(args):
 
     if args.config != "":
         config_path = args.config
-        
+
     else:
         with open(args.config_list, 'rb') as f:
             model_config = pickle.load(f)
         config_path = model_config[args.job_id]
-        config_path = config_path.split("/Auditory-Attention/")[-1]
 
     print(config_path)
 

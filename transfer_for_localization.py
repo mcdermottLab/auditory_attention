@@ -51,9 +51,9 @@ def run_train(args):
     config['model']['n_layers'] = n_layers
     config['model']['with_projection'] = with_projection
     with_projection_str = 'with_projection' if with_projection else 'no_projection'
-    config['model']['projection_size'] = 512
+    config['model']['projection_size'] = 256
 
-    config['hparas']['lr'] = 0.0001
+    config['hparas']['lr'] = 0.0005
     config['num_workers'] = args.n_jobs
     checkpoint_path = args.ckpt_path
     print(f"Training with config: {config_path.stem}")

@@ -8,7 +8,7 @@ from src.custom_modules import HannPooling2d
 
 
 class SimpleAttentionalGain(nn.Module):
-    def __init__(self, frequency_dim, cnn_channels, global_avg_cue=False, n_cue_frames=None, **kwargs):
+    def __init__(self, frequency_dim, cnn_channels, global_avg_cue=False, n_cue_frames=None, additive=False, **kwargs):
         super(SimpleAttentionalGain, self).__init__()
         self.frequency_dim = frequency_dim
         if global_avg_cue:
@@ -21,6 +21,7 @@ class SimpleAttentionalGain(nn.Module):
         self.slope = nn.Parameter(torch.ones(1)) # init slope to one
         self.threshold = nn.Parameter(torch.zeros(1)) # init threshold to zero
         self.n_cue_frames = n_cue_frames # duration of cue in frames - full cue if None
+        self.additive = additive # if True, gain is added to mixture, else multiplied
         if self.n_cue_frames:
             if n_cue_frames < 0:
                 self.n_cue_frames = 1 
@@ -49,14 +50,17 @@ class SimpleAttentionalGain(nn.Module):
         if cue_mask_ixs is not None:
             gain[cue_mask_ixs,:] = 1
         # Apply to mixture (element mult)
-        mixture = torch.mul(mixture, gain)
+        if self.additive:
+            mixture = torch.add(mixture, gain)
+        else:
+            mixture = torch.mul(mixture, gain)
         return mixture
 
 
 class BinauralAuditoryAttentionCNN(nn.Module):
     def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
                   fc_size=512, global_avg_cue=False, num_classes={"num_words":800, "num_locs":504}, frequency_dim=40,
-                  residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, ln_affine=True, v08=False, **kwargs):
+                  residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, ln_affine=True, v08=False, additive=False, **kwargs):
         super(BinauralAuditoryAttentionCNN, self).__init__()
         # Setup
         print('v08', v08)
@@ -128,7 +132,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
             # Attentional block:
             if self.attn[idx] == 1:
                 # is SimpleAttentionalGain(self.frequency_dim, self.input_channels, ... ) when ix == 0; normal for ix > 0 
-                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nIn, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
+                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nIn, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
 
             # pre-compute conv output sizes - will assign to self.output_height and self.output_len after defining block
             # Sizes will be used for normalization layers, but depend on order of norm and conv 
@@ -172,7 +176,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
                     self.n_cue_frames = int(np.floor((self.n_cue_frames - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
 
         if v08:
-            self.model_dict[f'attnfc'] = SimpleAttentionalGain(self.output_height, nOut, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
+            self.model_dict[f'attnfc'] = SimpleAttentionalGain(self.output_height, nOut, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
 
         self.output_size = self.output_height * nOut * self.output_len
         self.fullyconnected = nn.Linear(self.output_size, fc_size)
@@ -361,8 +365,8 @@ class BinauralControlCNN(nn.Module):
 class CNN2DExtractor(nn.Module):
     ''' CNN wrapper, includes relu and layer-norm if applied'''
 
-    def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
-                  fc_size=512, global_avg_cue=False, num_classes={"num_words":998, "num_locs":504}, residual_attn=False, double_size=False, n_cue_frames=None, **kwargs):
+    def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout, fc_size=512,
+                 global_avg_cue=False, num_classes={"num_words":998, "num_locs":504}, residual_attn=False, double_size=False, n_cue_frames=None, additive=False, **kwargs):
         super(CNN2DExtractor, self).__init__()
         # Setup
         print(f"{num_classes=}")
@@ -406,7 +410,7 @@ class CNN2DExtractor(nn.Module):
         self.output_height = self.frequency_dim
         self.output_len = 20000 # softcode eventually
         self.model_dict["norm_coch_rep"]= nn.LayerNorm([self.input_channels, self.frequency_dim, self.output_len])
-        self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, self.input_channels, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
+        self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, self.input_channels, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
 
         for idx in range(self.n_layers):
             # print(f"output height: {self.output_height}, output len: {self.output_len}")
@@ -445,7 +449,7 @@ class CNN2DExtractor(nn.Module):
                     self.n_cue_frames = int(np.floor((self.n_cue_frames - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
             # Attentional block:
             if self.attn[idx] == 1:
-                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nOut, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
+                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nOut, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
                 
         self.output_size = self.output_height * nOut * self.output_len
         self.fullyconnected = nn.Linear(self.output_size, fc_size)
@@ -501,7 +505,7 @@ class CNN2DExtractor(nn.Module):
 class CueDurationCNNNew(BinauralAuditoryAttentionCNN):
     def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
                   fc_size=512, global_avg_cue=False, num_classes={"num_words":800, "num_locs":504}, frequency_dim=40,
-                  residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, ln_affine=True, **kwargs):
+                  residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, ln_affine=True, additive=False, **kwargs):
         # 1. call parent constructor
         super(CueDurationCNNNew, self).__init__(input_sr, out_channels, kernel, stride, padding,
                                              pool_stride, pool_size, pool_padding, attn, dropout,
@@ -528,7 +532,7 @@ class CueDurationCNNNew(BinauralAuditoryAttentionCNN):
 
             # Attentional block:
             if self.attn[idx] == 1:
-                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nIn, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
+                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nIn, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
 
             # pre-compute conv output sizes - will assign to self.output_height and self.output_len after defining block
             # Sizes will be used for normalization layers, but depend on order of norm and conv 
@@ -630,10 +634,11 @@ class CueDurationCNNNew(BinauralAuditoryAttentionCNN):
             return self.classification(out)
         
 
+
 class CueDurationCNN2DExtractor(CNN2DExtractor):
     def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
                   fc_size=512, global_avg_cue=False, num_classes={"num_words":998, "num_locs":504}, residual_attn=False,
-                  double_size=False, n_cue_frames=None, **kwargs):
+                  double_size=False, n_cue_frames=None, additive=False, **kwargs):
         # 1. call parent constructor
         super(CueDurationCNN2DExtractor, self).__init__(input_sr, out_channels, kernel, stride, padding,
                                              pool_stride, pool_size, pool_padding, attn, dropout,
@@ -648,11 +653,13 @@ class CueDurationCNN2DExtractor(CNN2DExtractor):
         print(n_cue_frames)
         if n_cue_frames < 5000:
             self.ln_cue_frames = 5000
+        else:
+            self.ln_cue_frames = self.n_cue_frames
         # build architecture without nn.normalization functions 
 
         # add init norm params 
         self.layer_norm_params[f'norm_coch_rep'] = {"weight": None, "bias": None, "cue_weight": None, "cue_bias": None, 'ln_cue_frames': self.ln_cue_frames}
-        self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, self.input_channels, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
+        self.model_dict["attn_block_in"] = SimpleAttentionalGain(self.frequency_dim, self.input_channels, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
 
         for idx in range(self.n_layers):
             nIn = self.input_channels if idx == 0 else out_channels[idx - 1]
@@ -691,7 +698,7 @@ class CueDurationCNN2DExtractor(CNN2DExtractor):
                     self.ln_cue_frames = int(np.floor((self.ln_cue_frames - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
             # Attentional block:
             if self.attn[idx] == 1:
-                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nOut, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
+                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nOut, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
                 
         self.output_size = self.output_height * nOut * self.output_len
         self.fullyconnected = nn.Linear(self.output_size, fc_size)
@@ -751,7 +758,7 @@ class CueDurationCNN2DExtractor(CNN2DExtractor):
 class CueDurationCNN(BinauralAuditoryAttentionCNN):
     def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
                   fc_size=512, global_avg_cue=False, num_classes={"num_words":800, "num_locs":504}, frequency_dim=40,
-                  residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, ln_affine=True, **kwargs):
+                  residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, ln_affine=True, additive=False, **kwargs):
         # 1. call parent constructor
         super(CueDurationCNN, self).__init__(input_sr, out_channels, kernel, stride, padding,
                                              pool_stride, pool_size, pool_padding, attn, dropout,
@@ -769,7 +776,7 @@ class CueDurationCNN(BinauralAuditoryAttentionCNN):
 
             # Attentional block:
             if self.attn[idx] == 1:
-                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nIn, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames)
+                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nIn, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
 
             # pre-compute conv output sizes - will assign to self.output_height and self.output_len after defining block
             # Sizes will be used for normalization layers, but depend on order of norm and conv 
