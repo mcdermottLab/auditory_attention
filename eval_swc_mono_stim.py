@@ -20,28 +20,6 @@ seed_everything(1)
 torch.set_float32_matmul_precision('high')
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
-
-# make torch.nn.Module version of spatilaize
-class Spatialize(torch.nn.Module):
-    def __init__(self, ir, model_sr=50_000):
-        super(Spatialize, self).__init__()
-        ir = torch.flip(torch.from_numpy(ir), dims=[0]).float()
-        self.n_taps = ir.shape[0]
-        ir = ir.T.unsqueeze(1)
-        # set center crop of 2.5 seconds relative to model_sr
-        self.start_frame = int(model_sr * 0.25)
-        self.end_frame = int(model_sr * 2.75)
-        print(f"start frame: {self.start_frame}, end frame: {self.end_frame}")
-        self.register_buffer("ir", ir)
-
-    def forward(self, words):
-        n_words = words.shape[0]
-        # pad last dim of words with ir.shape[0] - 1 zeros
-        words_padded = torch.nn.functional.pad(words, (self.n_taps - 1, 0))
-        spatialized = torch.nn.functional.conv1d(words_padded.view(n_words, 1, -1), self.ir)
-        # resize to desired shape
-        # spatialized = spatialized[:, :, self.start_frame:self.end_frame]
-        return spatialized
     
 def run_eval(args):
 
@@ -97,7 +75,16 @@ def run_eval(args):
     if 'v0' in args.config:
         coch_gram = model.coch_gram.cuda()
     
-    if 'popham' in str(args.stim_path):
+    if args.stim_cond_map:
+        dataset = SWCMonoTestSet(stim_path=args.stim_path,
+                        cond_ix=args.array_id,
+                        model_sr=sr,
+                        label_type=label_type,
+                        stim_cond_map=args.stim_cond_map)
+
+        condition, snr = dataset.stim_cond_map[args.array_id]
+
+    elif 'popham' in str(args.stim_path):
         dataset = SWCMonoTestSet(stim_path=args.stim_path,
                                 cond_ix=args.array_id,
                                 model_sr=sr,
@@ -114,7 +101,8 @@ def run_eval(args):
         dataset = SWCMonoTestSet(stim_path=args.stim_path,
                                 cond_ix=args.array_id,
                                 model_sr=sr,
-                                label_type=label_type)
+                                label_type=label_type,
+                                unfamiliar_distractor = True if 'language' in args.stim_path.as_posix() else False)
         
         condition, snr = dataset.stim_cond_map[args.array_id]
     print(f"Evaluating {model_name} on {condition} at {snr}db SNR")
@@ -182,6 +170,11 @@ def cli_main():
         default=pathlib.Path("/om/user/imgriff/datasets/human_word_rec_SWC_2023/sounds/"),
         type=pathlib.Path,
         help="Path where background stimuli are saved",
+    )
+    parser.add_argument(
+        "--stim_cond_map",
+        default=None,
+        help="Path to pickle file containing condition map for stimuli",
     )
     parser.add_argument(
         "--ckpt_path",

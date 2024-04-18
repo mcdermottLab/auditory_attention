@@ -23,10 +23,10 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/human_pilot_conds \
 #                  --cue_type voice_and_location --overwrite
 which python3
-python3 eval_binaural_w_manifest.py --config config/binaural_attn/word_task_standard_v08.yaml \
-                 --ckpt_path attn_cue_models/word_task_standard_v08/checkpoints/epoch=3-step=51756-v1.ckpt \
+python3 eval_binaural_w_manifest.py --config config/binaural_attn/word_task_half_co_loc_v08.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08/checkpoints/epoch=1-step=21252.ckpt \
                  --location_manifest binaural_test_manifests/match_human_pilot_conds.pkl \
-                 --model_name word_task_standard_v08 --location_idx $SLURM_ARRAY_TASK_ID \
+                 --model_name word_task_half_co_loc_v08 --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/human_pilot_conds \
                  --cue_type voice_and_location --no-overwrite
 

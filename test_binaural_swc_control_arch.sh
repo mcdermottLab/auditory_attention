@@ -22,7 +22,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 
 python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_v08_control_no_attn.yaml \
-                 --ckpt_path attn_cue_models/word_task_v08_control_no_attn/checkpoints/epoch=4-step=67008.ckpt \
+                 --ckpt_path attn_cue_models/word_task_v08_control_no_attn/checkpoints/epoch=2-step=42504.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 

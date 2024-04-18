@@ -148,20 +148,20 @@ class LocationClassifier(LightningModule):
         opt = getattr(torch.optim, self.hparas_config['optimizer'])
         model_params = [{'params': self.classifier.parameters()}] ## Use classifier params not model params 
         # OneCycleLR ignores the learning rate passed into the optimizer, so we don't define it
-        self.optimizer = opt(model_params, eps=self.hparas_config['eps'])       
+        self.optimizer = opt(model_params, lr=self.hparas_config['lr'], eps=self.hparas_config['eps'])       
         ## New for v05 dataset - use lr Scheduler 
-        lr_schedule = torch.optim.lr_scheduler.OneCycleLR(self.optimizer,
-                                                        max_lr = 0.001,
-                                                        total_steps = 10000,
-                                                        div_factor = 10,
-                                                        final_div_factor = 100,
-                                                        )
+        # lr_schedule = torch.optim.lr_scheduler.OneCycleLR(self.optimizer,
+        #                                                 max_lr = 0.001,
+        #                                                 total_steps = 10000,
+        #                                                 div_factor = 10,
+        #                                                 final_div_factor = 100,
+        #                                                 )
         # self.schedule = {"scheduler":lr_schedule, "monitor": self.config['val_metric']}
         return {
                 "optimizer": self.optimizer,
-                "lr_scheduler": {'scheduler':lr_schedule,
-                                 'interval': 'step',
-                                 }
+                # "lr_scheduler": {'scheduler':lr_schedule,
+                #                  'interval': 'step',
+                #                  }
                 }
 
     def forward(self, input_aud: torch.tensor):
@@ -206,7 +206,7 @@ class LocationClassifier(LightningModule):
     def _collate_fn(self, samples: List):
         # samples is a single-element list holding a tuple batches
         samples = samples[0]
-        aud_features, _ = self.audio_transforms(samples[1], None)
+        aud_features, _ = self.audio_transforms(samples[0], None)
         labels = torch.from_numpy(samples[3]).type(torch.LongTensor)
         return aud_features, labels
 

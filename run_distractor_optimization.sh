@@ -21,5 +21,6 @@ python3 optimize_distractor.py --config_path config/binaural_attn/word_task_half
                 --n_steps 10000 --early_stop 500 \
                 --job_ix $SLURM_ARRAY_TASK_ID \
                 --learning_rate 0.00001 \
-                --opt_bg
+                --snr 10 
+                # --opt_bg
 

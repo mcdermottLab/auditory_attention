@@ -9,15 +9,23 @@ class SWCMonoTestSet(torch.utils.data.Dataset):
     """
     Dataset class for evaluation on pre-cut mixtures used in human diotic experiments.
     """
-    def __init__(self, stim_path, cond_ix, model_sr, label_type="WSN", popham_stim=False):
+    def __init__(self, stim_path, cond_ix, model_sr, label_type="WSN", popham_stim=False, unfamiliar_distractor=False, stim_cond_map=None):
         stim_path = Path(stim_path) / f"condition_{cond_ix:02d}"
         self.walker = list(stim_path.glob("*.wav"))
-        if popham_stim:
-            with open("/om2/user/imgriff/projects/torch_2_aud_attn/swc_popham_exmpt_2024_cond_manifest.pkl", "rb") as f:
-                self.stim_cond_map = pickle.load(f)
+        if not stim_cond_map:
+            if popham_stim:
+                with open("/om2/user/imgriff/projects/torch_2_aud_attn/swc_popham_exmpt_2024_cond_manifest.pkl", "rb") as f:
+                    self.stim_cond_map = pickle.load(f)
+            elif unfamiliar_distractor:
+                with open("/om/user/imgriff/datasets/human_distractor_language_2024/human_distractor_language_cond_map.pkl", "rb") as f:
+                    self.stim_cond_map = pickle.load(f)
+            else:
+                with open("/om2/user/imgriff/projects/Auditory-Attention/human_saddler_attn_expmt_cond_map.pkl", "rb") as f:
+                    self.stim_cond_map = pickle.load(f)
         else:
-            with open("/om2/user/imgriff/projects/Auditory-Attention/human_saddler_attn_expmt_cond_map.pkl", "rb") as f:
+            with open(stim_cond_map, "rb") as f:
                 self.stim_cond_map = pickle.load(f)
+
         # get word key - shared for saddler attn and popham expmt 
         with open("/om2/user/imgriff/projects/Auditory-Attention/human_saddler_attn_expmt_word_key.pkl", "rb") as f:
             self.word_key = pickle.load(f)       

@@ -20,6 +20,22 @@ torch.set_float32_matmul_precision('medium')
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
+
+class WindowRMSEquate(torch.nn.Module):
+    def __init__(self, win_size_s, rms_op, sr=44100):
+        super().__init__()
+        self.win_size = int(win_size_s * sr )
+        self.rms_op = rms_op 
+        self.sr=sr
+
+    def forward(self, x):
+        in_shape = x.shape
+        x = x - x.ravel().mean()
+        x = x.view(-1,self.win_size)
+        x, _ = self.rms_op(x, None)
+        return x.view(in_shape)
+
+
 def prep_torch_to_numpy(torch_tensor):
     if torch_tensor.is_cuda:
         torch_tensor = torch_tensor.cpu()
@@ -66,11 +82,14 @@ def run(args):
                 ])
     diotic_transforms = diotic_transforms.cuda()
     
+    rms_norm =  at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02, v2_demean=True)
+    rms_equate = WindowRMSEquate(args.win_size_s, rms_norm, sr=signal_sr)
+
     # for target + distractor combination 
     audio_transforms = at.AudioCompose([
                        at.AudioToTensor(),
-                       at.BinauralCombineWithRandomDBSNR(low_snr=0,
-                                                    high_snr=0,
+                       at.BinauralCombineWithRandomDBSNR(low_snr=args.snr,
+                                                    high_snr=args.snr,
                                                     v2_demean=True),
                        at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02, v2_demean=True), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
                 ])
@@ -97,7 +116,6 @@ def run(args):
     
     label = torch.tensor(label).unsqueeze(0).cuda()
 
-    # init as noise 
     if args.opt_bg:
         distractor = bg.detach().clone().cuda().unsqueeze(0)
         opt_bg_str = '_opt_bg'
@@ -135,23 +153,23 @@ def run(args):
     best_step = 0 
     early_stop = EARLYSTOP
 
-    cue_cg = None 
+    cue_cg, _ = coch_transform(cue, None)
     
     for step in (pbar := tqdm(range(n_steps))):
         optimizer.zero_grad()
         # mixture, _ = audio_transforms(fg, distractor)
         # mixture, _ = audio_transforms(fg, distractor)
-        mixture, _ = audio_transforms(fg, distractor)
-        if cue_cg == None:
-            cue_cg, mixture = coch_transform(cue, mixture)
-        else:
-            mixture, _ = coch_transform(mixture, None)
+        distractor_eq = rms_equate(distractor)
+
+        mixture, _ = audio_transforms(fg, distractor_eq)
+        mixture, _ = coch_transform(mixture, None)
+
         logits = model(cue_cg, mixture, None)
         loss = -loss_fn(logits, label)
 
         if loss < best_loss:
             best_loss = loss.detach().item()
-            best_distractor = distractor.detach().clone()
+            best_distractor = distractor_eq.detach().clone()
             best_step = step 
             early_stop = EARLYSTOP
             # add best loss to tqdm progress bar 
@@ -178,7 +196,7 @@ def run(args):
     output_path = output_path / config_path.stem
     output_path.mkdir(parents=True, exist_ok=True)
     # format dataset_ix as 4 digit string
-    output_file = output_path / f"{config_path.stem}_distractor_{dataset_ix:04d}{lr_str}_adamw_{opt_bg_str}.h5"
+    output_file = output_path / f"{config_path.stem}_distractor_{dataset_ix:04d}{lr_str}_adamw_{opt_bg_str}_eq_dist_rms_{args.snr}dBSNR.h5"
     print(output_file)
     # convert torch tensors to numpy 
     cue = prep_torch_to_numpy(cue)
@@ -196,6 +214,7 @@ def run(args):
         f.create_dataset('best_loss', data=np.array([best_loss]), dtype=np.float32)
         f.create_dataset('dataset_ix', data=np.array([dataset_ix]), dtype=np.int32)
         f.create_dataset('learning_rate', data=np.array([args.learning_rate]), dtype=np.float32)
+        f.create_dataset('db_srn', data=np.array([args.snr]), dtype=np.float32)
 
 
 if __name__ == "__main__":
@@ -208,6 +227,8 @@ if __name__ == "__main__":
     parser.add_argument("--early_stop", type=int,  default=1000, help="Number of steps before early stopping")
     parser.add_argument("--n_steps", type=int,  default=10000, help="Number of steps for optimization")
     parser.add_argument("--learning_rate", type=float,  default=0.1, help="Learning rate for optimization")
+    parser.add_argument("--snr", type=float,  default=10, help="Signal to noise ratio to use in dB")
+    parser.add_argument("--win_size_s", type=float,  default=.1, help="Size of window used to normalize distractor level")
     parser.add_argument("--with_lr_cycle", action='store_true', help="Use one cycle learning rate schedule")
     parser.add_argument("--opt_bg", action='store_true', help="Optimize background instead of noise")
     args = parser.parse_args()
