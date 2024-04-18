@@ -68,7 +68,7 @@ class BinauralAttentionModule(LightningModule):
         else:
             v2_demean = self.audio_config.get('v2_demean', False)
             if v2_demean:
-                print("Using explicit dim specificaion for demeaning in audio transforms")
+                print("Using explicit dim specification for demeaning in audio transforms")
             self.audio_transforms = at.AudioCompose([
                 at.AudioToTensor(),
                 at.BinauralCombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'],

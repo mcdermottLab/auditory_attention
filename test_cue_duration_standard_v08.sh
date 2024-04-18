@@ -16,9 +16,9 @@ export HDF5_USE_FILE_LOCKING=FALSE
 
 source activate /om2/user/imgriff/conda_envs/pytorch_2
 
-python3 eval_cue_duration_mono.py --config config/binaural_attn/word_task_25p_loc_v07_LN_last_valid_time_no_affine.yaml \
-                 --ckpt_pat attn_cue_models/word_task_25p_loc_v07_LN_last_valid_time_no_affine/checkpoints/epoch=3-step=49432.ckpt \
-                 --test_manifest_path binaural_test_manifests/cue_duration_test_manifest_1talker_only_0dB_snr.pkl \
+python3 eval_cue_duration_mono.py --config /om2/user/imgriff/projects/torch_2_aud_attn/config/binaural_attn/word_task_standard_v08.yaml \
+                 --ckpt_pat /om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models/word_task_standard_v08/checkpoints/epoch=3-step=51756-v1.ckpt \
+                 --test_manifest_path /om2/user/imgriff/projects/torch_2_aud_attn/binaural_test_manifests/cue_duration_test_manifest_1talker_only_0dB_snr.pkl \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir cue_duration_eval/ \
 

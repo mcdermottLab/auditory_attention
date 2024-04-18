@@ -138,7 +138,6 @@ def run_eval(args):
         else:
             dist_str = ""
 
-
         if args.modulated_ssn_distractors:
             log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_modulated_ssn_{room_str}{dist_str}"
         else:

@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=train_new_binaural_attn
-#SBATCH --output=outLogs/train_new_binaural_attn_%j.out
-#SBATCH --error=outLogs/train_new_binaural_attn_%j.err
+#SBATCH --output=outLogs/train_early_binaural_attn_%j.out
+#SBATCH --error=outLogs/train_early_binaural_attn_%j.err
 #SBATCH --mem=100Gb
 #SBATCH -N 1
 #SBATCH --cpus-per-task=16

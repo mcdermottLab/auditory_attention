@@ -119,7 +119,8 @@ def run_eval(args):
                                  pad_dur=pad_dur)
 
     # Load model
-    if 'no_affine' in args.config:
+    ln_affine = config['model'].get('ln_affine', True)
+    if 'no_affine' in args.config or not ln_affine:
         model = CueDurationCNNNew(**config['model'])
     else:
         model = CueDurationCNN2DExtractor(**config['model'])

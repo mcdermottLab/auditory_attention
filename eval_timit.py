@@ -98,13 +98,12 @@ def run_eval(args):
         config['corpus']['clean_targets'] = config['data']['corpus']['clean_targets']
         if "mono" in model_name.lower():
             config['corpus']['run_mono'] = True
-    
 
     log_name = f"TIMIT{task_name}attn_task_{snr}_all_targets_{model_name}"
 
 
     print(log_name)
-        
+
 #     checkpoint_dir = args.exp_dir / "checkpoints"
 #     print(checkpoint_dir)
 #     # get latest checkpoint
@@ -202,7 +201,7 @@ def cli_main():
         "--test_manifest",
         default=pathlib.Path(""),
         type=pathlib.Path,
-        help="Path to config for test manifest mappig to array_id",
+        help="Path to config for test manifest mapping to array_id",
     )
     parser.add_argument(
         "--harmonic",

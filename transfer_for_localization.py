@@ -19,6 +19,13 @@ torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
 
+cross_dict = {0: [True, 5000],
+              1: [True, 10000],
+              2: [False, 5000],
+              3: [False, 10000],
+              }
+
+
 def run_train(args):
     seed_everything(123)
     if args.config != "":
@@ -32,6 +39,8 @@ def run_train(args):
     config_path = pathlib.Path(config_path)
     config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
 
+    with_projection, lim_train_batch = cross_dict[int(args.condition)]
+    config['hparas']['lim_train_batch'] = lim_train_batch
     # add transfer learning config
     config['model']['num_classes']['num_locs'] = 504 # 360 azimuth and 90 in elevation
     del config['model']['num_classes']['num_words']
@@ -40,12 +49,11 @@ def run_train(args):
     config['corpus']['skip_negative_elev'] = True
     n_layers = args.array_id 
     config['model']['n_layers'] = n_layers
-    with_projection = True
     config['model']['with_projection'] = with_projection
     with_projection_str = 'with_projection' if with_projection else 'no_projection'
-    config['model']['projection_size'] = 512
+    config['model']['projection_size'] = 256
 
-    config['hparas']['lr'] = 0.00001
+    config['hparas']['lr'] = 0.0005
     config['num_workers'] = args.n_jobs
     checkpoint_path = args.ckpt_path
     print(f"Training with config: {config_path.stem}")
@@ -77,6 +85,9 @@ def run_train(args):
             verbose=True,
         ))
     print("Init trainer")
+    limit = float(args.lim_train_batches)
+    if limit > 1:
+        limit = int(args.lim_train_batches)
     trainer = Trainer(
         default_root_dir= model_dir,
         precision="32",
@@ -149,6 +160,7 @@ def cli_main():
     parser.add_argument('--resume_training', default=False, help='Resume training from checkpoint.')
     parser.add_argument('--negative_elevs', default=False, help='Use negative elevations in training.')
     parser.add_argument('--lim_train_batches', default=1.0, help='Limit the number of training batches.')
+    parser.add_argument('--condition', help='key for array condition')
     args = parser.parse_args()
 
     run_train(args)

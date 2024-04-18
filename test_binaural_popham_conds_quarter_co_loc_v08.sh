@@ -7,7 +7,7 @@
 #SBATCH --time=00:20:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=16GB
-#SBATCH --array=9,11 #0-11 total
+#SBATCH --array=0-5 #0-5 total
 #SBATCH -x dgx001,dgx002
 
 
@@ -28,5 +28,5 @@ python3 eval_timit.py --gpus 1 --n_jobs 2 --exp_dir popham_mono_eval \
                       --test_manifest "/om2/user/imgriff/projects/torch_2_aud_attn/timit_popham_2018_with_crossed_test_conditions.pkl" \
                       --model_name "word_task_quarter_co_loc_v08" \
                       --config_name "/om2/user/imgriff/projects/torch_2_aud_attn/config/binaural_attn/word_task_quarter_co_loc_v08.yaml" \
-                      --ckpt_path "/om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models/word_task_quarter_co_loc_v08/checkpoints/epoch=1-step=25252.ckpt" \
+                      --ckpt_path "/om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models/word_task_quarter_co_loc_v08/checkpoints/epoch=1-step=21252.ckpt" \
                       --array_id $SLURM_ARRAY_TASK_ID
