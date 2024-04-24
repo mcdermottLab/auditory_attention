@@ -23,7 +23,11 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #module add openmind/cuda/12.3
 
 which python3
-python3 spatialtrain.py --config config/binaural_attn/word_task_gender_balanced_fc_1024_v08.yaml \
+python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M.yaml \
                  --gpus 4 --n_jobs 4 --resume_training True \
                  --exp_dir attn_cue_models \
+
+# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal.yaml \
+#                  --gpus 4 --n_jobs 4 --resume_training True \
+#                  --exp_dir attn_cue_models \
 
