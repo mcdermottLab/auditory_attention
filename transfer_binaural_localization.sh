@@ -8,7 +8,7 @@
 #SBATCH --time=2-00:00:00
 #SBATCH --partition=mcdermott   
 #SBATCH --gres=gpu:1 --constraint=40GB
-#SBATCH --array=0 #1-8 # 0-7 are valid
+#SBATCH --array=0-3 #1-8 # 0-7 are valid
 
 #source /etc/profile.d/modules.sh
 #module use /cm/shared/modulefiles

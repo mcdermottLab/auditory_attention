@@ -207,7 +207,7 @@ class LocationClassifier(LightningModule):
     def _collate_fn(self, samples: List):
         # samples is a single-element list holding a tuple batches
         samples = samples[0]
-        aud_features, _ = self.audio_transforms(samples[1], None)
+        aud_features, _ = self.audio_transforms(samples[0], None)
         labels = torch.from_numpy(samples[3]).type(torch.LongTensor)
         return aud_features, labels
 
