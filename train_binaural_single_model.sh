@@ -28,3 +28,7 @@ python3 spatialtrain.py --config config/binaural_attn/word_task_deep_fc_1024_v08
                  --gpus 4 --n_jobs 4 --resume_training True \
                  --exp_dir attn_cue_models \
 
+# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal.yaml \
+#                  --gpus 4 --n_jobs 4 --resume_training True \
+#                  --exp_dir attn_cue_models \
+

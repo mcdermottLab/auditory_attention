@@ -194,7 +194,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
             mixture = self.model_dict["norm_coch_rep"](mixture)
             for idx in range(self.n_layers):
                 mixture = self.model_dict[f'conv_block_{idx}'](mixture)
-                # print(f"conv_block_{idx}, {mixture.max(), mixture.min()}")
+                # print(f"conv_block_{idx}, {mixture.mean().item(), mixture.max().item(), mixture.min().item()}")
                 if self.pool_stride[idx] != -1:
                     mixture = self.model_dict[f'hann_pool_{idx}'](mixture)
             out = mixture
@@ -209,11 +209,11 @@ class BinauralAuditoryAttentionCNN(nn.Module):
                     else:
                         attn = self.model_dict[f'attn{idx}'](cue, attn, cue_mask_ixs)
                         
-                # print(f"conv_block_{idx} post gain max and min: {attn.max().item(), attn.min().item()}")
+                # print(f"conv_block_{idx} post gain mean max and min: {attn.mean().item(), attn.max().item(), attn.min().item()}")
 
                 cue = self.model_dict[f'conv_block_{idx}'](cue)
                 attn = self.model_dict[f'conv_block_{idx}'](attn)
-                # print(f"conv_block_{idx} post conv and norm max and min: {attn.max().item(), attn.min().item()}")
+                # print(f"conv_block_{idx} post conv and norm mean max and min: {attn.mean().item(), attn.max().item(), attn.min().item()}")
                 if self.pool_stride[idx] != -1:
                     cue = self.model_dict[f'hann_pool_{idx}'](cue)
                     attn = self.model_dict[f'hann_pool_{idx}'](attn)

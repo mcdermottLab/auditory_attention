@@ -144,7 +144,7 @@ popham_mono_eval
 confidenceScorers
 pre_train_word_loc
 Denmark_2024
-
+api_util/
 
 # swap file
 *.swp

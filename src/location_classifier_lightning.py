@@ -148,21 +148,20 @@ class LocationClassifier(LightningModule):
         opt = getattr(torch.optim, self.hparas_config['optimizer'])
         model_params = [{'params': self.classifier.parameters()}] ## Use classifier params not model params 
         # OneCycleLR ignores the learning rate passed into the optimizer, so we don't define it
-        self.optimizer = opt(model_params, eps=self.hparas_config['eps'])       
+        self.optimizer = opt(model_params, lr=self.hparas_config['lr'], eps=self.hparas_config['eps'])       
         ## New for v05 dataset - use lr Scheduler 
-        total_steps = self.hparas_config['lim_train_batch'] * 10
-        lr_schedule = torch.optim.lr_scheduler.OneCycleLR(self.optimizer,
-                                                        max_lr = 0.001,
-                                                        total_steps = total_steps,
-                                                        div_factor = 10,
-                                                        final_div_factor = 100,
-                                                        )
+        # lr_schedule = torch.optim.lr_scheduler.OneCycleLR(self.optimizer,
+        #                                                 max_lr = 0.001,
+        #                                                 total_steps = 10000,
+        #                                                 div_factor = 10,
+        #                                                 final_div_factor = 100,
+        #                                                 )
         # self.schedule = {"scheduler":lr_schedule, "monitor": self.config['val_metric']}
         return {
                 "optimizer": self.optimizer,
-                "lr_scheduler": {"scheduler": lr_schedule,
-                                "interval": "step",
-                                }
+                # "lr_scheduler": {'scheduler':lr_schedule,
+                #                  'interval': 'step',
+                #                  }
                 }
 
     def forward(self, input_aud: torch.tensor):

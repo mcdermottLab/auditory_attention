@@ -96,13 +96,13 @@ def run_train(args):
         num_sanity_val_steps=2,
         # benchmark=True,
         devices=args.gpus, # was gpus=1,
-        # val_check_interval=2000,
+        val_check_interval=1000,
         gradient_clip_val=100,
         accelerator="gpu",
         profiler=None,
         callbacks=callbacks,
-        limit_train_batches = lim_train_batch,
-        limit_val_batches = 100
+        limit_train_batches = int(args.lim_train_batches),
+        limit_val_batches = 50,
     )
     print("training")
 

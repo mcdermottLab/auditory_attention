@@ -22,8 +22,15 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/sounds/ \
 #                  --exp_dir popham_swc_eval/ \
 
-python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v07.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt \
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v07.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 \
+#                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/sounds/ \
+#                  --exp_dir popham_swc_eval/ \
+
+python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_v08_control_no_attn.yaml \
+                 --ckpt_path attn_cue_models/word_task_v08_control_no_attn/checkpoints/epoch=2-step=42504.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 \
                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/sounds/ \

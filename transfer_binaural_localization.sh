@@ -2,11 +2,11 @@
 #SBATCH --job-name=transfer_localization
 #SBATCH --output=outLogs/transfer_binaural_attn_v07_%A_%a.out
 #SBATCH --error=outLogs/transfer_binaural_attn_v07_%A_%a.err
-#SBATCH --mem=20GB
+#SBATCH --mem=10GB
 #SBATCH -N 1
 #SBATCH --cpus-per-task=2
-#SBATCH --time=2-00:00:00
-#SBATCH --partition=mcdermott   
+#SBATCH --time=1-00:00:00
+#SBATCH --partition=use-everything   
 #SBATCH --gres=gpu:1 --constraint=40GB
 #SBATCH --array=0-3 #1-8 # 0-7 are valid
 
@@ -28,5 +28,5 @@ python3 transfer_for_localization.py --config config/binaural_attn/word_task_sta
                                      --ckpt_path /om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models/word_task_standard_v07/checkpoints/epoch=3-step=67111.ckpt \
                                      --gpus 1 --n_jobs 2  \
                                      --exp_dir transfer_localization \
-                                     --array_id 7 \
-                                     --condition $SLURM_ARRAY_TASK_ID
+                                     --array_id $SLURM_ARRAY_TASK_ID \
+                                     --lim_train_batches 10000
