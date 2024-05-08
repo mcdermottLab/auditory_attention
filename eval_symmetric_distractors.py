@@ -16,6 +16,7 @@ import yaml
 import argparse
 from argparse import ArgumentParser
 from corpus.speaker_room_dataset import SpeakerRoomDataset
+from corpus.binaural_swc_currated_pd import SWCHumanExperimentStimDataset
 from tqdm.auto import tqdm
 from datetime import datetime
 import sys
@@ -47,10 +48,13 @@ class Spatialize(torch.nn.Module):
         return spatialized
 
 def run_eval(args):
+    # seed rngs 
+    torch.manual_seed(args.location_idx)
+    np.random.seed(args.location_idx)
     
-    model_name = args.model_name
     checkpoint_path = args.ckpt_path
     cue_type = args.cue_type
+    model_name = args.model_name if args.model_name != '' else Path(args.config).stem
 
     # load model config 
     config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
@@ -67,8 +71,9 @@ def run_eval(args):
 
     experiment_dir = f"{args.exp_dir}/{model_name}"
     if not os.path.exists(experiment_dir):
-        os.makedirs(experiment_dir)
-    model = attn_tracking_lightning.BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config, strict=False).cuda()
+        os.makedirs(experiment_dir, exist_ok=True)
+
+    model = attn_tracking_lightning.BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config, strict=True).cuda()
     # define audio transforms to standardize eval transforms across models (v05 skips BinauralCombineWithRandomDBSNR)
     audio_transforms_0_db = at.AudioCompose([
                         at.AudioToTensor(),
@@ -86,23 +91,35 @@ def run_eval(args):
     if args.modulated_ssn_distractors:
         print("Using modulated ssn distractors")
     
-    dataset = SpeakerRoomDataset(manifest_path='/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl',
-                                excerpt_path='/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl',
-                                cue_type=cue_type,
-                                sr=model_in_sr,
-                                symmetric_distractor_test=True,
-                                modulated_ssn_distractors=args.modulated_ssn_distractors) 
+    if args.sim_human_array_exmpt:
+        dataset = SWCHumanExperimentStimDataset(path='/om/user/imgriff/datasets/human_word_rec_SWC_2024/full_cue_target_distractor_df_w_meta.pdpkl',
+                                                run_all_stim=False,
+                                                sr=model_in_sr)
+        
+    else:
+        dataset = SpeakerRoomDataset(manifest_path='/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl',
+                                    excerpt_path='/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl',
+                                    cue_type=cue_type,
+                                    sr=model_in_sr,
+                                    symmetric_distractor_test=True,
+                                    modulated_ssn_distractors=args.modulated_ssn_distractors,
+                                    return_stim_ixs=True) 
+        
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
     
     # use anechoic BRIRs for testing
     new_room_manifest = None 
     only14_manifest = None
     
-
     for idx in range(start,end):
         target_loc = test_dict[idx]['target_loc']
         distract_loc = test_dict[idx]['distract_loc']
         threshold_snr = test_dict[idx]['snr']
+        print(test_dict[idx])
+
+        symmetric_distractor = args.run_1_distractor or test_dict[idx].get('symmetric_distractor', False)
+        sym_dist_str = 'symmetric distractors' if symmetric_distractor else 'single distractor'
+        print(f"Running evaluation with {sym_dist_str}")
 
         if test_dict[idx].get('test_room_meta', False):
             test_manifest_path = test_dict[idx]['test_room_meta']['room_manifest']
@@ -110,8 +127,10 @@ def run_eval(args):
             new_room_manifest = pd.read_pickle(test_manifest_path)
             only14_manifest = new_room_manifest[(new_room_manifest['index_room'] == test_room_idx)  & (new_room_manifest['src_dist'] == 1.4)]
             h5_fn = test_dict[idx]['test_room_meta']['h5_fn']
-            if 'eval' in Path(args.test_manifest).stem:
+            if 'eval' in Path(test_manifest_path).as_posix():
                 room_str = f'eval_room{test_room_idx:04}'
+            elif 'min_reverb' in Path(test_manifest_path).as_posix():
+                room_str = f'min_reverb_room{test_room_idx:04}'
             else:
                 room_str = f'mitb46_room{test_room_idx:04}'
 
@@ -132,7 +151,7 @@ def run_eval(args):
                 ])
         audio_transforms_test_db = audio_transforms_test_db.cuda()
 
-        if args.run_1_distractor:
+        if not symmetric_distractor:
             dist_str = "_1_distractor"
 
         else:
@@ -176,15 +195,17 @@ def run_eval(args):
         confusions = []
         pred_list = []
         true_word_int = []
+        stim_ix_list = []
 
         with torch.no_grad(): 
             for batch in tqdm(dataloader):
-                cue, fg, bg, bg_2, label, dist_word_label, dist_word_label2 = batch
+                cue, fg, bg, bg_2, label, dist_word_label, dist_word_label2, stim_ixs = batch
+                stim_ix_list.append(stim_ixs)
                 # spatialize signals 
                 cue = tar_brir(cue.cuda())
                 foreground = tar_brir(fg.cuda())
                 background_l = dist_brir_l(bg.cuda())
-                if args.run_1_distractor:
+                if symmetric_distractor:
                     background_r = None
                 else:
                     background_r = dist_brir_r(bg_2.cuda())
@@ -215,12 +236,14 @@ def run_eval(args):
         confusions = np.concatenate(confusions)
         preds = np.concatenate(pred_list)
         true_word_int = np.concatenate(true_word_int)
+        stim_ix_list = np.concatenate(stim_ix_list)
 
         # Prep output then save for this test 
         output_dict['results'] = accuracies
         output_dict['confusions'] = confusions
         output_dict['preds'] = preds
         output_dict['true_word_int'] = true_word_int
+        output_dict['stim_ix_list'] = stim_ix_list
         
         print(f"Test {distract_loc[0]} azimuth distractor at {threshold_snr} SNR in {room_str}")
         print(f"Accuracy: {accuracies.mean()}")
@@ -228,6 +251,7 @@ def run_eval(args):
 
         with open(output_name, 'wb') as f:
             pickle.dump(output_dict, f)
+
 
 def cli_main():
     parser = ArgumentParser()
@@ -258,7 +282,7 @@ def cli_main():
     )
     parser.add_argument(
         "--model_name",
-        default='BinauralAttn_Word_Task_Voice_Cue',
+        default='',
         type=str,
         help="Name of model to use in file name.",
     )
@@ -307,6 +331,11 @@ def cli_main():
         "--modulated_ssn_distractors",
         action=argparse.BooleanOptionalAction,
         help="If true, will use festen and plomp style modulated ssn maskers as distractors"
+    )
+    parser.add_argument(
+        "--sim_human_array_exmpt",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will use dataset to support conditions simulating human speaker array experiment."
     )
 
     args = parser.parse_args()
