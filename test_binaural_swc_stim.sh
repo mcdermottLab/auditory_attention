@@ -4,10 +4,10 @@
 #SBATCH --error=outLogs/binaural_swc_test_stim_%A_%a.err
 #SBATCH --mem=12Gb
 #SBATCH --cpus-per-task=4
-#SBATCH --time=0:20:00
+#SBATCH --time=0:30:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=31-36# 0-40 # 0-40
+#SBATCH --array=0-40 # 0-40
 #SBATCH -x dgx001,dgx002
 
 
@@ -22,10 +22,30 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 
 # sometimes get compilation issues - remove just to be safe
-
 rm -r /tmp/torchinductor_imgriff
-python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal/checkpoints/epoch=18-step=62894.ckpt \
+
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M/checkpoints/epoch=2-step=44472.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir swc_mono_eval/ \
+
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_orig.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_orig/checkpoints/epoch=1-step=23530.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir swc_mono_eval/ \
+
+python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08/checkpoints/epoch=1-step=25252.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_mono_eval/ \
+
+# python3 eval_swc_mono_stim.py --config /om2/user/rphess/Auditory-Attention/config/binaural_attn/word_task_deep_fc_1024_v08.yaml \
+#                  --ckpt_path /om2/user/rphess/Auditory-Attention/attn_cue_models/word_task_deep_fc_1024_v08/checkpoints/epoch=2-step=42472.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir swc_mono_eval/ \
+
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_locate_deep_fc_1024_v08.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_locate_deep_fc_1024_v08/checkpoints/epoch=8-step=136016.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 

@@ -89,7 +89,7 @@ class BinauralAttentionModule(LightningModule):
         # Init Model
         # Get model architecture
         norm_first = self.model_config.get('norm_first', True)
-        new_module = self.model_config.get('new_module', False)
+        new_module = self.model_config.get('v08', False)
         control_arch = self.model_config.get('control_arch', False)
         if control_arch:
             print("Using BinauralControlCNN")

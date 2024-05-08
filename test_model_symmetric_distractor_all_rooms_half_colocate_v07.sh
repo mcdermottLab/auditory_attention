@@ -16,10 +16,17 @@ export HDF5_USE_FILE_LOCKING=FALSE
 source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 which python3
-python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_half_co_loc_v08.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08/checkpoints/epoch=1-step=21252.ckpt \
+# python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_half_co_loc_v08.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08/checkpoints/epoch=1-step=21252.ckpt \
+#                  --test_manifest binaural_test_manifests/symmetric_distractor_conditions_neg_15_to_6_dBSNR_eval_rooms.pkl \
+#                  --model_name word_task_half_co_loc_v08 --location_idx $SLURM_ARRAY_TASK_ID \
+#                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/symmetric_distractor_test \
+#                  --cue_type voice_and_location --no-overwrite --n_per_job 1 # --modulated_ssn_distractors
+
+python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_deep_fc_1024_v08.yaml \
+                 --ckpt_path attn_cue_models/word_task_deep_fc_1024_v08/checkpoints/epoch=2-step=42472.ckpt \
                  --test_manifest binaural_test_manifests/symmetric_distractor_conditions_neg_15_to_6_dBSNR_eval_rooms.pkl \
-                 --model_name word_task_half_co_loc_v08 --location_idx $SLURM_ARRAY_TASK_ID \
+                 --model_name word_task_deep_fc_1024_v08 --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/symmetric_distractor_test \
                  --cue_type voice_and_location --no-overwrite --n_per_job 1 # --modulated_ssn_distractors
 

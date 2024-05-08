@@ -115,7 +115,7 @@ def run_eval(args):
         return cues, mixtures, labels
 
     dataloader = torch.utils.data.DataLoader(dataset,
-                                             batch_size=16,
+                                             batch_size=12,
                                              shuffle=False,
                                              collate_fn=collate_fn,
                                              num_workers=args.n_jobs)

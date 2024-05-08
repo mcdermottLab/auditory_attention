@@ -60,7 +60,7 @@ model:                                    # Model architecture
   pool_size: [[9, 13], [9, 13], [1, 13], [1, 13], [1, 1], [1, 1], [6, 13], [1, 1], [1, 1]]
   pool_padding: [[4,6], [4,6], [0,6], [0,6], [0,0], [0,0], [3,6], [0,0], [0,0]]
   attn: [1, 1, 1, 1, 1, 1, 1, 1, 1]
-  num_classes:                         # 998 words in cv vocab
+  num_classes:                         # 800 words in cv vocab
     num_words: 800
   fc_size: 1024
   global_avg_cue: False

@@ -7,7 +7,7 @@
 #SBATCH --time=2:00:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0-50
+#SBATCH --array=22-25,29-40,46-47,57-72 # 0-50 for standard, 0-72 if using alt elevs 
 #SBATCH -x dgx001,dgx002
 
 module load openmind8/anaconda/3-2022.10
@@ -16,9 +16,16 @@ export HDF5_USE_FILE_LOCKING=FALSE
 source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 which python3
+# python3 eval_binaural_w_manifest.py --config config/binaural_attn/word_task_half_co_loc_v07.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt \
+#                  --location_manifest binaural_test_manifests/match_human_pilot_conds.pkl \
+#                  --model_name word_task_half_co_loc_v07 --location_idx $SLURM_ARRAY_TASK_ID \
+#                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/human_pilot_conds \
+#                  --cue_type voice_and_location --no-overwrite
+
 python3 eval_binaural_w_manifest.py --config config/binaural_attn/word_task_half_co_loc_v07.yaml \
                  --ckpt_path attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt \
-                 --location_manifest binaural_test_manifests/match_human_pilot_conds.pkl \
+                 --location_manifest binaural_test_manifests/alternate_elev_conditions.pkl \
                  --model_name word_task_half_co_loc_v07 --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/human_pilot_conds \
                  --cue_type voice_and_location --no-overwrite
