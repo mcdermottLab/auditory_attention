@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=train_new_binaural_attn
-#SBATCH --output=outLogs/train_v08_gender_bal_4M_orig_%j.out
-#SBATCH --error=outLogs/train_v08_gender_bal_4M_orig_%j.err
+#SBATCH --output=outLogs/train_v08_gender_bal_4M_conv_ln_relu_%j.out
+#SBATCH --error=outLogs/train_v08_gender_bal_4M_conv_ln_relu_%j.err # train_v08_gender_bal_4M_orig_
 #SBATCH --mem=100Gb
 #SBATCH -N 1
 #SBATCH --cpus-per-task=16
-#SBATCH --time=1-00:00:00
-#SBATCH --partition=normal
+#SBATCH --time=4-00:00:00
+#SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:a100:4
 ##SBATCH -w apollo001
 
@@ -35,7 +35,11 @@ which python3
 #                  --gpus 4 --n_jobs 4 --resume_training True \
 #                  --exp_dir attn_cue_models \
 
-python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08.yaml \
+# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08.yaml \
+#                  --gpus 4 --n_jobs 4 --resume_training True \
+#                  --exp_dir attn_cue_models \
+
+python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_conv_ln_relu.yaml \
                  --gpus 4 --n_jobs 4 --resume_training True \
                  --exp_dir attn_cue_models \
 

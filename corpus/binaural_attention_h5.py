@@ -36,9 +36,13 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         self.hdf5_glob = '*.hdf5_chunk000' 
         # self.hdf5_glob = '*.hdf5_chunk000' if with_cue_free or self.v05 else 'noise*.hdf5_chunk000' 
         print(root)
+
         if mode == 'train':
-            if gender_balanced:
-                if gender_balanced_4M:
+            if gender_balanced or gender_balanced_4M:
+                if gender_balanced_4M or 'v08' in root:
+                    print("Using gender balanced training 4M set")
+                    self.all_hdf5_files = list(Path(root).glob(f"train_gender_balanced/{self.hdf5_glob}"))
+                elif gender_balanced_4M:
                     print("Using gender balanced training 4M set")
                     self.all_hdf5_files = list(Path(root).glob(f"train_gender_balanced_4M/{self.hdf5_glob}"))
                 else:
