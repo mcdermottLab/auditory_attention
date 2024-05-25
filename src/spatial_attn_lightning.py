@@ -95,12 +95,12 @@ class BinauralAttentionModule(LightningModule):
         if control_arch:
             print("Using BinauralControlCNN")
             self.model = BinauralControlCNN(**self.model_config)
-        elif norm_first == False or new_module and not v2_module:
-            print("Using BinauralAuditoryAttentionCNN")
-            self.model = BinauralAuditoryAttentionCNN(**self.model_config)
         elif v2_module:
             print("Using BinauralAuditoryAttentionCNNV2")
             self.model = BinauralAuditoryAttentionCNNV2(**self.model_config)
+        elif (norm_first == False or new_module) and not v2_module:
+            print("Using BinauralAuditoryAttentionCNN")
+            self.model = BinauralAuditoryAttentionCNN(**self.model_config)
         else:
             self.model = CNN2DExtractor(**self.model_config) 
         # check if torch version 2 or greater - if so, compile model
