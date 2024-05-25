@@ -1,11 +1,8 @@
 corpus:
   name: 'spatialized_commonvoice_audioset_scenes'
-  cue_type: "mixed"
+  cue_type: "voice_and_location"
   task: "word"
   root: '/om/scratch/Sun/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v08'
-  mixture_percentages:
-    voice_only: 0.5
-    voice_and_location: 0.5
   gender_balanced_4M: True
   v06: True                # USE v06 dataclass 
 
@@ -49,7 +46,7 @@ hparas:                                   # Experiment hyper-parameters
   valid_step: 2000
   epochs: 1000
   optimizer: 'AdamW'
-  lr: 0.00001                            # Initial learning rate of 0.0001 -> drop if manually testing late-training effects of smaller lr
+  lr: 0.0001
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 100 
   batch_size: 288                       # 576 for 8 288 for 4Gets divided by num gpus

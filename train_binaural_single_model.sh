@@ -5,7 +5,7 @@
 #SBATCH --mem=100Gb
 #SBATCH -N 1
 #SBATCH --cpus-per-task=16
-#SBATCH --time=2-00:00:00
+#SBATCH --time=1-00:00:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:a100:4
 ##SBATCH -w apollo001

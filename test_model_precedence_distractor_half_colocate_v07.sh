@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH --job-name=eval_model
-#SBATCH --output=outLogs/eval_precedence_half_colocate_v07_%A_%a.out
-#SBATCH --error=outLogs/eval_precedence_half_colocate_v07_%A_%a.err
+#SBATCH --output=outLogs/eval_precedence_%A_%a.out
+#SBATCH --error=outLogs/eval_precedence_%A_%a.err
 #SBATCH --mem=10Gb
 #SBATCH --cpus-per-task=2
 #SBATCH --time=1:00:00
@@ -17,10 +17,17 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #                  --test_manifest binaural_test_manifests/precedence_distractor_conditions_co_loc_conditions.pkl \
 
 which python3
-python3 eval_precedence.py --config config/binaural_attn/word_task_half_co_loc_v07.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt \
+# python3 eval_precedence.py --config config/binaural_attn/word_task_half_co_loc_v07.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt \
+#                  --test_manifest binaural_test_manifests/freymen_1999_test_conds.pkl \
+#                  --model_name word_task_half_co_loc_v07 --location_idx $SLURM_ARRAY_TASK_ID \
+#                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test \
+#                  --cue_type voice_and_location --overwrite --n_per_job 1
+
+python3 eval_precedence.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_orig.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_orig/checkpoints/epoch=0-step=6000-v1.ckpt \
                  --test_manifest binaural_test_manifests/freymen_1999_test_conds.pkl \
-                 --model_name word_task_half_co_loc_v07 --location_idx $SLURM_ARRAY_TASK_ID \
+                 --model_name word_task_half_co_loc_v08_gender_bal_4M_orig --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test \
                  --cue_type voice_and_location --overwrite --n_per_job 1
 
