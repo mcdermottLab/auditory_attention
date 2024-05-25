@@ -93,7 +93,7 @@ def run_eval(args):
     
     if args.sim_human_array_exmpt:
         dataset = SWCHumanExperimentStimDataset(path='/om/user/imgriff/datasets/human_word_rec_SWC_2024/full_cue_target_distractor_df_w_meta.pdpkl',
-                                                run_all_stim=False,
+                                                run_all_stim=args.run_all_stim,
                                                 sr=model_in_sr)
         
     else:
@@ -151,16 +151,17 @@ def run_eval(args):
                 ])
         audio_transforms_test_db = audio_transforms_test_db.cuda()
 
+        # Add modifications to log name based on flags for test conditions 
         if not symmetric_distractor:
             dist_str = "_1_distractor"
-
         else:
             dist_str = ""
 
+        all_stim_str = '_all_stim' if args.run_all_stim else '_subset_stim'
         if args.modulated_ssn_distractors:
-            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_modulated_ssn_{room_str}{dist_str}"
+            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_modulated_ssn_{room_str}{dist_str}{all_stim_str}"
         else:
-            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_{room_str}{dist_str}"        
+            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_{room_str}{dist_str}{all_stim_str}"        
         print(log_name)
         output_name = str(experiment_dir) + log_name + '.pkl'
         if idx % 10 == 0:
@@ -205,7 +206,7 @@ def run_eval(args):
                 cue = tar_brir(cue.cuda())
                 foreground = tar_brir(fg.cuda())
                 background_l = dist_brir_l(bg.cuda())
-                if symmetric_distractor:
+                if not symmetric_distractor:
                     background_r = None
                 else:
                     background_r = dist_brir_r(bg_2.cuda())
@@ -336,6 +337,11 @@ def cli_main():
         "--sim_human_array_exmpt",
         action=argparse.BooleanOptionalAction,
         help="If true, will use dataset to support conditions simulating human speaker array experiment."
+    )
+    parser.add_argument(
+        "--run_all_stim",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will run all stimuli in the dataset."
     )
 
     args = parser.parse_args()

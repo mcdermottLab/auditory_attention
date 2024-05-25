@@ -24,7 +24,7 @@ def get_subset_df(df):
 	return pd.concat([female_df, male_df], axis=0, ignore_index=True)
 
 def get_window_bounds(clip_dur_in_s, clip_start_in_s, clip_end_in_s, total_dur=3):
-	offset = np.ceil((total_dur  - clip_dur_in_s) // 2).astype('int')
+	offset = (total_dur  - clip_dur_in_s) / 2
 	return clip_start_in_s - offset, clip_end_in_s + offset
 
 def pad_or_trim_to_len(x, n, mode='both', kwargs_pad={}):
@@ -91,6 +91,10 @@ class SWCHumanExperimentStimDataset(Dataset):
         if not run_all_stim:
             # run gender balanced subset of using each word only once 
             self.dataset = get_subset_df(self.dataset)
+        else:
+             # add full_df_index to dataset 
+            self.dataset = self.dataset.reset_index()
+            self.dataset.rename(columns={'index':'full_df_index'}, inplace=True)
 
         self.dataset_len = self.dataset.shape[0]
         self.class_map = self.get_class_map()

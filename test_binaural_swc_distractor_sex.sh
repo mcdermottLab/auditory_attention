@@ -7,7 +7,7 @@
 #SBATCH --time=0:20:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0,2-10 #-10 # 0-10
+#SBATCH --array=0-10 #-10 # 0-10
 #SBATCH -x dgx001,dgx002
 
 module load openmind8/anaconda/3-2022.10
@@ -22,8 +22,16 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/sounds/ \
 #                  --exp_dir popham_swc_eval/ \
 
-python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v07.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt \
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v07.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 2 \
+#                  --stim_path /om/user/imgriff/datasets/human_distractor_sex_2024/sounds/ \
+#                  --stim_cond_map /om/user/imgriff/datasets/human_distractor_sex_2024/human_distractor_sex_cond_map.pkl \
+#                  --exp_dir swc_distractor_sex/ \
+
+python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_orig.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_orig/checkpoints/epoch=0-step=6000-v1.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 2 \
                  --stim_path /om/user/imgriff/datasets/human_distractor_sex_2024/sounds/ \
