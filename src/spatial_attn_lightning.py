@@ -309,7 +309,7 @@ class BinauralAttentionModule(LightningModule):
         # samples is a single-element list holding a tuple batches
         samples = samples[0]
         cue_features, _ = self.audio_transforms(samples[0], None)
-        cue_mask_ixs = None
+        cue_mask_ixs = self.get_cue_mask_ixs(cue_features)
         scene_features, _ = self.audio_transforms(samples[1], samples[2])
         labels = torch.from_numpy(samples[3]).type(torch.LongTensor)
         return cue_features, cue_mask_ixs, scene_features, labels
