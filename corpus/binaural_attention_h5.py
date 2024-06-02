@@ -19,6 +19,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
                  gender_balanced=False,
                  gender_balanced_4M=False,
                  mostly_same_dist=False,
+                 cue_free_percentage=None,
                  mixture_percentages={'voice_and_location':.33, 'voice_only':.33, "location_only":.33}, **kwargs):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the
@@ -36,6 +37,13 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         self.hdf5_glob = '*.hdf5_chunk000' 
         # self.hdf5_glob = '*.hdf5_chunk000' if with_cue_free or self.v05 else 'noise*.hdf5_chunk000' 
         print(root)
+
+        if cue_free_percentage is not None and mode == 'train':
+            no_cue_on_clean = True
+            print(f"Using {cue_free_percentage} cue free data")
+            clean_percentage = cue_free_percentage
+        else:
+            no_cue_on_clean = False
 
         if mode == 'train':
             if gender_balanced or gender_balanced_4M:
@@ -87,7 +95,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
             dataset_class = H5DatasetV06
         else:
             dataset_class = H5Dataset
-        self.all_hdf5_datasets = [dataset_class(h5_file, cue_type, task, batch_size, run_mono, skip_negative_elev, mono_sanity_check, clean_percentage, mixture_percentages) for h5_file in self.all_hdf5_files]
+        self.all_hdf5_datasets = [dataset_class(h5_file, cue_type, task, batch_size, run_mono, skip_negative_elev, mono_sanity_check, clean_percentage, mixture_percentages, no_cue_on_clean) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
 
@@ -100,7 +108,8 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
 
 
 class H5Dataset(torch.utils.data.Dataset):
-    def __init__(self, path, cue_type, task, batch_size, run_mono, skip_negative_elev=False, mono_sanity_check=False, clean_percentage=0.0, mixture_percentages={'voice_and_location':.33, 'voice_only':.33, "location_only":.33}):
+    def __init__(self, path, cue_type, task, batch_size, run_mono, skip_negative_elev=False, mono_sanity_check=False, 
+                clean_percentage=0.0, mixture_percentages={'voice_and_location':.33, 'voice_only':.33, "location_only":.33}, no_cue_on_clean=False):
         """
         Builds a pytorch hdf5 dataset
         Args:
@@ -115,6 +124,7 @@ class H5Dataset(torch.utils.data.Dataset):
         self.skip_negative_elev = skip_negative_elev
         self.mono_sanity_check = mono_sanity_check
         self.clean_percentage = clean_percentage
+        self.no_cue_on_clean = no_cue_on_clean
         self.batch_ixs = np.arange(self.batch_size)
         if self.skip_negative_elev:
             print("Skipping negative elevations")
@@ -210,6 +220,8 @@ class H5Dataset(torch.utils.data.Dataset):
             num_clean = int(self.clean_percentage * self.batch_size)
             clean_idx = np.random.choice(self.batch_ixs, num_clean, replace=False)
             background[clean_idx, :, :] = 0
+            if self.no_cue_on_clean:
+                cue[clean_idx, :, :] = 0
 
         # if self.skip_negative_elev and self.dataset['label_loc_target_elev'][start:end] < 0:
         #     return None, None, None, None
@@ -366,7 +378,7 @@ class H5DatasetV05(torch.utils.data.Dataset):
 
 
 class H5DatasetV06(torch.utils.data.Dataset):
-    def __init__(self, path, scene_type, task, batch_size, run_mono, skip_negative_elev=False, mono_sanity_check=False,  clean_percentage=0.0, mixture_percentages={'voice_and_location':.50, 'voice_only':.50}, **kwargs):
+    def __init__(self, path, scene_type, task, batch_size, run_mono, skip_negative_elev=False, mono_sanity_check=False,  clean_percentage=0.0, mixture_percentages={'voice_and_location':.50, 'voice_only':.50}, no_cue_on_clean=False, **kwargs):
         """
         Builds a pytorch hdf5 dataset for v06 of binaural attention dataset
         This class handles batching, returning batches of cues and scenes.
@@ -394,8 +406,13 @@ class H5DatasetV06(torch.utils.data.Dataset):
         self.batch_size = batch_size
         self.skip_negative_elev = skip_negative_elev
         self.mono_sanity_check = mono_sanity_check
+        self.clean_percentage = clean_percentage
+        self.no_cue_on_clean = no_cue_on_clean
+        # set logic for sampling cue-free examples
         self.batch_ixs = np.arange(self.batch_size)
-
+        self.ix_probs = torch.tensor([1/batch_size] * batch_size) # uniform ix likelihoods 
+        self.n_to_sample = int(self.clean_percentage * self.batch_size)
+      
         self.cue_key = 'voice_cue_target_loc'
         self.scene_type = scene_type
         if scene_type == "mixed":
@@ -469,6 +486,14 @@ class H5DatasetV06(torch.utils.data.Dataset):
             elev = self.dataset[self.label_key[2]][start:end]
             loc = self.azim_elev_to_label(azim, elev)
             label = np.stack((word, loc), axis=1)
+
+        if self.clean_percentage > 0.0:
+            # num_clean = int(self.clean_percentage * self.batch_size)
+            # clean_idx = np.random.choice(self.batch_ixs, num_clean, replace=False)
+            clean_idx = self.ix_probs.multinomial(self.n_to_sample, replacement=False)
+            background[clean_idx, :, :] = 0
+            if self.no_cue_on_clean:
+                cue[clean_idx, :, :] = 0
 
         if self.run_mono:
             # Just take single channel
