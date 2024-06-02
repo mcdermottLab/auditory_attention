@@ -29,15 +29,20 @@ rm -r /tmp/torchinductor_imgriff
 #                  --array_id $SLURM_ARRAY_TASK_ID \
 #                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 
-python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_orig.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_orig/checkpoints/epoch=0-step=6000-v1.ckpt \
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_orig.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_orig/checkpoints/epoch=0-step=6000-v1.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir swc_mono_eval/ \
+
+python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_sanity.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_sanity/checkpoints/epoch=3-step=49662.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 
-python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08/checkpoints/epoch=2-step=34504-v1.ckpt \
-                 --array_id $SLURM_ARRAY_TASK_ID \
-                 --n_jobs 4 --exp_dir swc_mono_eval/ \
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08/checkpoints/epoch=2-step=34504-v1.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 
 # python3 eval_swc_mono_stim.py --config /om2/user/rphess/Auditory-Attention/config/binaural_attn/word_task_deep_fc_1024_v08.yaml \
 #                  --ckpt_path /om2/user/rphess/Auditory-Attention/attn_cue_models/word_task_deep_fc_1024_v08/checkpoints/epoch=2-step=42472.ckpt \

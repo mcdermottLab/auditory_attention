@@ -5,7 +5,7 @@
 #SBATCH --mem=12Gb 
 #SBATCH --time=3:00:00
 #SBATCH --partition=mcdermott
-#SBATCH --cpus-per-task=1
+#SBATCH --cpus-per-task=8
 #SBATCH -x node043,node084,node093,node107,node034,node109
 
 source /etc/profile.d/modules.sh
