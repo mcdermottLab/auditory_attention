@@ -54,7 +54,7 @@ def get_activations(args):
     config['data'] = {}
     config['data']['corpus'] = {}
     config['data']['corpus']['n_talkers'] = 1
-    config['data']['corpus']['root'] = '/om2/user/msaddler/projects/ibmHearingAid/assets/data/datasets/JSIN_v3.00/nStim_20000/2000ms/rms_0.1/noiseSNR_-10_10/stimSR_20000/reverb_none/noise_all/JSIN_all_v3/subsets/' # Path to raw GigaSpeech dataset
+    config['data']['corpus']['root'] = '/om/user/imgriff/datasets/dataset_word_speaker_noise/JSIN_all_v3/subsets/' # New path to JSIN dataset
     model_name = pathlib.Path(args.config).stem
 
     # Set audio transforms  
