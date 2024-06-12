@@ -54,6 +54,7 @@ hparas:                                   # Experiment hyper-parameters
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 100 
   batch_size: 576                       # 576 for 8 288 for 4Gets divided by num gpus
+  mask_cues: True                    
 
 model:                                    # Model architecture
   input_sr: 10000

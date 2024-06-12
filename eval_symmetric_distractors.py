@@ -202,6 +202,10 @@ def run_eval(args):
             for batch in tqdm(dataloader):
                 cue, fg, bg, bg_2, label, dist_word_label, dist_word_label2, stim_ixs = batch
                 stim_ix_list.append(stim_ixs)
+                # make random noise distractors
+                if args.noise_distractor:
+                    bg = torch.randn_like(bg)
+                    bg_2 = torch.randn_like(bg_2)
                 # spatialize signals 
                 cue = tar_brir(cue.cuda())
                 foreground = tar_brir(fg.cuda())
@@ -342,6 +346,11 @@ def cli_main():
         "--run_all_stim",
         action=argparse.BooleanOptionalAction,
         help="If true, will run all stimuli in the dataset."
+    )
+    parser.add_argument(
+        "--noise_distractor",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will use noise distractors instead of speech distractors."
     )
 
     args = parser.parse_args()

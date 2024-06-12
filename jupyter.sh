@@ -2,10 +2,10 @@
 #SBATCH --job-name=jupyter_notebook
 #SBATCH --output=outLogs/notebook_%j.out
 #SBATCH --error=outLogs/notebook_%j.err
-#SBATCH --mem=12Gb 
+#SBATCH --mem=8Gb 
 #SBATCH --time=3:00:00
 #SBATCH --partition=mcdermott
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=2
 #SBATCH -x node043,node084,node093,node107,node034,node109
 
 source /etc/profile.d/modules.sh

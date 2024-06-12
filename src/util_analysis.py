@@ -19,7 +19,7 @@ def fit_psychometric_function(x, y, method="trf", p0=None, bounds_from_data=None
 	""" """
 	if p0 is None:
 		p0 = (1, x[np.argmin(np.abs(np.cumsum(y) / np.sum(y) - 0.5))], 1)
-	if bounds_from_data is not None:
+	if bounds_from_data:
 		a_bounds = (0, 1) 
 		mu_bounds = (x.min(), x.max())
 		sigma_bounds = (0, x.max() - x.min())

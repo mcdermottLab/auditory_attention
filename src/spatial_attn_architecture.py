@@ -61,7 +61,9 @@ class LearnedTimeAveragedGains(nn.Module):
         super(LearnedTimeAveragedGains, self).__init__()
         self.frequency_dim = frequency_dim
         self.time_dim = time_dim
-        self.temporal_params = nn.Parameter(torch.ones(cnn_channels, frequency_dim, time_dim, 1)) # create time average weights
+        # Full-set didn't work - commenting for fallback 
+        # self.temporal_params = nn.Parameter(torch.ones(cnn_channels, frequency_dim, time_dim, 1)) # create time average weights
+        self.temporal_params = nn.Parameter(torch.rand(time_dim, 1)) # create time average weights
         self.bias = nn.Parameter(torch.zeros(1)) # create gain scaling to zero
         self.slope = nn.Parameter(torch.ones(1)) # create slope to one
         self.threshold = nn.Parameter(torch.zeros(1)) # create threshold to zero
@@ -77,7 +79,7 @@ class LearnedTimeAveragedGains(nn.Module):
         nn.init.constant_(self.bias, 0)
         nn.init.constant_(self.slope, 1)
         nn.init.constant_(self.threshold, 0)
-        nn.init.constant_(self.temporal_params, (1/self.time_dim)) # init as standard average
+        # nn.init.constant_(self.temporal_params, (1/self.time_dim)) # init as standard average
 
 
     def forward(self, cue, mixture, cue_mask_ixs):
@@ -85,7 +87,8 @@ class LearnedTimeAveragedGains(nn.Module):
         if self.n_cue_frames:
             cue = cue[...,  : self.n_cue_frames]
         # learned average via einsum 
-        cue = torch.einsum('bcft,cfto->bcfo', cue, self.temporal_params)
+        # cue = torch.einsum('bcft,cfto->bcfo', cue, self.temporal_params)  # old full-size params for ref
+        cue = torch.einsum('bcft,to->bcfo', cue, self.temporal_params)
         # apply threshold shift
         cue = cue - self.threshold
         # apply slope
