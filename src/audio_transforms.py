@@ -746,3 +746,34 @@ class DuplicateChannel(torch.nn.Module):
             background_wav = background_wav.repeat(self.num_output_channels , 1)
         return foreground_wav, background_wav
         
+
+class Spatialize(torch.nn.Module):
+    """
+    Torch nn.Module for spatializing audio via convolution with a BRIR.
+
+    Args:
+        ir (numpy.ndarray): The impulse response used for spatialization.
+        model_sr (int, optional): The sample rate of the model. Defaults to 50,000.
+
+    Returns:
+        spatialized (torch.Tensor): The spatialized audio. 
+    """
+    def __init__(self, ir, model_sr=50_000):
+        super(Spatialize, self).__init__()
+        ir = torch.flip(torch.from_numpy(ir), dims=[0]).float()
+        self.n_taps = ir.shape[0]
+        ir = ir.T.unsqueeze(1)
+        # set center crop of 2.5 seconds relative to model_sr
+        self.start_frame = int(model_sr * 0.25)
+        self.end_frame = int(model_sr * 2.75)
+
+        self.register_buffer("ir", ir)
+
+    def forward(self, words):
+        n_words = words.shape[0]
+        # pad last dim of words with ir.shape[0] - 1 zeros
+        words_padded = torch.nn.functional.pad(words, (self.n_taps - 1, 0))
+        spatialized = torch.nn.functional.conv1d(words_padded.view(n_words, 1, -1), self.ir)
+        # resize to desired shape
+        spatialized = spatialized[:, :, self.start_frame:self.end_frame]
+        return spatialized

@@ -16,6 +16,7 @@ import yaml
 import argparse
 from argparse import ArgumentParser
 from corpus.speaker_room_dataset import SpeakerRoomDataset
+from corpus.speech_and_texture_test import SpeechAndTextureTestSet
 from corpus.binaural_swc_currated_pd import SWCHumanExperimentStimDataset
 from tqdm.auto import tqdm
 from datetime import datetime
@@ -23,6 +24,9 @@ import sys
 
 
 torch.set_float32_matmul_precision('medium') # use same as training
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
+
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 
 # make torch.nn.Module version of spatilaize
@@ -44,7 +48,7 @@ class Spatialize(torch.nn.Module):
         words_padded = torch.nn.functional.pad(words, (self.n_taps - 1, 0))
         spatialized = torch.nn.functional.conv1d(words_padded.view(n_words, 1, -1), self.ir)
         # resize to desired shape
-        spatialized = spatialized[:, :, self.start_frame:self.end_frame]
+        # spatialized = spatialized[:, :, self.start_frame:self.end_frame]
         return spatialized
 
 def run_eval(args):
@@ -95,7 +99,11 @@ def run_eval(args):
         dataset = SWCHumanExperimentStimDataset(path='/om/user/imgriff/datasets/human_word_rec_SWC_2024/full_cue_target_distractor_df_w_meta.pdpkl',
                                                 run_all_stim=args.run_all_stim,
                                                 sr=model_in_sr)
-        
+    elif args.texture_distractor:
+        print("Using textures as distractors")
+        dataset = SpeechAndTextureTestSet(file_path='/om/user/imgriff/datasets/speech_in_synthetic_textures/separated_sources/stim.hdf5',
+                                          separated_signals=True,
+                                          symmetric_distractor=True)
     else:
         dataset = SpeakerRoomDataset(manifest_path='/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl',
                                     excerpt_path='/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl',
@@ -152,16 +160,20 @@ def run_eval(args):
         audio_transforms_test_db = audio_transforms_test_db.cuda()
 
         # Add modifications to log name based on flags for test conditions 
-        if not symmetric_distractor:
-            dist_str = "_1_distractor"
+        sym_str = "" if symmetric_distractor else "_1_distractor"
+        if args.texture_distractor:
+            dist_str = "texture_distractor"
+        elif args.modulated_ssn_distractors:
+            dist_str = "modulated_ssn_distractor"
+        elif args.noise_distractor:
+            dist_str = "whitenoise_distractor"
         else:
-            dist_str = ""
+            dist_str = "speech_distractor"
 
-        all_stim_str = '_all_stim' if args.run_all_stim else '_subset_stim'
-        if args.modulated_ssn_distractors:
-            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_modulated_ssn_{room_str}{dist_str}{all_stim_str}"
-        else:
-            log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_{room_str}{dist_str}{all_stim_str}"        
+        all_stim_str = 'all_stim' if args.run_all_stim else 'subset_stim'
+        log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_{dist_str}_{room_str}_{sym_str}_{all_stim_str}"  
+        # replace __ with _ in log_name in case format produces it 
+        log_name = log_name.replace('__', '_')      
         print(log_name)
         output_name = str(experiment_dir) + log_name + '.pkl'
         if idx % 10 == 0:
@@ -197,10 +209,16 @@ def run_eval(args):
         pred_list = []
         true_word_int = []
         stim_ix_list = []
+        if args.texture_distractor:
+            texture_list = []
 
         with torch.no_grad(): 
             for batch in tqdm(dataloader):
-                cue, fg, bg, bg_2, label, dist_word_label, dist_word_label2, stim_ixs = batch
+                if args.texture_distractor:
+                    cue, fg, bg, bg_2, label, texture, stim_ixs = batch
+                    dist_word_label, dist_word_label2 = None, None 
+                else:
+                    cue, fg, bg, bg_2, label, dist_word_label, dist_word_label2, stim_ixs = batch
                 stim_ix_list.append(stim_ixs)
                 # make random noise distractors
                 if args.noise_distractor:
@@ -220,39 +238,46 @@ def run_eval(args):
                 mixed_bg, _ = audio_transforms_0_db(background_l, background_r)
                 # Set foreground to distractor at given SNR, then set to 60dB  
                 mixture, _ = audio_transforms_test_db(foreground, mixed_bg)
-                
+
                 cue, mixture = coch_gram(cue, mixture)
                 logits = model(cue, mixture, None)
                 # Unpack desired metrics 
                 preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach().numpy().astype('int')
                 true_word = label.numpy().astype('int')
-                dist_word_label = dist_word_label.numpy().astype('int')
-                dist_word_label2 = dist_word_label2.numpy().astype('int')
                 accuracy = (preds == true_word).astype('int')
-                # confusion made if preds == dist_word_label or dist_word_label2
-                cons_1 = (preds == dist_word_label).astype('int')
-                cons_2 = (preds == dist_word_label2).astype('int')
-                cons = np.bitwise_or(cons_1, cons_2) # get union of confusions
                 accuracies.append(accuracy)
-                confusions.append(cons)
                 pred_list.append(preds)
                 true_word_int.append(true_word)
+                if args.texture_distractor:
+                    texture_list.append(texture)
+                else:
+                    dist_word_label = dist_word_label.numpy().astype('int')
+                    dist_word_label2 = dist_word_label2.numpy().astype('int')
+                    # confusion made if preds == dist_word_label or dist_word_label2
+                    cons_1 = (preds == dist_word_label).astype('int')
+                    cons_2 = (preds == dist_word_label2).astype('int')
+                    cons = np.bitwise_or(cons_1, cons_2) # get union of confusions
+                    confusions.append(cons)
         accuracies = np.concatenate(accuracies)
-        confusions = np.concatenate(confusions)
         preds = np.concatenate(pred_list)
         true_word_int = np.concatenate(true_word_int)
         stim_ix_list = np.concatenate(stim_ix_list)
-
-        # Prep output then save for this test 
         output_dict['results'] = accuracies
-        output_dict['confusions'] = confusions
         output_dict['preds'] = preds
         output_dict['true_word_int'] = true_word_int
         output_dict['stim_ix_list'] = stim_ix_list
-        
+        if args.texture_distractor:
+            texture_list = np.concatenate(texture_list)
+            output_dict['textures'] = confusions
+        else:
+            confusions = np.concatenate(confusions)
+            output_dict['confusions'] = confusions
+
+        print(log_name)    
         print(f"Test {distract_loc[0]} azimuth distractor at {threshold_snr} SNR in {room_str}")
         print(f"Accuracy: {accuracies.mean()}")
-        print(f"Confusions: {confusions.mean()}")
+        if not args.texture_distractor:
+            print(f"Confusions: {confusions.mean()}")
 
         with open(output_name, 'wb') as f:
             pickle.dump(output_dict, f)
@@ -351,6 +376,11 @@ def cli_main():
         "--noise_distractor",
         action=argparse.BooleanOptionalAction,
         help="If true, will use noise distractors instead of speech distractors."
+    )
+    parser.add_argument(
+        "--texture_distractor",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will use textures as distractors instead of speech distractors."
     )
 
     args = parser.parse_args()
