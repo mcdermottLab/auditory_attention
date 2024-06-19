@@ -138,7 +138,7 @@ class BinauralAttentionModule(LightningModule):
                         }
 
         # Constraints
-        self.attn_modules = [mod for name, mod in self.model._modules.items() if 'attn' in name]
+        self.attn_modules = [module for name, module in  self.model.model_dict.items() if 'attn' in name]
         self.bias_constraint = AttnBiasConstraint(min_val=0, max_val=1)
         self.constrain_slope = self.model_config['attn_constraints'].get('slope', False)
         if self.constrain_slope:

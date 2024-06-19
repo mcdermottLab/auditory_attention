@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH --job-name=eval_model
-#SBATCH --output=outLogs/sim_human_array_exmpt_%A_%a.out
-#SBATCH --error=outLogs/sim_human_array_exmpt_%A_%a.err
+#SBATCH --output=outLogs/texture_srm_expmnt_%A_%a.out
+#SBATCH --error=outLogs/texture_srm_expmnt_%A_%a.err
 #SBATCH --mem=8Gb
 #SBATCH --cpus-per-task=2
 #SBATCH --time=2:00:00

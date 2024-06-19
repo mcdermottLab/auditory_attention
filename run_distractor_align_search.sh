@@ -19,4 +19,3 @@ python3 gridsearch_distractor_alignment.py --config_path config/binaural_attn/wo
                 --checkpoint_path attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt \
                 --output_path distractor_optimization/alignment_gridsearch \
                 # --opt_bg
-

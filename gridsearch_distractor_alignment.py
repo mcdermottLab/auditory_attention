@@ -87,7 +87,7 @@ def run(args):
 
     with h5py.File(output_file, 'w') as f:
         for dataset_ix in tqdm(range(args.n_examples), total=args.n_examples):
-            cue, fg, bg, label, _ = dataset[dataset_ix]
+            cue, fg, bg, label, confusion = dataset[dataset_ix]
             cue, _ = diotic_transforms(cue, None)
             cue = cue.cuda().unsqueeze(0)
             fg = fg.cuda()
@@ -98,14 +98,22 @@ def run(args):
 
             best_loss = 0.0
 
-            cue, _ = coch_transform(cue, None)    
+            cue_cg, _ = coch_transform(cue, None)    
             ## init h5 if empty 
             if dataset_ix == 0:
+                f.create_dataset('cue', shape=[args.n_examples, 2, fg.shape[-1]], dtype=np.float32)
                 f.create_dataset('original_mixture', shape=[args.n_examples, 2, fg.shape[-1]], dtype=np.float32)
                 f.create_dataset('optimized_mixture', shape=[args.n_examples, 2, fg.shape[-1]], dtype=np.float32)
                 f.create_dataset('onset_losses', shape=[args.n_examples, onsets.shape[-1]], dtype=np.float32)
                 f.create_dataset('best_onsets', shape=[args.n_examples], dtype=np.float32)
+                f.create_dataset('target_word', shape=[args.n_examples], dtype=np.int32)
+                f.create_dataset('distractor_word', shape=[args.n_examples], dtype=np.int32)
                 f.create_dataset('onsets_sampled', data=onsets, dtype=np.float32)
+                
+            f['cue'][dataset_ix, :, :] = prep_torch_to_numpy(cue)
+            f['target_word'][dataset_ix] = label.item()
+            f['distractor_word'][dataset_ix] = confusion
+
             with torch.no_grad():
                 for ix, onset in enumerate(tqdm(onsets, leave=False, desc=f"Example {dataset_ix}")):
                     distractor_shifted = torch.roll(bg, onset)
@@ -114,7 +122,7 @@ def run(args):
                         f['original_mixture'][dataset_ix, :, :] = prep_torch_to_numpy(mixture_wav)
 
                     mixture, _ = coch_transform(mixture_wav.unsqueeze(0), None)
-                    logits = model(cue, mixture, None)
+                    logits = model(cue_cg, mixture, None)
 
                     loss = loss_fn(logits, label)
                     f['onset_losses'][dataset_ix, ix] = loss.item()

@@ -268,7 +268,7 @@ def run_eval(args):
         output_dict['stim_ix_list'] = stim_ix_list
         if args.texture_distractor:
             texture_list = np.concatenate(texture_list)
-            output_dict['textures'] = confusions
+            output_dict['textures'] = texture_list
         else:
             confusions = np.concatenate(confusions)
             output_dict['confusions'] = confusions
