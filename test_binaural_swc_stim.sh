@@ -1,13 +1,14 @@
 #!/bin/bash -l 
 #SBATCH --job-name=eval_binaural_swc
-#SBATCH --output=outLogs/binaural_swc_test_stim_%A_%a.out
-#SBATCH --error=outLogs/binaural_swc_test_stim_%A_%a.err
+#SBATCH --output=outLogs/binaural_swc_test_full_stim_%A_%a.out
+#SBATCH --error=outLogs/binaural_swc_test_full_stim_%A_%a.err
 #SBATCH --mem=12Gb
 #SBATCH --cpus-per-task=4
 #SBATCH --time=0:30:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0-40 # 0-40 # 0-40
+##SBATCH --array=0-40 # 0-40 for standard test
+#SBATCH --array=0-42# 0-42 for full stim test
 #SBATCH -x dgx001,dgx002
 
 
@@ -34,10 +35,10 @@ rm -r /tmp/torchinductor_imgriff
 #                  --array_id $SLURM_ARRAY_TASK_ID \
 #                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 
-python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_sanity.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_sanity/checkpoints/epoch=7-step=89878.ckpt \
-                 --array_id $SLURM_ARRAY_TASK_ID \
-                 --n_jobs 4 --exp_dir swc_mono_eval/ \
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_sanity.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_sanity/checkpoints/epoch=7-step=89878.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 
 # python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08.yaml \
 #                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08/checkpoints/epoch=2-step=34504-v1.ckpt \
@@ -54,3 +55,19 @@ python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_lo
 #                  --array_id $SLURM_ARRAY_TASK_ID \
 #                  --n_jobs 4 --exp_dir swc_mono_eval/ \
 
+
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_sanity.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_sanity/checkpoints/epoch=7-step=89878.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir swc_mono_eval_full_stim/ \
+#                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2023/model_eval_stim.h5 \
+#                  --stim_cond_map binaural_test_manifests/swc_full_stim_h5_job_manifest.pkl \
+#                  --full_h5_stim_set
+
+python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_no_constraints/checkpoints/epoch=3-step=47662.ckpt \
+                 --array_id $SLURM_ARRAY_TASK_ID \
+                 --n_jobs 4 --exp_dir swc_mono_eval_full_stim/ \
+                 --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2023/model_eval_stim.h5 \
+                 --stim_cond_map binaural_test_manifests/swc_full_stim_h5_job_manifest.pkl \
+                 --full_h5_stim_set

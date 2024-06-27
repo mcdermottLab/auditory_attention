@@ -6,9 +6,9 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --time=0:30:00
 #SBATCH --partition=normal
-#SBATCH --gres=gpu:1 --constraint=16GB
+#SBATCH --gres=gpu:1 --constraint=20GB
 #SBATCH -x dgx001,dgx002
-#SBATCH --array=1-4 # 0-4 for full
+#SBATCH --array=0 # 0-4 for full set of SNRs; 0 for 0dB
 
 module load openmind8/anaconda/3-2022.10
 export HDF5_USE_FILE_LOCKING=FALSE
@@ -16,11 +16,19 @@ export HDF5_USE_FILE_LOCKING=FALSE
 source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 which python3
-python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_half_co_loc_v07.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt \
+# python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_half_co_loc_v07.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v07/checkpoints/epoch=2-step=46074.ckpt \
+#                  --model_dir binaural_model_attn_stage_reps \
+#                  --n_jobs 0 \
+#                  --n_activations 100 \
+#                  --attention  \
+#                  --job_id $SLURM_ARRAY_TASK_ID
+
+python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_no_constraints/checkpoints/epoch=3-step=47662.ckpt \
                  --model_dir binaural_model_attn_stage_reps \
                  --n_jobs 0 \
                  --n_activations 100 \
-                 --attention  \
+                 --silence_w_uncued  \
                  --job_id $SLURM_ARRAY_TASK_ID
 

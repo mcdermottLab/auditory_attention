@@ -40,7 +40,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 
 python3 eval_unfamiliar_distractor_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_sanity.yaml \
-                 --stim_manifest_path /om/user/imgriff/datasets/human_distractor_language_2024/final_stim_manifest_w_cue_tg_lang_dists.pdpkl \
+                 --stim_manifest_path /om/user/imgriff/datasets/human_distractor_language_2024/final_safe_stim_manifest_w_cue_tg_lang_dists_w_transcripts.pdpkl \
                  --test_manifest binaural_test_manifests/unfamiliar_distractor_language_1_distractor.pkl \
                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_sanity/checkpoints/epoch=7-step=89878.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \

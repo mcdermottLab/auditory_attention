@@ -19,7 +19,7 @@
 #SBATCH --mem=100Gb
 #SBATCH --cpus-per-task=16
 #SBATCH --partition=mcdermott
-#SBATCH --time=7-00:00:00
+#SBATCH --time=3-00:00:00
 #SBATCH --gres=gpu:a100:4
 
 #source /etc/profile.d/modules.sh

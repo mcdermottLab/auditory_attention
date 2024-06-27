@@ -3,7 +3,7 @@ import librosa
 import pickle
 import pandas as pd 
 from pathlib import Path
-
+import h5py
 
 class SWCMonoTestSet(torch.utils.data.Dataset):
     """
@@ -106,3 +106,69 @@ class SWCMonoTestSetUnfamililarLanguage(torch.utils.data.Dataset):
 
     def __len__(self):
         return self.len
+
+
+class SWCMonoTestSetH5Dataset(torch.utils.data.Dataset):
+    def __init__(self, h5_path, eval_distractor_cond, model_sr, label_type="CV", for_act_analysis=False):
+
+        self.h5_path = h5_path
+        self.dataset = None
+        # get distractor key 
+        if eval_distractor_cond == 'one_distractor':
+            self.dist_key = 'one_dist_signal'
+        elif eval_distractor_cond == 'four_distractor':
+            self.dist_key = 'four_dist_signal'
+        elif eval_distractor_cond == 'stationary':
+            self.dist_key = 'ssn_dist_signal'
+        elif eval_distractor_cond == 'modulated_distractor':
+            self.dist_key = 'modulated_dist_signal'
+        elif eval_distractor_cond == 'music':
+            self.dist_key = 'music_dist_signal'
+        elif eval_distractor_cond == 'babble':
+            self.dist_key = 'babble_dist_signal'
+        elif eval_distractor_cond == 'natural_scene':
+            self.dist_key = 'nat_dist_signal'
+        elif eval_distractor_cond == 'clean':
+            self.dist_key = None
+        self.sr = model_sr
+        self.label_type = label_type
+        self.for_act_analysis = for_act_analysis
+
+        with h5py.File(self.h5_path, 'r', swmr=True) as file:
+            self.dataset_len = len(file['target_signal'])
+
+        
+    def get_class_map(self):
+        """
+        Loads the mapping between the word IDX and human readable word map. 
+        """
+        if self.label_type == "WSN":
+            ## load WSN vocab mapping 
+            word_and_speaker_encodings = pickle.load( open( "/om2/user/imgriff/projects/Auditory-Attention/word_and_speaker_encodings_jsinv3.pckl", "rb" )) 
+            word_2_class = word_and_speaker_encodings['word_to_idx']
+        elif self.label_type == "CV":
+            word_2_class = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", "rb" )) 
+        return word_2_class
+
+    def __getitem__(self, index):
+        # get stimulus 
+        if self.dataset is None:
+            self.dataset = h5py.File(self.h5_path, 'r', swmr=True)
+        cue = self.dataset['cue_signal'][index]
+        target = self.dataset['target_signal'][index]
+        word_int = self.dataset['word_int_label'][index]
+        if self.dist_key:
+            distractor = self.dataset[self.dist_key][index]
+            dist_word_int = self.dataset['confusion_int_label'][index]
+        else:
+            distractor = None
+            dist_word_int = None
+        if self.for_act_analysis:
+            cue_f0 = self.dataset['cue_f0'][index]
+            target_f0 = self.dataset['target_f0'][index]
+            dist_f0 = self.dataset['one_dist_f0'][index]
+            return cue, target, distractor, word_int, dist_word_int, cue_f0, target_f0, dist_f0
+        return cue, target, distractor, word_int, dist_word_int
+
+    def __len__(self):
+        return self.dataset_len

@@ -12,7 +12,7 @@ from tqdm.auto import tqdm
 from pytorch_lightning import seed_everything
 from src.attn_tracking_lightning import AttentionalTrackingModule
 from src.spatial_attn_lightning import BinauralAttentionModule 
-from corpus.swc_mono_test import SWCMonoTestSet
+from corpus.swc_mono_test import SWCMonoTestSet, SWCMonoTestSetH5Dataset
 import src.audio_transforms as at
 
 seed_everything(1)
@@ -42,6 +42,13 @@ def run_eval(args):
     # set audio transforms
     sr = config['audio']['rep_kwargs']['sr']
     audio_config = config['audio']
+
+    # get snr for audio transforms if part of the config
+    if args.full_h5_stim_set:
+        with open(args.stim_cond_map, 'rb') as f:
+            condition_dict = pickle.load(f)
+        condition, snr = condition_dict[args.array_id]
+
     IIR_COCH = not audio_config['rep_kwargs']['rep_on_gpu']
 
     if IIR_COCH:
@@ -54,13 +61,22 @@ def run_eval(args):
             ])
     if 'mono' not in args.config:
         print(f"Using diotic input")
-        audio_transforms = at.AudioCompose([
-                    at.AudioToTensor(),
-                    # at.CombineWithRandomDBSNR(low_snr=snr, high_snr=snr), 
-                    at.RMSNormalizeForegroundAndBackground(rms_level=0.02),  # 0.02 is the default for CV-based models 
-                    at.UnsqueezeAudio(dim=0),
-                    at.DuplicateChannel()
-            ])
+        if args.full_h5_stim_set:
+            audio_transforms = at.AudioCompose([
+                        at.AudioToTensor(),
+                        at.CombineWithRandomDBSNR(low_snr=snr, high_snr=snr), 
+                        at.RMSNormalizeForegroundAndBackground(rms_level=0.02),  # 0.02 is the default for CV-based models 
+                        at.UnsqueezeAudio(dim=0),
+                        at.DuplicateChannel()
+                        ])
+        else:
+            audio_transforms = at.AudioCompose([
+                        at.AudioToTensor(),
+                        # at.CombineWithRandomDBSNR(low_snr=snr, high_snr=snr), 
+                        at.RMSNormalizeForegroundAndBackground(rms_level=0.02),  # 0.02 is the default for CV-based models 
+                        at.UnsqueezeAudio(dim=0),
+                        at.DuplicateChannel()
+                ])
     else:
         audio_transforms = at.AudioCompose([
                     at.AudioToTensor(),
@@ -76,13 +92,19 @@ def run_eval(args):
         coch_gram = model.coch_gram.cuda()
     
     if args.stim_cond_map:
-        dataset = SWCMonoTestSet(stim_path=args.stim_path,
-                        cond_ix=args.array_id,
-                        model_sr=sr,
-                        label_type=label_type,
-                        stim_cond_map=args.stim_cond_map)
+        if args.full_h5_stim_set:
+            dataset = SWCMonoTestSetH5Dataset(h5_path=args.stim_path,
+                                            eval_distractor_cond=condition,
+                                            model_sr=sr,
+                                            label_type=label_type)
+        else:
+            dataset = SWCMonoTestSet(stim_path=args.stim_path,
+                            cond_ix=args.array_id,
+                            model_sr=sr,
+                            label_type=label_type,
+                            stim_cond_map=args.stim_cond_map)
 
-        condition, snr = dataset.stim_cond_map[args.array_id]
+            condition, snr = dataset.stim_cond_map[args.array_id]
 
     elif 'popham' in str(args.stim_path):
         dataset = SWCMonoTestSet(stim_path=args.stim_path,
@@ -106,13 +128,20 @@ def run_eval(args):
         
         condition, snr = dataset.stim_cond_map[args.array_id]
     print(f"Evaluating {model_name} on {condition} at {snr}db SNR")
-
-    def collate_fn(batch):
-        #apply transforms to batch
-        cues = torch.stack([audio_transforms(cue, None)[0] for cue, _, _ in batch])
-        mixtures = torch.stack([audio_transforms(mix, None)[0] for _, mix,  _ in batch])
-        labels = torch.tensor([label for _, _, label in batch]).type(torch.LongTensor)
-        return cues, mixtures, labels
+    if args.full_h5_stim_set:
+        def collate_fn(batch):
+            #apply transforms to batch
+            cues = torch.stack([audio_transforms(cue, None)[0] for cue, _, _, _, _ in batch])
+            mixtures = torch.stack([audio_transforms(target, bg)[0] for _, target, bg, _, _ in batch])
+            labels = torch.tensor([label for _, _, _, label, _ in batch]).type(torch.LongTensor)
+            return cues, mixtures, labels
+    else:
+        def collate_fn(batch):
+            #apply transforms to batch
+            cues = torch.stack([audio_transforms(cue, None)[0] for cue, _, _ in batch])
+            mixtures = torch.stack([audio_transforms(mix, None)[0] for _, mix,  _ in batch])
+            labels = torch.tensor([label for _, _, label in batch]).type(torch.LongTensor)
+            return cues, mixtures, labels
 
     dataloader = torch.utils.data.DataLoader(dataset,
                                              batch_size=12,
@@ -124,6 +153,8 @@ def run_eval(args):
     out_dir = args.exp_dir / model_name 
     # make dir if it doesn't exist
     out_dir.mkdir(parents=True, exist_ok=True)
+    # track running average of accuracy and confusions 
+    acc_sum = 0
     with open(out_dir / f"{model_name}_{condition}_{snr}dB_SNR_eval_results.csv", 'w') as file:
         csv_out = csv.writer(file, delimiter=",")
         # write column header to csv
@@ -147,6 +178,7 @@ def run_eval(args):
             preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach().numpy().astype('int')
             true_word = word.numpy().astype('int')
             accuracy = (true_word == preds).astype('int')
+            acc_sum += accuracy.sum()
             # write to csv
             rows = list(zip(*[preds, true_word, accuracy]))
             csv_out.writerows(rows)
@@ -155,7 +187,9 @@ def run_eval(args):
             if i % 100 == 0:
                 print(f"writing on batch {i} of {len(dataloader)}")
                 file.flush() # only write every 100 batches 
-
+        # print final accuracy
+        acc = acc_sum / len(dataset)
+        print(f"Final accuracy: {acc}")
 def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--config', type=str, default="", help='Path to experiment config.')
@@ -194,6 +228,11 @@ def cli_main():
         type=int,
         help="Slurm array task ID",
     )  
+    parser.add_argument(
+        "--full_h5_stim_set",
+        action='store_true',
+        help="If set, load full h5 stimulus set",
+    )
     args = parser.parse_args()
 
     run_eval(args)
