@@ -13,7 +13,6 @@ from .time_domain_cochleagram import TimeDomainCochleagram
 import torchaudio.transforms as T
 
 
-
 downsampling_reps = {'SincWithKaiserWindow': chcochleagram.downsampling.SincWithKaiserWindow,
                      'TorchTransformsResample': T.Resample}
 
@@ -754,26 +753,31 @@ class Spatialize(torch.nn.Module):
     Args:
         ir (numpy.ndarray): The impulse response used for spatialization.
         model_sr (int, optional): The sample rate of the model. Defaults to 50,000.
+        start_crop_in_s (float, optional): The start time of the crop in seconds. Defaults to 0.25.
+        end_crop_in_s (float, optional): The end time of the crop in seconds. Defaults to 2.75.
 
     Returns:
         spatialized (torch.Tensor): The spatialized audio. 
     """
-    def __init__(self, ir, model_sr=50_000):
+    def __init__(self, ir, model_sr=50_000, start_crop_in_s=0.25, end_crop_in_s=2.75):
         super(Spatialize, self).__init__()
         ir = torch.flip(torch.from_numpy(ir), dims=[0]).float()
         self.n_taps = ir.shape[0]
         ir = ir.T.unsqueeze(1)
-        # set center crop of 2.5 seconds relative to model_sr
-        self.start_frame = int(model_sr * 0.25)
-        self.end_frame = int(model_sr * 2.75)
-
+        # get center crop of 2.5 seconds relative to model_sr
+        if start_crop_in_s and end_crop_in_s :
+            self.start_frame = int(model_sr * start_crop_in_s)
+            self.end_frame = int(model_sr * end_crop_in_s)
+        else:
+            self.start_frame = 0
+            self.end_frame = -1 # crop to end of signal
         self.register_buffer("ir", ir)
 
-    def forward(self, words):
-        n_words = words.shape[0]
-        # pad last dim of words with ir.shape[0] - 1 zeros
-        words_padded = torch.nn.functional.pad(words, (self.n_taps - 1, 0))
-        spatialized = torch.nn.functional.conv1d(words_padded.view(n_words, 1, -1), self.ir)
+    def forward(self, x):
+        n_x = x.shape[0]
+        # pad last dim of x with ir.shape[0] - 1 zeros
+        x_padded = torch.nn.functional.pad(x, (self.n_taps - 1, 0))
+        spatialized = torch.nn.functional.conv1d(x_padded.view(n_x, 1, -1), self.ir)
         # resize to desired shape
         spatialized = spatialized[:, :, self.start_frame:self.end_frame]
         return spatialized

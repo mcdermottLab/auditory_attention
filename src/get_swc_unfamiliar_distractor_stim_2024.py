@@ -52,6 +52,7 @@ def main(args):
 
     print("Loading source excerpts.") 
     excerpts = pd.read_pickle(args.stim_manifest_path)
+    print(args.stim_manifest_path)
     
     with open(args.job_manifest, "rb") as f :
         # read condition dict from pickle
@@ -66,6 +67,8 @@ def main(args):
         dist_src_col = 'nl_distractor_src_fn'
     else:
         dist_src_col = 'distractor_fn'
+        if 'safe' in args.stim_manifest_path:
+            dist_src_col = 'distractor_src_fn'
 
     cond_id = args.array_ix
     stim_out_path = Path(args.stim_out_path)
@@ -83,10 +86,17 @@ def main(args):
     new_rms = 0.02 # is 60dB in  amplitude e.g 20e-6pa * 10**(60/20)
     mixture_onset = int((isi + signal_dur) * SR) # in frames
 
+    if 'safe' in args.stim_manifest_path:
+        cue_fn_str = 'cue_src_fn'
+        target_fn_str = 'src_fn'
+    else:
+        cue_fn_str = "cue_fn"
+        target_fn_str = "target_fn"
+
     print("Starting stimuli generation...") 
 
     # create trial stim using existing excerpt file names 
-    fname_array = excerpts[["cue_fn", "target_fn", dist_src_col]].values
+    fname_array = excerpts[[cue_fn_str, target_fn_str, dist_src_col]].values
 
     for ix, (cue_fn, target_fn, distractor_fn) in enumerate(tqdm(fname_array)):
         # init output signal 
