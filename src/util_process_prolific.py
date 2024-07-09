@@ -37,17 +37,17 @@ def get_stim_snr_and_cond(stim_str, stim_cond_map=None):
 # Azim Spotlight fns
 ##############################
 def get_stim_target_azim_and_dist_detla(stim_str, stim_cond_map=None):
-    condition, target_azim, dist_delta = None,  None, None 
+    condition, target_azim, dist_delta, distractor_azim = None,  None, None, None 
     if isinstance(stim_str, str) and not stim_str.startswith('<'):
         # print(stim_str)
         cond_str = re.search("condition_(-?\d+)", stim_str)
         if cond_str:
             cond_str = cond_str.group(0)
             condition = 'spatialized'
-            target_azim, dist_delta = stim_cond_map[cond_str]
+            target_azim, dist_delta, distractor_azim = stim_cond_map[cond_str]
         elif 'catch' in stim_str:
             condition = 'catch_trial'
-    return condition, target_azim, dist_delta
+    return condition, target_azim, dist_delta, distractor_azim
 
 
 ##############################
