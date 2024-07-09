@@ -2,6 +2,57 @@ import scipy
 import numpy as np 
 import pandas as pd 
 from pathlib import Path 
+import json
+import re
+
+
+
+##############################
+# For main SWC experiment
+##############################
+def get_part_df_swc(fname):
+    part_data = json.load(open(fname, 'r'))
+    # print(f"{fname.stem} success {part_data[0]['success']}")
+    part_df = pd.DataFrame.from_records(part_data)
+    ## Forward fill stim presentation entry to word response entry
+    responses = part_df.loc[part_df.trial_type.isin(['audio-keyboard-response','dictionary-text']), ['trial_index', 'stimulus']]
+    responses = responses.ffill()
+    part_df.loc[part_df['trial_index'].isin(responses["trial_index"].values), 'stimulus'] = responses.stimulus
+    return part_df
+
+def get_stim_snr_and_cond(stim_str, stim_cond_map=None):
+    condition, snr = None,  None 
+    if isinstance(stim_str, str) and not stim_str.startswith('<'):
+        # print(stim_str)
+        cond_str = re.search("condition_(-?\d+)", stim_str)
+        if cond_str:
+            cond_str = cond_str.group(0)
+            condition, snr = stim_cond_map[cond_str]
+        elif 'catch' in stim_str:
+            condition = 'catch_trial'
+            snr = np.inf
+    return snr, condition
+
+##############################
+# Azim Spotlight fns
+##############################
+def get_stim_target_azim_and_dist_detla(stim_str, stim_cond_map=None):
+    condition, target_azim, dist_delta = None,  None, None 
+    if isinstance(stim_str, str) and not stim_str.startswith('<'):
+        # print(stim_str)
+        cond_str = re.search("condition_(-?\d+)", stim_str)
+        if cond_str:
+            cond_str = cond_str.group(0)
+            condition = 'spatialized'
+            target_azim, dist_delta = stim_cond_map[cond_str]
+        elif 'catch' in stim_str:
+            condition = 'catch_trial'
+    return condition, target_azim, dist_delta
+
+
+##############################
+# More-generalized functions
+##############################
 
 ## Get all participant data into one df for analysis
 def get_part_df(fname):

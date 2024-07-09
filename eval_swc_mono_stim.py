@@ -12,7 +12,7 @@ from tqdm.auto import tqdm
 from pytorch_lightning import seed_everything
 from src.attn_tracking_lightning import AttentionalTrackingModule
 from src.spatial_attn_lightning import BinauralAttentionModule 
-from corpus.swc_mono_test import SWCMonoTestSet, SWCMonoTestSetH5Dataset
+from corpus.swc_mono_test import SWCMonoTestSet, SWCMonoTestSet2024, SWCMonoTestSetH5Dataset
 import src.audio_transforms as at
 
 seed_everything(1)
@@ -106,6 +106,13 @@ def run_eval(args):
 
             condition, snr = dataset.stim_cond_map[args.array_id]
 
+    elif '2024' in str(args.stim_path):
+        dataset = SWCMonoTestSet2024(stim_path=args.stim_path,
+                                cond_ix=args.array_id,
+                                model_sr=sr,
+                                label_type=label_type)
+        condition, snr = dataset.stim_cond_map[args.array_id]
+
     elif 'popham' in str(args.stim_path):
         dataset = SWCMonoTestSet(stim_path=args.stim_path,
                                 cond_ix=args.array_id,
@@ -135,6 +142,15 @@ def run_eval(args):
             mixtures = torch.stack([audio_transforms(target, bg)[0] for _, target, bg, _, _ in batch])
             labels = torch.tensor([label for _, _, _, label, _ in batch]).type(torch.LongTensor)
             return cues, mixtures, labels
+
+    elif "2024" in str(args.stim_path):
+        def collate_fn(batch):
+            #apply transforms to batch
+            cues = torch.stack([audio_transforms(cue, None)[0] for cue, _, _, _ in batch])
+            mixtures = torch.stack([audio_transforms(mix, None)[0] for _, mix,  _, _ in batch])
+            labels = torch.tensor([label for _, _, label, _ in batch]).type(torch.LongTensor)
+            stim_tag = [stim_tag for _, _, _, stim_tag in batch]
+            return cues, mixtures, labels, stim_tag
     else:
         def collate_fn(batch):
             #apply transforms to batch
@@ -159,11 +175,18 @@ def run_eval(args):
         csv_out = csv.writer(file, delimiter=",")
         # write column header to csv
         print("writing csv header")
-        csv_out.writerow(['pred_word_int', 'true_word_int', 'accuracy'])
+        if '2024' in str(args.stim_path):        
+            csv_out.writerow(['pred_word_int', 'true_word_int', 'accuracy', 'stim_name'])
+        else:
+            csv_out.writerow(['pred_word_int', 'true_word_int', 'accuracy'])
 
         # run eval 
         for i, batch in enumerate(tqdm(dataloader, desc=f"evaluating {model_name} on {condition} at {snr}dB SNR")):
-            cue, mixture, word = batch
+            if '2024' in str(args.stim_path):
+                cue, mixture, word, stim_tag = batch
+            else:
+                cue, mixture, word = batch
+
             # to device 
             cue = cue.cuda()
             mixture = mixture.cuda()
@@ -180,7 +203,10 @@ def run_eval(args):
             accuracy = (true_word == preds).astype('int')
             acc_sum += accuracy.sum()
             # write to csv
-            rows = list(zip(*[preds, true_word, accuracy]))
+            if '2024' in str(args.stim_path):        
+                rows = list(zip(*[preds, true_word, accuracy, stim_tag]))
+            else:
+                rows = list(zip(*[preds, true_word, accuracy]))
             csv_out.writerows(rows)
             if i == 0:
                 print(f"EG of data writing: {rows}")
@@ -197,7 +223,7 @@ def cli_main():
         "--exp_dir",
         default=pathlib.Path("./exp"),
         type=pathlib.Path,
-        help="Directory to save checkpoints and logs to. (Default: './exp')",
+        help="Directory to save test results in. (Default: './exp')",
     )
     parser.add_argument(
         "--stim_path",

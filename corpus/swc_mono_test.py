@@ -62,6 +62,53 @@ class SWCMonoTestSet(torch.utils.data.Dataset):
         return self.len
    
 
+class SWCMonoTestSet2024(torch.utils.data.Dataset):
+    """
+    Dataset class for evaluation on pre-cut mixtures used in human diotic experiments.
+    """
+    def __init__(self, stim_path, cond_ix, model_sr, label_type="CV", stim_cond_map=None, **kwargs):
+        stim_path = Path(stim_path) / f"condition_{cond_ix:02d}"
+        # sorting makes analysis simpler - puts model test stim in order of manifest 
+        self.walker = sorted(list(stim_path.glob("*.wav"))) 
+        if not stim_cond_map:
+            stim_cond_map = "/om/user/imgriff/datasets/human_word_rec_SWC_2024/human_attn_expmt_cond_map.pkl"
+        with open(stim_cond_map, "rb") as f:
+            self.stim_cond_map = pickle.load(f)
+        # get word key for experiment - maps filename ints to words
+        with open("/om/user/imgriff/datasets/human_word_rec_SWC_2024/human_attn_expmt_word_key.pkl", "rb") as f:
+            self.word_key = pickle.load(f)       
+        self.len = len(self.walker)
+        self.sr = model_sr
+        self.cue_end_frame = int(2 * self.sr)
+        self.mixture_start_frame = int(2.5 * self.sr)
+        self.label_type = label_type
+        self.word_2_class = self.get_class_map()
+        self.class_2_word = {v: k for k, v in self.word_2_class.items()}
+
+    def get_class_map(self):
+        """
+        Loads the mapping between the word IDX and human readable word map. 
+        """
+        word_2_class = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", "rb" )) 
+        return word_2_class
+
+    def __getitem__(self, index):
+        # get stimulus 
+        excerpt_path = self.walker[index]
+        stim_tag = excerpt_path.stem
+        stim, _ = librosa.load(excerpt_path, sr=self.sr)
+        cue_signal = stim[ : self.cue_end_frame]
+        mixture_signal = stim[self.mixture_start_frame : ]
+        # get word label - stem is of form "<sex_str>_<word_int>"
+        word_ix = int(excerpt_path.stem.split("_")[-1])
+        word = self.word_key[word_ix]
+        word_label = self.word_2_class[word]
+        return cue_signal, mixture_signal, word_label, stim_tag
+
+    def __len__(self):
+        return self.len
+   
+
 class SWCMonoTestSetUnfamililarLanguage(torch.utils.data.Dataset):
     def __init__(self, manifest_path, model_sr, distractor_language="english", label_type="WSN"):
 

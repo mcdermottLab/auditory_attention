@@ -770,7 +770,7 @@ class Spatialize(torch.nn.Module):
             self.end_frame = int(model_sr * end_crop_in_s)
         else:
             self.start_frame = 0
-            self.end_frame = -1 # crop to end of signal
+            self.end_frame = None # crop to end of signal
         self.register_buffer("ir", ir)
 
     def forward(self, x):
