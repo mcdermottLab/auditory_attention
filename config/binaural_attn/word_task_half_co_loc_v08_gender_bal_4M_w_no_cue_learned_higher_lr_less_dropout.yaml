@@ -42,8 +42,8 @@ val_metric: 'val_acc'
 model_name: 'gender_balanced_training_v08_4M_no_cue_learned'
 
 noise_kwargs: # parameters for background signal levels 
-  low_snr: -10
-  high_snr: 10
+  low_snr: -12
+  high_snr: 12
 
 hparas:                                   # Experiment hyper-parameters
   valid_step: 2000
@@ -69,7 +69,7 @@ model:                                    # Model architecture
     num_words: 800
   fc_size: 512
   global_avg_cue: False
-  dropout: 0.7
+  dropout: 0.5
   attn_constraints:
     slope: True
   v08: True 
