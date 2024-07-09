@@ -14,6 +14,7 @@ import src.audio_transforms as at
 import pandas as pd 
 from tqdm.auto import tqdm
 import pickle
+import soxr
 
 torch.set_float32_matmul_precision('high')
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -29,9 +30,23 @@ snr_dict = {2: -8,
 
 
 ## For first pass, alternate whether target or distractor is stationary. 
-azims = [0, 10, 45, 90, 180]
-elevs = [0, 10, 40]
-loc_pairs = list(itertools.product(*[azims, elevs]))
+azims = [0, 10, 350, 45, 315, 90, 270, 180] # azim over 180 is left side 
+elevs = [10, -20, 20, 40]
+loc_pairs = [(azim, 0) for azim in azims]
+loc_pairs += [(0, elev) for elev in elevs]
+
+def get_brir(azim=None, elev=None, coords=None, h5_fn=None, IR_df=None, out_sr=44_100):
+    if coords is not None:
+        azim, elev = coords
+    df_row = IR_df[(IR_df['src_azim'] == azim) & (IR_df['src_elev'] == elev)]
+    brir_ix = df_row['index_brir'].values[0]
+    sr_src = df_row['sr'].values[0]
+    with h5py.File(h5_fn, 'r') as f:
+        brir = f['brir'][brir_ix]
+    if out_sr != sr_src:
+        brir = soxr.resample(brir.astype(np.float32), sr_src, out_sr)
+    return brir
+
 
 # need to set up explicit gain module for old attention models 
 class AttentionalGains(torch.nn.Module):
@@ -51,31 +66,15 @@ class AttentionalGains(torch.nn.Module):
         gain = self.bias + (1-self.bias) * torch.sigmoid(cue)
         return gain 
     
+
 def save_activations(f, layer, suffix, activations, row, n_rows_to_save):
     """Save activations to the HDF5 file."""
     if row == 0:
         f.create_dataset(f'{layer}_{suffix}', shape=[n_rows_to_save, np.prod(activations.shape)], dtype=np.float32)
     f[f'{layer}_{suffix}'][row] = activations.cpu().view(-1).numpy()
 
-def process_and_save_activations(model, cue, target, condition_suffix, row, n_rows_to_save, f, save_cue=False):
-    """Process and save activations for a given condition."""
-    activations = {}  # Assuming this gets filled somewhere within model call or globally accessible
-    attended_acts = {}
-    model(cue, target, None)  # Assuming the third parameter is always None for simplicity
-    for layer in activations.keys():
-        if 'relufc' in layer:
-            target_acts = activations[layer]
-            save_activations(f, layer, condition_suffix, target_acts, row, n_rows_to_save)
-        else:
-            cue_acts, target_acts = activations[layer]
-            if save_cue:
-                save_activations(f, layer, condition_suffix, cue_acts, row, n_rows_to_save)
-            save_activations(f, layer, condition_suffix, target_acts, row, n_rows_to_save)
-    for layer in attended_acts.keys():
-        save_activations(f, layer, condition_suffix, attended_acts[layer], row, n_rows_to_save)
-        
-def get_activations(args):
 
+def get_activations(args):
     # set random seeds 
     torch.manual_seed(0)
     np.random.seed(0)
@@ -131,159 +130,137 @@ def get_activations(args):
                             batch_size=1,
                             num_workers=args.n_jobs)
 
+
+    ########################
+    # Set hooks for backbone
+    ########################
     # init array to store activations
     activations = {}
-
     def get_activation(name):
         def hook(model, input, output):
-            # print(name)
             if name in activations:
                 activations[name] = torch.cat((activations[name], output.detach()), dim=0)
             else:
                 activations[name] = output.detach()
         return hook
 
-    n_activations = args.n_activations
-
-    ########################
-    # Set hooks for backbone
-    ########################
-    conv_modules = {name:module for name, module in model.model._orig_mod.model_dict.named_children() if 'conv' in name or 'relu' in name}
+    modules = {name:module for name, module in model.model._orig_mod.model_dict.named_children()}
     # add relu fc 
     relu_fc = model.model._orig_mod.relufc
-    modules = {**conv_modules, **{'relufc': relu_fc}}
+    modules = {**modules, **{'relufc': relu_fc}}
     # register hooks for all layers 
     for name, module in modules.items():
-        print(name)
-        if 'relufc' in name:
-            module.register_forward_hook(get_activation(name)) 
-        else:
-            # save all stages of CNN - may need to softcode this layer for new architectures is ok for v07
+        if 'conv' in name:
             module[0].register_forward_hook(get_activation(f"{name}_ln")) # [0] is layer norm 
             module[2].register_forward_hook(get_activation(f"{name}_relu")) # [2] is relu 
-            module[3].register_forward_hook(get_activation(f"{name}_hannpool")) # [3] is pool 
+        else:
+            module.register_forward_hook(get_activation(name)) 
 
-    #########################
-    # Set hooks for attention
-    #########################
+    #####################
+    # Get gain functions
+    ##################### 
     ## Init gain modules per layer. 
-    gain_modules = {name:module for name,module in model.model.model_dict.items() if 'attn' in name}
+    gain_modules = {name:module for name,module in model.model._orig_mod.model_dict.items() if 'attn' in name}
     gain_functions = {}
-
     for name, module in gain_modules.items():
         gain_functions[name] = AttentionalGains(module.slope, module.bias, module.threshold)
 
-    attended_acts = {}
-    def get_attention(name):
-        def hook(model, input, output):
-            # print(name)
-            if name in attended_acts:
-                attended_acts[name] = torch.cat((attended_acts[name], output.detach()), dim=0)
-            else:
-                attended_acts[name] = output.detach()
-        return hook
+    ##################################################################
+    # Set dict mapping layer names to their corresponding gain modules
+    ##################################################################
+    # want dict that maps conv layer name 'conv_block_<int>_hannpool' to attn module 'attn<int>'
+    ## Map pool layers to gain functions 
+    pool_layers = [name for name in modules.keys() if "pool" in name]
+    n_pool_layers = len(pool_layers)
+    pool_to_gain_map = {}
+    pool_to_gain_map['cochleagram'] = 'attn0'
+    for ix, layer in enumerate(pool_layers):
+        if str(n_pool_layers - 1) in layer:
+            pool_to_gain_map[layer] = 'attnfc'
+        else:
+            pool_to_gain_map[layer] = f"attn{ix+1}"
 
-    # register hooks 
-    for name, module in gain_modules.items():
-            module.register_forward_hook(get_attention(name)) 
-
-
-        # send model to gpu 
+    # send model to gpu 
     model = model.eval().cuda()
     # get activations 
     
     outname = Path(f'binaural_unit_activations/{model_name}/{model_name}_model_activations_{snr}dB.h5')
+    layer_shape_dict_name = Path(f'binaural_unit_activations/{model_name}/{model_name}_layer_shape_dict.pkl')
     outname.parent.mkdir(parents=True, exist_ok=True)
     print(f"Preparing to write activations to {outname}")
     # outname = 'test_act_outs.h5'
-    n_rows_to_save = int(n_activations * len(loc_pairs) * 2) # n sounds x n locs x target vs distractor moving 
+    n_activations = args.n_activations
+    n_rows_to_save = int(n_activations * len(loc_pairs)) # n sounds x n locs 
+    layer_shape_dict = {}
     with h5py.File(outname, 'w') as f:
         with torch.no_grad():
-            for loc_x, loc in enumerate(loc_pairs):
-                for sig_x, loc_str in enumerate(['target', 'distractor']):
-                    if loc_str == 'target':
-                        # target is moving:
-                        target_loc = loc,
-                        distractor_loc = [0,0]
-                    else:
-                        # distractor is moving:
-                        target_loc = [0,0]
-                        distractor_loc = loc
+            for loc_x, (azim, elev) in enumerate(tqdm(loc_pairs, desc="Location ")):
+                target_brir = get_brir(azim=azim, elev=elev, h5_fn=h5_fn, IR_df=only14_manifest, out_sr=sr)
+                target_brir = at.Spatialize(target_brir, model_sr=sr, start_crop_in_s=None, end_crop_in_s=None).cuda()
+            
+                for ix, batch in tqdm(enumerate(dataloader),  total = n_activations, desc=f'Processing activations for location {azim}az {elev}elev', leave=False):
+                    ## get row index for saving activations that is global ix of three loops 
+                    row = ix + (loc_x * n_activations)
+                    # get signals 
+                    cue, target, _, _, _, cue_f0, target_f0, _ = batch
+                    # spatialize 
+                    cue = target_brir(cue.cuda())
+                    target = target_brir(target.cuda())
+                    # norm and mix transforms 
+                    cue, _ = audio_transforms_0_db(cue, None)
+                    target, _ = audio_transforms_0_db(target, None)
+                    # convert to cochleagrams
+                    cue, target = coch_gram(cue, target)
+                    # get cochleagram gains - is attn0
+                    coch_gains = gain_functions['attn0'](cue)
 
-                    target_brir = at.get_brir(azim=target_loc[0], elev=target_loc[1], h5_fn=h5_fn, IR_df=only14_manifest, out_sr=sr)
-                    target_brir = at.Spatialize(target_brir, model_sr=sr).cuda()
-                    
-                    distractor_brir = at.get_brir(azim=distractor_loc[0], elev=distractor_loc[1] ,h5_fn=h5_fn, IR_df=only14_manifest, out_sr=sr)
-                    distractor_brir = at.Spatialize(distractor_brir, model_sr=sr).cuda()
-                   
-                    for ix, batch in tqdm(enumerate(dataloader),  total = n_activations):
-                        ## get row index for saving activations that is global ix of three loops 
-                        row = ix + sig_x * n_activations + loc_x * (n_activations * 2)
-                        # get signals 
-                        cue, target, distractor, _, _, cue_f0, target_f0, dist_f0 = batch
-                        # spatialize 
-                        cue = target_brir(cue.cuda())
-                        target = target_brir(target.cuda())
-                        distractor = distractor_brir(distractor.cuda())
-                        # norm and mix transforms 
-                        cue, _ = audio_transforms_0_db(cue, None)
-                        mixture, _ = audio_transforms_0_db(target, distractor)
-                        # do target and distractor after mixutre for compat 
-                        target, _ = audio_transforms_0_db(target, None)
-                        distractor, _ = audio_transforms_0_db(distractor, None)
-
-                        # spatialize signals
-                        if row == 0:
-                            silence_cue = torch.zeros_like(cue, device='cuda')
-                            silence_cue, _ = coch_gram(silence_cue, None)
-
-                        if row == 0:
-                            f.create_dataset('cochleagram_cue',shape=[n_rows_to_save, mixture.view(-1).shape[0]], dtype=np.float32)
-                            f.create_dataset('cochleagram_mixture', shape=[n_rows_to_save, mixture.view(-1).shape[0]], dtype=np.float32)
-                            f.create_dataset('cochleagram_fg', shape=[n_rows_to_save, mixture.view(-1).shape[0]], dtype=np.float32)
-                            f.create_dataset('cochleagram_bg', shape=[n_rows_to_save, mixture.view(-1).shape[0]], dtype=np.float32)
-                            f.create_dataset('cue_f0', shape=[n_rows_to_save], dtype=np.float32)
-                            f.create_dataset('target_f0', shape=[n_rows_to_save], dtype=np.float32)
-                            f.create_dataset('distractor_f0', shape=[n_rows_to_save], dtype=np.float32)
-                            f.create_dataset('target_loc', shape=[n_rows_to_save, 2], dtype=np.float32)
-                            f.create_dataset('distractor_loc', shape=[n_rows_to_save, 2], dtype=np.float32)
-      
-                        # convert to cochleagrams
-                        cue, mixture = coch_gram(cue, mixture)
-                        target, distractor = coch_gram(target, distractor)
-
-                        # save cochleagram outputs and labels 
-                        f['cochleagram_cue'][row] = cue.view(-1).cpu().numpy()
-                        f['cochleagram_mixture'][row] = mixture.view(-1).cpu().numpy()
-                        f['cochleagram_fg'][row] = target.view(-1).cpu().numpy()
-                        f['cochleagram_bg'][row] = distractor.view(-1).cpu().numpy()
-                        f['cue_f0'][row] = cue_f0
-                        f['target_f0'][row] = target_f0
-                        f['distractor_f0'][row] = dist_f0
-                        f['target_loc'][row] = target_loc
-                        f['distractor_loc'][row] = distractor_loc
-                    
-                        # run mixture
-                        process_and_save_activations(model, cue, mixture, 'mixture', row, n_rows_to_save, f, save_cue=True)
-                    
-                        # run fg - can skip saving cue 
-                        process_and_save_activations(model, cue, target, 'fg', row, n_rows_to_save, f, save_cue=False)
-
-                        # run bg - can skip saving cue 
-                        process_and_save_activations(model, cue, distractor, 'bg', row, n_rows_to_save, f, save_cue=False)
+                    if row == 0:
+                        f.create_dataset('cochleagram_cue',shape=[n_rows_to_save, cue.view(-1).shape[0]], dtype=np.float32)
+                        f.create_dataset('cochleagram_fg', shape=[n_rows_to_save, target.view(-1).shape[0]], dtype=np.float32)
+                        f.create_dataset('attncoch_gains', shape=[n_rows_to_save, coch_gains.view(-1).shape[0]], dtype=np.float32)
+                        f.create_dataset('cue_f0', shape=[n_rows_to_save], dtype=np.float32)
+                        f.create_dataset('target_f0', shape=[n_rows_to_save], dtype=np.float32)
+                        f.create_dataset('target_loc', shape=[n_rows_to_save, 2], dtype=np.float32)
+                        f.create_dataset('tested_azims', data=azims)
+                        f.create_dataset('tested_elevs', data=elevs)
                         
-                        # Save signals when uncued (silence_cue) in forward pass 
-                        # run mixture
-                        process_and_save_activations(model, silence_cue, mixture, 'mixture_no_cue', row, n_rows_to_save, f, save_cue=False)
+                    # save cochleagram outputs and labels 
+                    f['cochleagram_cue'][row] = cue.view(-1).cpu().numpy()
+                    f['cochleagram_fg'][row] = target.view(-1).cpu().numpy()
+                    f['attncoch_gains'][row] = coch_gains.view(-1).cpu().numpy()
+                    f['cue_f0'][row] = cue_f0
+                    f['target_f0'][row] = target_f0
+                    f['target_loc'][row] = [azim, elev]
 
-                        # run fg - can skip cue
-                        process_and_save_activations(model, silence_cue, target, 'fg_no_cue', row, n_rows_to_save, f, save_cue=False)
+                    gain_shape_dict = {}
+                    model(cue, target, None)  # None is cue_mask_ixs which is not used for activations
+                    for layer, acts in activations.items():
+                        if 'relufc' in layer or 'attn' in layer:
+                            save_activations(f, layer, 'target', acts, row, n_rows_to_save)
+                        else:
+                            cue_acts, target_acts = acts
+                            save_activations(f, layer, 'cue', cue_acts, row, n_rows_to_save)
+                            save_activations(f, layer, 'target', target_acts, row, n_rows_to_save)
+                            # get gains - these happen before conv block, taking cue from previous pool layer
+                            if 'pool' in layer:
+                                gain_fn_name = pool_to_gain_map[layer]
+                                gain_fn = gain_functions[gain_fn_name]
+                                gains = gain_fn(cue_acts)
+                                gain_shape_dict[f"{layer}_gains"] = gains.shape
+                                save_activations(f, gain_fn_name, 'gains', gains, row, n_rows_to_save)
+                            
+                    if row == 0:
+                        layer_shape_dict = {layer: activations[layer].shape for layer in activations.keys()}
+                        shape_dict = {**layer_shape_dict, **gain_shape_dict}
+                        with open(layer_shape_dict_name, 'wb') as p:
+                            pickle.dump(shape_dict, p)
+                        layer_names = [name.encode('utf-8') for name in activations.keys()]
+                        f.create_dataset('layer_names', data=layer_names)
 
-                        # run bg
-                        process_and_save_activations(model, silence_cue, distractor, 'distractor_no_cue', row, n_rows_to_save, f, save_cue=False)
-
-                        if row == n_activations-1:
-                            break
+                    # reset to clear memory 
+                    activations={}
+                    if ix == n_activations-1:
+                        break
                 
 
 def cli_main():
@@ -291,7 +268,7 @@ def cli_main():
     parser.add_argument('--config', type=str, default="", help='Path to experiment config.')
     parser.add_argument(
         "--model_dir",
-        default=Path("./binaural_model_attn_stage_reps"),
+        default=Path("./binaural_unit_tuning"),
         type=Path,
         help="Directory to save activations to. (Default: './exp')",
     )
@@ -324,13 +301,18 @@ def cli_main():
         type=str,
         help="Path to dict of config files",
         )
-    # create overwrite flag to handle overwrite of existing results
+    parser.add_argument("--room_manifest_path", 
+                        default="/om2/user/imgriff/spatial_audio_pipeline/assets/brir/mit_bldg46room1004_min_reverb",
+                        type=str, help="Path to room manifest")
+    parser.add_argument("--room_ix",
+                        default=0,
+                        type=int, help="Room index to use") 
     parser.add_argument(
-        "--silence_w_uncued",
-        action=argparse.BooleanOptionalAction,
-        help="If True, use silence in uncued trials. (Default: False)",
+        "--stim_path",
+        default=Path("/om/user/imgriff/datasets/human_word_rec_SWC_2023/model_eval_stim.h5"),
+        type=Path,
+        help="Path where background stimuli are saved",
     )
-
     args = parser.parse_args()
 
     get_activations(args)
