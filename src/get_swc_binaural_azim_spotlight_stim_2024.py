@@ -63,18 +63,13 @@ def main(args):
 \
     print(f"Generating stimuli for condition {cond_ix}: {target_azim} target azim vs {distractor_azim} distractor azim")
 
-    ###################
-    # Init output dir 
-    ###################
-
-    out_dir = expmt_dir / "sounds" / f"condition_{cond_ix:02}"
-    out_dir.mkdir(exist_ok=True, parents=True)
-    
     ################################
     # init brir and spatilization 
     ################################
-
-    test_IR_manifest_dir = Path("/om2/user/imgriff/spatial_audio_pipeline/assets/brir/mit_bldg46room1004_min_reverb")
+    if args.anechoic:
+        test_IR_manifest_dir = Path("/om2/user/msaddler/spatial_audio_pipeline/assets/brir/eval")
+    else:
+        test_IR_manifest_dir = Path("/om2/user/imgriff/spatial_audio_pipeline/assets/brir/mit_bldg46room1004_min_reverb")
     room_ix = 0
     test_IR_manifest_path = test_IR_manifest_dir / "manifest_brir.pdpkl"
     h5_fn = test_IR_manifest_dir / f"room{room_ix:04}.hdf5"
@@ -84,6 +79,15 @@ def main(args):
     target_brir = get_brir(azim=target_azim, elev=0, h5_fn=h5_fn, IR_df=only14_manifest)
     distractor_brir = get_brir(azim=distractor_azim, elev=0, h5_fn=h5_fn, IR_df=only14_manifest)
 
+    ###################
+    # Init output dir 
+    ###################
+    if args.anechoic:
+        out_dir = expmt_dir / "anechoic_room_sounds" / f"condition_{cond_ix:02}"
+    else:
+        out_dir = expmt_dir / "sounds" / f"condition_{cond_ix:02}"
+    out_dir.mkdir(exist_ok=True, parents=True)
+    
     ############################
     # sort stimuli manifets 
     ############################
@@ -129,6 +133,7 @@ if __name__ == "__main__":
     # get array id from argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--array_id', type=int, required=True)
+    parser.add_argument('--anechoic', action='store_true')
     args = parser.parse_args()
     main(args)
 

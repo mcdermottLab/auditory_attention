@@ -67,8 +67,10 @@ class AttentionalGains(torch.nn.Module):
         return gain 
     
 
-def save_activations(f, layer, suffix, activations, row, n_rows_to_save):
+def save_activations(f, layer, suffix, activations, row, n_rows_to_save, time_average=False):
     """Save activations to the HDF5 file."""
+    if time_average:
+        activations = activations.mean(dim=-1, keepdim=True)
     if row == 0:
         f.create_dataset(f'{layer}_{suffix}', shape=[n_rows_to_save, np.prod(activations.shape)], dtype=np.float32)
     f[f'{layer}_{suffix}'][row] = activations.cpu().view(-1).numpy()
@@ -183,9 +185,12 @@ def get_activations(args):
     # send model to gpu 
     model = model.eval().cuda()
     # get activations 
-    
-    outname = Path(f'binaural_unit_activations/{model_name}/{model_name}_model_activations_{snr}dB.h5')
-    layer_shape_dict_name = Path(f'binaural_unit_activations/{model_name}/{model_name}_layer_shape_dict.pkl')
+    if args.time_average:
+        timg_avg_extn = '_time_avg'
+    else:
+        timg_avg_extn = ''
+    outname = Path(f'binaural_unit_activations/{model_name}/{model_name}_model_activations_{snr}dB{timg_avg_extn}.h5')
+    layer_shape_dict_name = Path(f'binaural_unit_activations/{model_name}/{model_name}_layer_shape_dict{timg_avg_extn}.pkl')
     outname.parent.mkdir(parents=True, exist_ok=True)
     print(f"Preparing to write activations to {outname}")
     # outname = 'test_act_outs.h5'
@@ -213,10 +218,8 @@ def get_activations(args):
                     cue, target = coch_gram(cue, target)
                     # get cochleagram gains - is attn0
                     coch_gains = gain_functions['attn0'](cue)
-
+                
                     if row == 0:
-                        f.create_dataset('cochleagram_cue',shape=[n_rows_to_save, cue.view(-1).shape[0]], dtype=np.float32)
-                        f.create_dataset('cochleagram_fg', shape=[n_rows_to_save, target.view(-1).shape[0]], dtype=np.float32)
                         f.create_dataset('attncoch_gains', shape=[n_rows_to_save, coch_gains.view(-1).shape[0]], dtype=np.float32)
                         f.create_dataset('cue_f0', shape=[n_rows_to_save], dtype=np.float32)
                         f.create_dataset('target_f0', shape=[n_rows_to_save], dtype=np.float32)
@@ -225,22 +228,22 @@ def get_activations(args):
                         f.create_dataset('tested_elevs', data=elevs)
                         
                     # save cochleagram outputs and labels 
-                    f['cochleagram_cue'][row] = cue.view(-1).cpu().numpy()
-                    f['cochleagram_fg'][row] = target.view(-1).cpu().numpy()
                     f['attncoch_gains'][row] = coch_gains.view(-1).cpu().numpy()
                     f['cue_f0'][row] = cue_f0
                     f['target_f0'][row] = target_f0
                     f['target_loc'][row] = [azim, elev]
+                    save_activations(f, 'cochleagram', 'cue', cue, row, n_rows_to_save, time_average=args.time_average)
+                    save_activations(f, 'cochleagram', 'fg', target, row, n_rows_to_save, time_average=args.time_average)
 
                     gain_shape_dict = {}
                     model(cue, target, None)  # None is cue_mask_ixs which is not used for activations
                     for layer, acts in activations.items():
                         if 'relufc' in layer or 'attn' in layer:
-                            save_activations(f, layer, 'target', acts, row, n_rows_to_save)
+                            save_activations(f, layer, 'target', acts, row, n_rows_to_save, time_average=args.time_average)
                         else:
                             cue_acts, target_acts = acts
-                            save_activations(f, layer, 'cue', cue_acts, row, n_rows_to_save)
-                            save_activations(f, layer, 'target', target_acts, row, n_rows_to_save)
+                            save_activations(f, layer, 'cue', cue_acts, row, n_rows_to_save, time_average=args.time_average)
+                            save_activations(f, layer, 'target', target_acts, row, n_rows_to_save, time_average=args.time_average)
                             # get gains - these happen before conv block, taking cue from previous pool layer
                             if 'pool' in layer:
                                 gain_fn_name = pool_to_gain_map[layer]
@@ -313,6 +316,11 @@ def cli_main():
         type=Path,
         help="Path where background stimuli are saved",
     )
+    parser.add_argument(
+        "--time_average",
+        action='store_true',
+        help="Whether to time average activations",
+    )   
     args = parser.parse_args()
 
     get_activations(args)

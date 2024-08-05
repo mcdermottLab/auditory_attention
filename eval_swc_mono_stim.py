@@ -72,15 +72,19 @@ def run_eval(args):
         else:
             audio_transforms = at.AudioCompose([
                         at.AudioToTensor(),
-                        # at.CombineWithRandomDBSNR(low_snr=snr, high_snr=snr), 
                         at.RMSNormalizeForegroundAndBackground(rms_level=0.02),  # 0.02 is the default for CV-based models 
                         at.UnsqueezeAudio(dim=0),
                         at.DuplicateChannel()
                 ])
+        if args.spotlight_expmnt:
+            audio_transforms = at.AudioCompose([
+                        at.AudioToTensor(),
+                        at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02,
+                                                                       v2_demean=True), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+                ])
     else:
         audio_transforms = at.AudioCompose([
                     at.AudioToTensor(),
-                    # at.CombineWithRandomDBSNR(low_snr=snr, high_snr=snr), 
                     at.RMSNormalizeForegroundAndBackground(rms_level=0.02),  # 0.02 is the default for CV-based models 
                     at.UnsqueezeAudio(dim=0),
             ])  
@@ -91,7 +95,7 @@ def run_eval(args):
     if 'v0' in args.config:
         coch_gram = model.coch_gram.cuda()
     
-    if args.stim_cond_map:
+    if args.stim_cond_map and not args.spotlight_expmnt:
         if args.full_h5_stim_set:
             dataset = SWCMonoTestSetH5Dataset(h5_path=args.stim_path,
                                             eval_distractor_cond=condition,
@@ -106,14 +110,20 @@ def run_eval(args):
 
             condition, snr = dataset.stim_cond_map[args.array_id]
 
-    elif '2024' in str(args.stim_path):
+    elif '2024' in str(args.stim_path) or args.spotlight_expmnt:
         dataset = SWCMonoTestSet2024(stim_path=args.stim_path,
                                 cond_ix=args.array_id,
                                 model_sr=sr,
-                                label_type=label_type)
-        condition, snr = dataset.stim_cond_map[args.array_id]
+                                label_type=label_type,
+                                stim_cond_map=args.stim_cond_map)
+        if args.spotlight_expmnt:
+            condition_dict = dataset.stim_cond_map[args.array_id]
+            condition = f"target_azim_{condition_dict['target_azim']}_distractor_azim_{condition_dict['distractor_azim']}"
+            snr = 0
+        else:
+            condition, snr = dataset.stim_cond_map[args.array_id]
 
-    elif 'popham' in str(args.stim_path):
+    if 'popham' in str(args.stim_path):
         dataset = SWCMonoTestSet(stim_path=args.stim_path,
                                 cond_ix=args.array_id,
                                 model_sr=sr,
@@ -143,7 +153,7 @@ def run_eval(args):
             labels = torch.tensor([label for _, _, _, label, _ in batch]).type(torch.LongTensor)
             return cues, mixtures, labels
 
-    elif "2024" in str(args.stim_path):
+    elif ("2024" in str(args.stim_path) or args.spotlight_expmnt) and not 'popham' in str(args.stim_path):
         def collate_fn(batch):
             #apply transforms to batch
             cues = torch.stack([audio_transforms(cue, None)[0] for cue, _, _, _ in batch])
@@ -175,14 +185,14 @@ def run_eval(args):
         csv_out = csv.writer(file, delimiter=",")
         # write column header to csv
         print("writing csv header")
-        if '2024' in str(args.stim_path):        
+        if ('2024' in str(args.stim_path) or args.spotlight_expmnt) and not args.full_h5_stim_set and not 'popham' in str(args.stim_path):        
             csv_out.writerow(['pred_word_int', 'true_word_int', 'accuracy', 'stim_name'])
         else:
             csv_out.writerow(['pred_word_int', 'true_word_int', 'accuracy'])
 
         # run eval 
         for i, batch in enumerate(tqdm(dataloader, desc=f"evaluating {model_name} on {condition} at {snr}dB SNR")):
-            if '2024' in str(args.stim_path):
+            if '2024' in str(args.stim_path) and not args.full_h5_stim_set and not 'popham' in str(args.stim_path):
                 cue, mixture, word, stim_tag = batch
             else:
                 cue, mixture, word = batch
@@ -203,7 +213,7 @@ def run_eval(args):
             accuracy = (true_word == preds).astype('int')
             acc_sum += accuracy.sum()
             # write to csv
-            if '2024' in str(args.stim_path):        
+            if ('2024' in str(args.stim_path) or args.spotlight_expmnt) and not args.full_h5_stim_set and not 'popham' in str(args.stim_path):        
                 rows = list(zip(*[preds, true_word, accuracy, stim_tag]))
             else:
                 rows = list(zip(*[preds, true_word, accuracy]))
@@ -216,6 +226,7 @@ def run_eval(args):
         # print final accuracy
         acc = acc_sum / len(dataset)
         print(f"Final accuracy: {acc}")
+        
 def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--config', type=str, default="", help='Path to experiment config.')
@@ -258,6 +269,11 @@ def cli_main():
         "--full_h5_stim_set",
         action='store_true',
         help="If set, load full h5 stimulus set",
+    )
+    parser.add_argument(
+        "--spotlight_expmnt",
+        action='store_true',
+        help="If set, load spotlight experiment stimuli",
     )
     args = parser.parse_args()
 

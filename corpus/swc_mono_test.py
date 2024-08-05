@@ -84,6 +84,8 @@ class SWCMonoTestSet2024(torch.utils.data.Dataset):
         self.label_type = label_type
         self.word_2_class = self.get_class_map()
         self.class_2_word = {v: k for k, v in self.word_2_class.items()}
+        self.mono = False if 'azim' in str(stim_path) else True 
+        print(f"Using mono: {self.mono}")
 
     def get_class_map(self):
         """
@@ -96,9 +98,10 @@ class SWCMonoTestSet2024(torch.utils.data.Dataset):
         # get stimulus 
         excerpt_path = self.walker[index]
         stim_tag = excerpt_path.stem
-        stim, _ = librosa.load(excerpt_path, sr=self.sr)
-        cue_signal = stim[ : self.cue_end_frame]
-        mixture_signal = stim[self.mixture_start_frame : ]
+        stim, _ = librosa.load(excerpt_path, sr=self.sr, mono=self.mono)
+        
+        cue_signal = stim[..., : self.cue_end_frame]
+        mixture_signal = stim[..., self.mixture_start_frame : ]
         # get word label - stem is of form "<sex_str>_<word_int>"
         word_ix = int(excerpt_path.stem.split("_")[-1])
         word = self.word_key[word_ix]
@@ -161,6 +164,7 @@ class SWCMonoTestSetH5Dataset(torch.utils.data.Dataset):
         self.h5_path = h5_path
         self.dataset = None
         # get distractor key 
+        self.conf_key = None 
         if eval_distractor_cond == 'one_distractor':
             self.dist_key = 'one_dist_signal'
         elif eval_distractor_cond == 'four_distractor':
@@ -175,8 +179,34 @@ class SWCMonoTestSetH5Dataset(torch.utils.data.Dataset):
             self.dist_key = 'babble_dist_signal'
         elif eval_distractor_cond == 'natural_scene':
             self.dist_key = 'nat_dist_signal'
+        elif eval_distractor_cond ==  "1-talker-english-same":
+            self.dist_key = '1-talker-english-same'
+            self.conf_key = 'same_dist_word_int'
+        elif eval_distractor_cond ==  "1-talker-english-different":
+            self.dist_key = '1-talker-english-different'
+            self.conf_key = 'diff_dist_word_int'
+        elif eval_distractor_cond ==  "1-talker-mandarin-same":
+            self.dist_key = '1-talker-mandarin-same'
+        elif eval_distractor_cond ==  "1-talker-mandarin-different":
+            self.dist_key = '1-talker-mandarin-different'
+        elif eval_distractor_cond ==  "1-talker-dutch-same":
+            self.dist_key = '1-talker-dutch-same'
+        elif eval_distractor_cond ==  "1-talker-dutch-different":
+            self.dist_key = '1-talker-dutch-different'
+        elif eval_distractor_cond ==  "2-talker":
+            self.dist_key = '2-talker'
+        elif eval_distractor_cond ==  "4-talker":
+            self.dist_key = '4-talker'
         elif eval_distractor_cond == 'clean':
             self.dist_key = None
+        else:
+            raise ValueError(f"Unknown eval_distractor_cond: {eval_distractor_cond}")
+
+        if self.conf_key == None and "2024" in str(h5_path):
+            self.conf_key = 'same_dist_word_int'
+        elif self.conf_key == None:
+            self.conf_key = 'confusion_int_label'
+
         self.sr = model_sr
         self.label_type = label_type
         self.for_act_analysis = for_act_analysis
@@ -206,7 +236,7 @@ class SWCMonoTestSetH5Dataset(torch.utils.data.Dataset):
         word_int = self.dataset['word_int_label'][index]
         if self.dist_key:
             distractor = self.dataset[self.dist_key][index]
-            dist_word_int = self.dataset['confusion_int_label'][index]
+            dist_word_int = self.dataset[self.conf_key][index]
         else:
             distractor = None
             dist_word_int = None

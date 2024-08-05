@@ -36,8 +36,15 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/sounds/ \
 #                  --exp_dir popham_swc_eval/ \
 
-python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_orig.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_orig/checkpoints/epoch=0-step=6000-v1.ckpt \
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_orig.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_orig/checkpoints/epoch=0-step=6000-v1.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 \
+#                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/sounds/ \
+#                  --exp_dir popham_swc_eval/ \
+
+python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=4-step=59392.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 \
                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/sounds/ \

@@ -5,8 +5,6 @@ from pathlib import Path
 import json
 import re
 
-
-
 ##############################
 # For main SWC experiment
 ##############################
@@ -18,6 +16,15 @@ def get_part_df_swc(fname):
     responses = part_df.loc[part_df.trial_type.isin(['audio-keyboard-response','dictionary-text']), ['trial_index', 'stimulus']]
     responses = responses.ffill()
     part_df.loc[part_df['trial_index'].isin(responses["trial_index"].values), 'stimulus'] = responses.stimulus
+    for item in part_data:
+        if 'response' in item:
+            if  isinstance(item['response'], dict):
+                if 'headphones' in item['response']:
+                    over_ear = False if item['response']['headphones'] == 'In-ear headphones or earbuds' else True
+                if 'hearing_loss' in item['response']:
+                    hearing_loss = False if item['response']['hearing_loss'] == "Not aware of any hearing loss" else True
+    part_df['over_ear_hf'] = over_ear
+    part_df['hearing_loss'] = hearing_loss
     return part_df
 
 def get_stim_snr_and_cond(stim_str, stim_cond_map=None):
@@ -49,8 +56,24 @@ def get_stim_target_azim_and_dist_detla(stim_str, stim_cond_map=None):
             condition = 'catch_trial'
     return condition, target_azim, dist_delta, distractor_azim
 
+###############################
+# For speaker array experiment
+###############################
 
-##############################
+def get_target_transcript(fname, df_w_transcripts):
+    try:
+        return df_w_transcripts.loc[df_w_transcripts['targ_src_stem'].eq(fname), 'target_transcripts'].values[0]
+    except IndexError:
+        return ['']
+        
+def get_distractor_tscript(fname, df_w_transcripts):
+    tscript = ['']
+    if df_w_transcripts['dist_1_src_stem'].eq(fname).any():
+        tscript = df_w_transcripts.loc[df_w_transcripts['dist_1_src_stem'].eq(fname), 'distractor_1_transcripts'].values[0]
+    elif df_w_transcripts['dist_2_src_stem'].eq(fname).any():
+        tscript = df_w_transcripts.loc[df_w_transcripts['dist_2_src_stem'].eq(fname), 'distractor_2_transcripts'].values[0]
+    return tscript
+
 # More-generalized functions
 ##############################
 

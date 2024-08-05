@@ -5,9 +5,9 @@
 #SBATCH --mem=16Gb
 #SBATCH --cpus-per-task=2
 #SBATCH --time=3:00:00
-#SBATCH --partition=normal
-#SBATCH --gres=gpu:1  --constraint=20GB
-#SBATCH -x dgx001,dgx002,node093,node114,node107,node115,node109
+#SBATCH --partition=mcdermott
+#SBATCH --gres=gpu:a100:1 
+#SBATCH -x dgx001,dgx002,node093
 
 # module load /openmind/miniconda
 module load openmind8/anaconda/3-2022.10
