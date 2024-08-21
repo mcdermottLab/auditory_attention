@@ -1,3 +1,9 @@
+import numpy as np
+from itertools import combinations, product
+
+####################
+# Statsmodels TTest
+####################
 '''Multiple Testing and P-Value Correction
 
 
@@ -5,11 +11,10 @@ Author: Josef Perktold
 License: BSD-3
 
 
-Sourced from Jacob Prince:
+Sourced from:
 https://github.com/jacob-prince/jsputils/blob/main/jsputils/statsmodels.py
 '''
 
-import numpy as np
 #from statsmodels.stats._knockoff import RegressionFDR
 
 #__all__ = ['fdrcorrection', 'fdrcorrection_twostage', 'local_fdr',
@@ -358,3 +363,145 @@ def fdrcorrection(pvals, alpha=0.05, method='indep', is_sorted=False):
         return reject_, pvals_corrected_
     else:
         return reject, pvals_corrected
+
+
+###################
+# ANOVA 
+###################
+
+"""
+Author: Ian Griffith
+"""
+
+class NWayANOVA:
+    def __init__(self, data, dependent_var, independent_vars):
+        """
+        Initialize the NWayANOVA class.
+        
+        Parameters:
+        - data: numpy structured array or dictionary containing the data.
+        - dependent_var: string, name of the dependent variable.
+        - independent_vars: list of strings, names of the independent variables.
+
+        Example usage:
+        data = np.array([(value1, value2, ...), (value1, value2, ...), ...],
+                        dtype=[('dependent_var', 'f8'), ('independent_var1', 'f8'), ('independent_var2', 'f8'), ...])
+        anova = NWayANOVA(data, 'dependent_var', ['independent_var1', 'independent_var2', ...])
+        results = anova.perform_anova()
+
+        """
+        self.data = data
+        self.dependent_var = dependent_var
+        self.independent_vars = independent_vars
+        self.results = None
+        self.SST = None
+        self.SSA = None
+        self.SSE = None
+        self.SS_interactions = {}
+        self.df_total = None
+        self.df_A = None
+        self.df_error = None
+        self.df_interactions = {}
+
+    def fit(self):
+        """
+        Fit the ANOVA model and perform calculations.
+        """
+        self._calculate_sums_of_squares()
+        self._calculate_degrees_of_freedom()
+        self._calculate_mean_squares()
+        self._calculate_f_statistics()
+
+    def _calculate_sums_of_squares(self):
+        """
+        Calculate the sums of squares.
+        """
+        self.SST = np.sum((self.data[self.dependent_var] - np.mean(self.data[self.dependent_var]))**2)
+        self.SSA = {}
+        self.SSE = self.SST
+
+        for var in self.independent_vars:
+            levels = np.unique(self.data[var])
+            SSA_var = 0
+            for level in levels:
+                group = self.data[self.data[var] == level]
+                SSA_var += len(group) * (np.mean(group[self.dependent_var]) - np.mean(self.data[self.dependent_var]))**2
+            self.SSA[var] = SSA_var
+            self.SSE -= SSA_var
+
+        # Calculate interaction sums of squares
+        for interaction in combinations(self.independent_vars, 2):
+            interaction_name = ':'.join(interaction)
+            SS_interaction = 0
+            for levels in product(*[np.unique(self.data[var]) for var in interaction]):
+                group = self.data[np.all([self.data[var] == level for var, level in zip(interaction, levels)], axis=0)]
+                n = len(group)
+                if n > 0:
+                    mean_interaction = np.mean(group[self.dependent_var])
+                    mean_main_effects = np.mean([np.mean(self.data[self.data[var] == level][self.dependent_var]) for var, level in zip(interaction, levels)])
+                    SS_interaction += n * (mean_interaction - mean_main_effects)**2
+            self.SS_interactions[interaction_name] = SS_interaction
+            self.SSE -= SS_interaction
+
+    def _calculate_degrees_of_freedom(self):
+        """
+        Calculate the degrees of freedom.
+        """
+        self.df_total = len(self.data[self.dependent_var]) - 1
+        self.df_A = {var: len(np.unique(self.data[var])) - 1 for var in self.independent_vars}
+        self.df_interactions = {':'.join(interaction): np.prod([len(np.unique(self.data[var])) - 1 for var in interaction]) for interaction in combinations(self.independent_vars, 2)}
+        self.df_error = self.df_total - sum(self.df_A.values()) - sum(self.df_interactions.values())
+
+    def _calculate_mean_squares(self):
+        """
+        Calculate the mean squares.
+        """
+        self.MSA = {var: self.SSA[var] / self.df_A[var] for var in self.independent_vars}
+        self.MS_interactions = {interaction: self.SS_interactions[interaction] / self.df_interactions[interaction] for interaction in self.SS_interactions}
+        self.MSE = self.SSE / self.df_error
+
+    def _calculate_f_statistics(self):
+        """
+        Calculate the F-statistics.
+        """
+        self.F = {var: self.MSA[var] / self.MSE for var in self.independent_vars}
+        self.F_interactions = {interaction: self.MS_interactions[interaction] / self.MSE for interaction in self.MS_interactions}
+   
+    def perform_anova(self):
+        """
+        Perform ANOVA and return the results.
+        
+        Returns:
+        - results: Dictionary containing the ANOVA table.
+        """
+        if self.results is None:
+            self.fit()
+        
+        self.results = {
+            'Source': [],
+            'SS': [],
+            'df': [],
+            'MS': [],
+            'F': []
+        }
+
+        for var in self.independent_vars:
+            self.results['Source'].append(var)
+            self.results['SS'].append(self.SSA[var])
+            self.results['df'].append(self.df_A[var])
+            self.results['MS'].append(self.MSA[var])
+            self.results['F'].append(self.F[var])
+
+        self.results['Source'].append('Error')
+        self.results['SS'].append(self.SSE)
+        self.results['df'].append(self.df_error)
+        self.results['MS'].append(self.MSE)
+        self.results['F'].append(None)
+
+        self.results['Source'].append('Total')
+        self.results['SS'].append(self.SST)
+        self.results['df'].append(self.df_total)
+        self.results['MS'].append(None)
+        self.results['F'].append(None)
+
+        return self.results

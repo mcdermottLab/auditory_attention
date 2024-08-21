@@ -22,8 +22,20 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #                  --array_id $SLURM_ARRAY_TASK_ID \
 #                  --n_jobs 4 --exp_dir cue_duration_eval/ \
 
-python3 eval_cue_duration_mono.py --config /om2/user/imgriff/projects/torch_2_aud_attn/config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_orig.yaml \
-                 --ckpt_pat /om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_orig/checkpoints/epoch=0-step=6000-v1.ckpt \
+# python3 eval_cue_duration_mono.py --config /om2/user/imgriff/projects/torch_2_aud_attn/config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_orig.yaml \
+#                  --ckpt_pat /om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_orig/checkpoints/epoch=0-step=6000-v1.ckpt \
+#                  --test_manifest_path /om2/user/imgriff/projects/torch_2_aud_attn/binaural_test_manifests/cue_duration_test_manifest_1talker_only_0dB_snr.pkl \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir cue_duration_eval/ \
+
+# python3 eval_cue_duration_mono.py --config /om2/user/imgriff/projects/torch_2_aud_attn/config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_orig.yaml \
+#                  --ckpt_pat /om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_orig/checkpoints/epoch=0-step=6000-v1.ckpt \
+#                  --test_manifest_path /om2/user/imgriff/projects/torch_2_aud_attn/binaural_test_manifests/cue_duration_test_manifest_1talker_only_0dB_snr.pkl \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir cue_duration_eval/ \
+
+python3 eval_cue_duration_mono.py --config /om2/user/imgriff/projects/torch_2_aud_attn/config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=4-step=59392.ckpt \
                  --test_manifest_path /om2/user/imgriff/projects/torch_2_aud_attn/binaural_test_manifests/cue_duration_test_manifest_1talker_only_0dB_snr.pkl \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir cue_duration_eval/ \

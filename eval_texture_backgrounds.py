@@ -102,7 +102,7 @@ def run_eval(args):
         return cues, mixtures, labels, texture_ints
 
     dataloader = torch.utils.data.DataLoader(dataset,
-                                             batch_size=16, # set batch size in dataset
+                                             batch_size=10, # set batch size in dataset
                                              shuffle=False,
                                              collate_fn=collate_fn,
                                              num_workers=args.n_jobs)

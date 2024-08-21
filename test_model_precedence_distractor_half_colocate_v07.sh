@@ -24,10 +24,18 @@ which python3
 #                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test \
 #                  --cue_type voice_and_location --overwrite --n_per_job 1
 
-python3 eval_precedence.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_orig.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_orig/checkpoints/epoch=0-step=6000-v1.ckpt \
+# python3 eval_precedence.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_orig.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_orig/checkpoints/epoch=0-step=6000-v1.ckpt \
+#                  --test_manifest binaural_test_manifests/freymen_1999_test_conds.pkl \
+#                  --model_name word_task_half_co_loc_v08_gender_bal_4M_orig --location_idx $SLURM_ARRAY_TASK_ID \
+#                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test \
+#                  --cue_type voice_and_location --overwrite --n_per_job 1
+
+
+python3 eval_precedence.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=4-step=59392.ckpt \
                  --test_manifest binaural_test_manifests/freymen_1999_test_conds.pkl \
-                 --model_name word_task_half_co_loc_v08_gender_bal_4M_orig --location_idx $SLURM_ARRAY_TASK_ID \
+                 --model_name word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test \
                  --cue_type voice_and_location --overwrite --n_per_job 1
 

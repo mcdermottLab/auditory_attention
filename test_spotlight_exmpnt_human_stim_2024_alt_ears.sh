@@ -18,12 +18,10 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 # sometimes get compilation issues - remove just to be safe
 rm -r /tmp/torchinductor_imgriff
 
-python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
-                 --stim_path /om/user/imgriff/datasets/human_azim_spotlight_SWC_2024/sounds \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=4-step=51392.ckpt \
-                 --array_id $SLURM_ARRAY_TASK_ID \
-                --n_jobs 4 --exp_dir binaural_eval/simulate_2024_human_azimuth_spotlight_experiment_alt_ears/ \
-                --stim_cond_map /om/user/imgriff/datasets/human_azim_spotlight_SWC_2024/sim_human_azim_spotlight_experiment_alt_ears_sadie_h18.pkl \
-                --spotlight_expmnt
-
+python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_sanity.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_sanity/checkpoints/epoch=7-step=89878.ckpt \
+                 --test_manifest binaural_test_manifests/sim_human_azim_spotlight_experiment_alt_ears_sadie_h18.pkl \
+                 --location_idx $SLURM_ARRAY_TASK_ID \
+                 --gpus 1 --n_jobs 2 --exp_dir binaural_eval/simulate_2024_human_azimuth_spotlight_experiment_alt_ears \
+                 --cue_type voice_and_location --no-overwrite --n_per_job 1 --sim_human_array_exmpt --run_all_stim 
 
