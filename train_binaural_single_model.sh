@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=train_new_binaural_attn
-#SBATCH --output=outLogs/train_v08_gender_bal_4M_w_no_cue_learned_%j.out
-#SBATCH --error=outLogs/train_v08_gender_bal_4M_w_no_cue_learned_%j.err # train_v08_gender_bal_4M_orig_ learned_avg
+#SBATCH --output=outLogs/train_v09_gender_bal_4M_w_no_cue_learned_%j.out
+#SBATCH --error=outLogs/train_v09_gender_bal_4M_w_no_cue_learned_%j.err # train_v08_gender_bal_4M_orig_ learned_avg
 #SBATCH --mem=200Gb
 #SBATCH -N 1
 
@@ -73,7 +73,11 @@ which python3
 # python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned.yaml \
 #                  --gpus 4 --n_jobs 4 --resume_training True \
 #                  --exp_dir attn_cue_models \
-python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+#                  --gpus 4 --n_jobs 4 --resume_training True \
+#                  --exp_dir attn_cue_models \
+
+python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
                  --gpus 4 --n_jobs 4 --resume_training True \
                  --exp_dir attn_cue_models \
 
