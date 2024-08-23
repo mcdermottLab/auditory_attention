@@ -1,9 +1,14 @@
 corpus:
   name: 'spatialized_commonvoice_audioset_scenes'
-  cue_type: "voice_and_location"
+  cue_type: "mixed"
   task: "word"
   root: '/om/scratch/Sun/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v08'
-  v06: True                # USE v06 dataclass 
+  mixture_percentages:
+    voice_only: 0.5
+    voice_and_location: 0.5
+  gender_balanced_4M: True
+  cue_free_percentage: 0.1    # prop of cue-free examples
+  v06: True      
 
 audio:                                  # Attributes of audio feature
   rep_type:  'cochlea_filt'
@@ -35,7 +40,7 @@ audio:                                  # Attributes of audio feature
 
 
 val_metric: 'val_acc'
-model_name: 'binaural_attn_standard_v08'
+model_name: 'binaural_attn_gender_balanced_v08_4M_early_only'
 
 noise_kwargs: # parameters for background signal levels 
   low_snr: -10
@@ -45,10 +50,11 @@ hparas:                                   # Experiment hyper-parameters
   valid_step: 2000
   epochs: 1000
   optimizer: 'AdamW'
-  lr: 0.00001
+  lr: 0.00005
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 100 
-  batch_size: 256                        # 576 for 8 288 for 4Gets divided by num gpus
+  batch_size: 288                        # 576 for 8 288 for 4Gets divided by num gpus
+  mask_cues: False                    
 
 model:                                    # Model architecture
   input_sr: 10000
@@ -64,9 +70,9 @@ model:                                    # Model architecture
     num_words: 800
   fc_size: 512
   global_avg_cue: False
-  dropout: 0.6
+  dropout: 0.5
   attn_constraints:
     slope: True
   v08: True 
-  norm_first: False
-  ln_affine: False
+  norm_first: True
+  ln_affine: True

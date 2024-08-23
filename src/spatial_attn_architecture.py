@@ -300,6 +300,8 @@ class BinauralAuditoryAttentionCNNV2(nn.Module):
                 block.add_module("relu", nn.ReLU())
         return block
     
+
+    
 class BinauralAuditoryAttentionCNN(nn.Module):
     def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
                   fc_size=512, global_avg_cue=False, num_classes={"num_words":800, "num_locs":504}, frequency_dim=40,

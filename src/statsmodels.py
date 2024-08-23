@@ -379,13 +379,17 @@ class NWayANOVA:
         Initialize the NWayANOVA class.
         
         Parameters:
-        - data: numpy structured array or dictionary containing the data.
+        - data: pandas DataFrame containing the data.
         - dependent_var: string, name of the dependent variable.
         - independent_vars: list of strings, names of the independent variables.
 
         Example usage:
-        data = np.array([(value1, value2, ...), (value1, value2, ...), ...],
-                        dtype=[('dependent_var', 'f8'), ('independent_var1', 'f8'), ('independent_var2', 'f8'), ...])
+        data = pd.DataFrame({
+            'dependent_var': [value1, value2, ...],
+            'independent_var1': [value1, value2, ...],
+            'independent_var2': [value1, value2, ...],
+            ...
+        })
         anova = NWayANOVA(data, 'dependent_var', ['independent_var1', 'independent_var2', ...])
         results = anova.perform_anova()
 
@@ -416,7 +420,8 @@ class NWayANOVA:
         """
         Calculate the sums of squares.
         """
-        self.SST = np.sum((self.data[self.dependent_var] - np.mean(self.data[self.dependent_var]))**2)
+        self.x_bar = np.mean(self.data[self.dependent_var])
+        self.SST = np.sum((self.data[self.dependent_var] - self.x_bar)**2)
         self.SSA = {}
         self.SSE = self.SST
 
@@ -425,7 +430,7 @@ class NWayANOVA:
             SSA_var = 0
             for level in levels:
                 group = self.data[self.data[var] == level]
-                SSA_var += len(group) * (np.mean(group[self.dependent_var]) - np.mean(self.data[self.dependent_var]))**2
+                SSA_var += len(group) * (np.mean(group[self.dependent_var]) - self.x_bar)**2
             self.SSA[var] = SSA_var
             self.SSE -= SSA_var
 
@@ -480,6 +485,7 @@ class NWayANOVA:
         self.results = {
             'Source': [],
             'SS': [],
+            'prop_SS': [],
             'df': [],
             'MS': [],
             'F': []
@@ -488,18 +494,30 @@ class NWayANOVA:
         for var in self.independent_vars:
             self.results['Source'].append(var)
             self.results['SS'].append(self.SSA[var])
+            self.results['prop_SS'].append(self.SSA[var] / self.SST)
             self.results['df'].append(self.df_A[var])
             self.results['MS'].append(self.MSA[var])
             self.results['F'].append(self.F[var])
+        
+        # Add interaction terms to results
+        for interaction in self.MS_interactions:
+            self.results['Source'].append(interaction)
+            self.results['SS'].append(self.SS_interactions[interaction])
+            self.results['prop_SS'].append(self.SS_interactions[interaction] / self.SST)
+            self.results['df'].append(self.df_interactions[interaction])
+            self.results['MS'].append(self.MS_interactions[interaction])
+            self.results['F'].append(self.F_interactions[interaction])
 
         self.results['Source'].append('Error')
         self.results['SS'].append(self.SSE)
+        self.results['prop_SS'].append(self.SSE / self.SST)
         self.results['df'].append(self.df_error)
         self.results['MS'].append(self.MSE)
         self.results['F'].append(None)
 
         self.results['Source'].append('Total')
         self.results['SS'].append(self.SST)
+        self.results['prop_SS'].append(1)
         self.results['df'].append(self.df_total)
         self.results['MS'].append(None)
         self.results['F'].append(None)
