@@ -207,7 +207,7 @@ def get_activations(args):
                     ## get row index for saving activations that is global ix of three loops 
                     row = ix + (loc_x * n_activations)
                     # get signals 
-                    cue, target, _, _, _, cue_f0, target_f0, _ = batch
+                    cue, target, _, word_int, _, cue_f0, target_f0, _ = batch
                     # spatialize 
                     cue = target_brir(cue.cuda())
                     target = target_brir(target.cuda())
@@ -223,6 +223,7 @@ def get_activations(args):
                         f.create_dataset('attncoch_gains', shape=[n_rows_to_save, coch_gains.view(-1).shape[0]], dtype=np.float32)
                         f.create_dataset('cue_f0', shape=[n_rows_to_save], dtype=np.float32)
                         f.create_dataset('target_f0', shape=[n_rows_to_save], dtype=np.float32)
+                        f.create_dataset('target_word_int', shape=[n_rows_to_save], dtype=np.float32)
                         f.create_dataset('target_loc', shape=[n_rows_to_save, 2], dtype=np.float32)
                         f.create_dataset('tested_azims', data=azims)
                         f.create_dataset('tested_elevs', data=elevs)
@@ -231,6 +232,7 @@ def get_activations(args):
                     f['attncoch_gains'][row] = coch_gains.view(-1).cpu().numpy()
                     f['cue_f0'][row] = cue_f0
                     f['target_f0'][row] = target_f0
+                    f['target_word_int'][row] = word_int
                     f['target_loc'][row] = [azim, elev]
                     save_activations(f, 'cochleagram', 'cue', cue, row, n_rows_to_save, time_average=args.time_average)
                     save_activations(f, 'cochleagram', 'fg', target, row, n_rows_to_save, time_average=args.time_average)

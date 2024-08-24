@@ -2,9 +2,9 @@
 #SBATCH --job-name=get_unit_acts
 #SBATCH --output=outLogs/get_unit_acts_%j.out
 #SBATCH --error=outLogs/get_unit_acts_%j.err
-#SBATCH --mem=12Gb                           
+#SBATCH --mem=8Gb                           
 #SBATCH --cpus-per-task=1
-#SBATCH --time=2:00:00
+#SBATCH --time=0:30:00
 #SBATCH --partition=normal
 ##SBATCH --array=1 # 0-8 for full
 #SBATCH --gres=gpu:1 --constraint=16GB

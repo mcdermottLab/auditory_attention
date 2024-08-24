@@ -54,6 +54,8 @@ def get_stim_target_azim_and_dist_detla(stim_str, stim_cond_map=None):
             target_azim, dist_delta, distractor_azim = stim_cond_map[cond_str]
         elif 'catch' in stim_str:
             condition = 'catch_trial'
+        elif 'srm' in stim_str:
+            condition = 'srm_trial'
     return condition, target_azim, dist_delta, distractor_azim
 
 ###############################
