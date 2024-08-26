@@ -2,7 +2,7 @@
 #SBATCH --job-name=train_new_binaural_attn
 #SBATCH --output=outLogs/train_v09_gender_bal_4M_w_no_cue_learned_%j.out
 #SBATCH --error=outLogs/train_v09_gender_bal_4M_w_no_cue_learned_%j.err # train_v08_gender_bal_4M_orig_ learned_avg
-#SBATCH --mem=200Gb
+#SBATCH --mem=100Gb
 #SBATCH -N 1
 
 ##SBATCH --cpus-per-task=16
@@ -10,17 +10,17 @@
 ##SBATCH --partition=normal
 ##SBATCH --gres=gpu:a100:4
 
-##SBATCH --time=12:00:00
-##SBATCH --cpus-per-task=32
-##SBATCH --partition=multi-gpu
-##SBATCH --gres=gpu:a100:8
+#SBATCH --time=12:00:00
+#SBATCH --cpus-per-task=16
+#SBATCH --partition=mcdermott   # multi-gpu
+#SBATCH --gres=gpu:a100:4
 ##SBATCH --mem=200Gb
 
-#SBATCH --mem=100Gb
-#SBATCH --cpus-per-task=16
-#SBATCH --partition=mcdermott
-#SBATCH --time=4-00:00:00
-#SBATCH --gres=gpu:a100:4
+##SBATCH --mem=100Gb
+##SBATCH --cpus-per-task=16
+##SBATCH --partition=mcdermott
+##SBATCH --time=4-00:00:00
+##SBATCH --gres=gpu:a100:4
 
 #source /etc/profile.d/modules.sh
 #module use /cm/shared/modulefiles

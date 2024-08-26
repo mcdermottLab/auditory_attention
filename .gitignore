@@ -153,6 +153,7 @@ corpus/jsinV3AttnTrackVal_v1.py
 
 # data
 *.npy
+*.npz
 *.pkl
 *.pdpkl
 *.json
