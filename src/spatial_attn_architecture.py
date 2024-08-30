@@ -305,7 +305,8 @@ class BinauralAuditoryAttentionCNNV2(nn.Module):
 class BinauralAuditoryAttentionCNN(nn.Module):
     def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
                   fc_size=512, global_avg_cue=False, num_classes={"num_words":800, "num_locs":504}, frequency_dim=40,
-                  residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, ln_affine=True, v08=False, additive=False, **kwargs):
+                  residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, ln_affine=True, 
+                  v08=False, additive=False, cue_loc_task=False, **kwargs):
         super(BinauralAuditoryAttentionCNN, self).__init__()
         # Setup
         print('v08', v08)
@@ -340,6 +341,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
         self.frequency_dim = frequency_dim
         self.n_layers = len(out_channels)
         self.norm_first = norm_first
+        self.cue_loc_task  = cue_loc_task
         if norm_first:
             print(f"Conv block order: LN -> Conv -> ReLU")
         elif not norm_first:
@@ -427,8 +429,13 @@ class BinauralAuditoryAttentionCNN(nn.Module):
         self.fullyconnected = nn.Linear(self.output_size, fc_size)
         self.relufc = nn.ReLU()
         self.dropout = nn.Dropout(dropout)
+        
+        if self.cue_loc_task:
+            self.loc_fc = nn.Linear(self.output_size, fc_size)
+            self.locrelufc = nn.ReLU()
+            self.locdropout = nn.Dropout(dropout)
 
-        if self.dual_task:
+        if self.dual_task or self.cue_loc_task:
             self.classificationWord = nn.Linear(fc_size, self.num_words)
             self.classificationLoc = nn.Linear(fc_size, self.num_locs)
         else:
@@ -471,6 +478,15 @@ class BinauralAuditoryAttentionCNN(nn.Module):
         out = self.fullyconnected(out)        
         out = self.relufc(out)
         out = self.dropout(out)        
+        if self.cue_loc_task:
+            word_out = self.classificationWord(out)
+            cue = cue.view(cue.size(0), self.output_size) # B x FC size
+            loc_out = self.loc_fc(cue)
+            loc_out = self.locrelufc(loc_out)
+            loc_out = self.locdropout(loc_out)
+            loc_out = self.classificationLoc(loc_out)
+            return word_out, loc_out
+            
         if self.dual_task:
             word_out = self.classificationWord(out)
             loc_out = self.classificationLoc(out)

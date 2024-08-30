@@ -105,7 +105,7 @@ class BinauralAttentionModule(LightningModule):
             self.model = CNN2DExtractor(**self.model_config) 
         # check if torch version 2 or greater - if so, compile model
         getting_acts = self.config.get('getting_acts', False)
-        if not getting_acts and int(torch.__version__.split('.')[0]) >= 2:
+        if not getting_acts and int(torch.__version__.split('.')[0]) >= 2 and not self.multi_task:
             self.model = torch.compile(self.model, mode="reduce-overhead")
 
         # Add input rep to model or audio transforms
@@ -148,7 +148,10 @@ class BinauralAttentionModule(LightningModule):
         if batch is None:
             print(f"Batch on step {batch_idx} was None")
             return None
-        cue_features, cue_mask_ixs, scene_features, labels = batch
+        if self.multi_task:
+            cue_features, cue_mask_ixs, loc_task_ixs, scene_features, labels = batch
+        else:
+            cue_features, cue_mask_ixs, scene_features, labels = batch
 
         cue_features, scene_features = self.coch_gram(cue_features, scene_features)
 
@@ -157,12 +160,18 @@ class BinauralAttentionModule(LightningModule):
         if self.multi_task:
             word, location = outputs
             word_label = labels[:,0]
-            location_label = labels[:,1]
             word_loss = self.loss_fn(word, word_label)
+            # Take valid examples for location task using loc_task_mask
+            location_label = labels[:,1]
+            if loc_task_ixs is not None:
+                location = location[loc_task_ixs, :]
+                location_label = location_label[loc_task_ixs]
             loc_loss = self.loss_fn(location, location_label)
             loss = word_loss + loc_loss
             self.accuracy[step_type]['word'](word, word_label) # word accuracy
             self.accuracy[step_type]['location'](location, location_label) # location accuracy
+            self.log(f"{step_type}_word_loss", word_loss.detach(), on_step=True, on_epoch=False, prog_bar=True)
+            self.log(f"{step_type}_location_loss", loc_loss.detach(), on_step=True, on_epoch=False, prog_bar=True)
             self.log(f"{step_type}_loss", loss.detach(), on_step=True, on_epoch=False, prog_bar=True)
             self.log(f"{step_type}_word_acc", self.accuracy[step_type]['word'], on_step=False, on_epoch=True, prog_bar=True)
             self.log(f"{step_type}_location_acc", self.accuracy[step_type]['location'], on_step=False, on_epoch=True, prog_bar=True)
@@ -284,7 +293,11 @@ class BinauralAttentionModule(LightningModule):
 
     def get_cue_mask_ixs(self, cue: torch.tensor):
         cue_flat = cue.reshape(cue.shape[0], -1)
-        mask_ixs = torch.argwhere(torch.sum(torch.abs(cue_flat), dim=1) == 0)
+        mask_ixs = torch.argwhere(torch.sum(torch.abs(cue_flat), dim=1) == 0).squeeze()
+        if self.multi_task:
+            # Only use examples in batch with cue for location task 
+            loc_task_mask = torch.argwhere(torch.sum(torch.abs(cue_flat), dim=1) != 0).squeeze()
+            return mask_ixs, loc_task_mask
         return mask_ixs
 
     def _extract_features(self, samples: List, sample_ix: Union[int, list]):
@@ -310,11 +323,13 @@ class BinauralAttentionModule(LightningModule):
         samples = samples[0]
         cue_features, _ = self.audio_transforms(samples[0], None)
         if self.hparas_config.get('mask_cues', False):  # default is to not mask cues
-            cue_mask_ixs = self.get_cue_mask_ixs(cue_features)
+            cue_mask_ixs, loc_task_ixs = self.get_cue_mask_ixs(cue_features)
         else:
-            cue_mask_ixs = None 
+            cue_mask_ixs, loc_task_ixs = None, None  # loc task ixs are not used if not multi_task
         scene_features, _ = self.audio_transforms(samples[1], samples[2])
         labels = torch.from_numpy(samples[3]).type(torch.LongTensor)
+        if self.multi_task:
+            return cue_features, cue_mask_ixs, loc_task_ixs, scene_features, labels
         return cue_features, cue_mask_ixs, scene_features, labels
 
     def test_collate_fn(self, samples: List):

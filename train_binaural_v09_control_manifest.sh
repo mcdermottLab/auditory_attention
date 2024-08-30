@@ -5,8 +5,8 @@
 #SBATCH --mem=100GB
 #SBATCH -N 1
 #SBATCH --cpus-per-task=16
-#SBATCH --time=4-00:00:00
-#SBATCH --partition=mcdermott
+#SBATCH --time=2-00:00:00
+#SBATCH --partition=normal
 #SBATCH --gres=gpu:a100:4
 #SBATCH --array=0-3 # 0-3; 3 models in manifest
 

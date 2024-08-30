@@ -10,9 +10,9 @@
 ##SBATCH --partition=normal
 ##SBATCH --gres=gpu:a100:4
 
-#SBATCH --time=12:00:00
+#SBATCH --time=2-00:00:00
 #SBATCH --cpus-per-task=16
-#SBATCH --partition=mcdermott   # multi-gpu
+#SBATCH --partition=normal   # multi-gpu
 #SBATCH --gres=gpu:a100:4
 ##SBATCH --mem=200Gb
 
@@ -80,4 +80,8 @@ which python3
 python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
                  --gpus 4 --n_jobs 4 --resume_training True \
                  --exp_dir attn_cue_models \
+
+# python3 spatialtrain.py --config config/binaural_attn/word_task_v09_cue_loc_task.yaml \
+#                  --gpus 4 --n_jobs 4 --resume_training True \
+#                  --exp_dir attn_cue_models \
 
