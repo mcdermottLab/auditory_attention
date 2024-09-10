@@ -73,7 +73,7 @@ model:                                    # Model architecture
   attn_constraints:
     slope: True
   v08: True 
-  norm_first: True
+  norm_first: False
   ln_affine: True
   v2_module: True 
   block_order: "Conv -> LN -> ReLU"
