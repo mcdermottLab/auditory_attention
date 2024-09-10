@@ -1,8 +1,8 @@
 import sys
 sys.path.append('/om/user/imgriff/python-packages/')
 import chcochleagram
-import chcochleagram.compression as compression
-import chcochleagram.downsampling as downsampling
+import chcochleagram.chcochleagram.compression as compression
+import chcochleagram.chcochleagram.downsampling as downsampling
 import torch
 import numpy as np
 import scipy.io as sio

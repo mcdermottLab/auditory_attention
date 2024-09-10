@@ -5,10 +5,12 @@ import numpy as np
 import sys
 from scipy.io import loadmat
 import scipy.signal as sps
-sys.path.append('/om/user/imgriff/python-packages/chcochleagram')
+# sys.path.append('/om/user/imgriff/python-packages/chcochleagram')
+# sys.path.append('/orcd/data/jhm/001/imgriff/projects/Auditory-Attention/chcochleagram/')
+
 import chcochleagram
-from chcochleagram import compression
-from chcochleagram import cochleagram
+import chcochleagram.chcochleagram.compression as compression
+import chcochleagram.chcochleagram.downsampling as downsampling
 from chcochleagram import *
 from .time_domain_cochleagram import TimeDomainCochleagram
 import torchaudio.transforms as T

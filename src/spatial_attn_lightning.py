@@ -106,7 +106,7 @@ class BinauralAttentionModule(LightningModule):
         # check if torch version 2 or greater - if so, compile model
         getting_acts = self.config.get('getting_acts', False)
         if not getting_acts and int(torch.__version__.split('.')[0]) >= 2:
-            self.model = torch.compile(self.model, mode="reduce-overhead")
+            self.model = torch.compile(self.model, mode="default")
 
         # Add input rep to model or audio transforms
         self.rep_on_gpu = self.audio_config['rep_kwargs']['rep_on_gpu']
