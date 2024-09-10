@@ -156,6 +156,9 @@ class BinauralAuditoryAttentionCNNV2(nn.Module):
             self.block_order = block_order.lower().split(' -> ')
             if self.block_order[0] == 'ln':
                 self.norm_first = True
+            else:
+                self.norm_first = False
+            print(f"Norm first: {self.norm_first}")
         # Set to original order for backwards compat 
         elif not norm_first and not block_order:
             print(f"Conv block order: Conv -> ReLU -> LN")
