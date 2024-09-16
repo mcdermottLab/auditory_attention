@@ -1,4 +1,5 @@
 import sys
+sys.path.append('/om/user/imgriff/python-packages/chcochleagram')
 sys.path.append('/om/user/imgriff/python-packages/')
 import chcochleagram
 import chcochleagram.compression as compression

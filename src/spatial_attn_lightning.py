@@ -76,6 +76,16 @@ class BinauralAttentionModule(LightningModule):
                                                   v2_demean=v2_demean),
                 at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02, v2_demean=v2_demean), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
             ])
+        
+        if self.audio_config.get('upsample_audio', False):
+            self.audio_transforms = at.AudioCompose([
+                at.AudioToTensor(),
+                at.BinauralCombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'],
+                                                  high_snr=config['noise_kwargs']['high_snr'],
+                                                  v2_demean=v2_demean),
+                at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02, v2_demean=v2_demean), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+                at.Resample(**self.audio_config['upsample_kwargs'])
+            ])
 
         self.test_step = self._test_step
 
@@ -105,7 +115,7 @@ class BinauralAttentionModule(LightningModule):
             self.model = CNN2DExtractor(**self.model_config) 
         # check if torch version 2 or greater - if so, compile model
         getting_acts = self.config.get('getting_acts', False)
-        if not getting_acts and int(torch.__version__.split('.')[0]) >= 2 and not self.multi_task:
+        if not getting_acts and int(torch.__version__.split('.')[0]) >= 2 and not self.multi_task and not self.audio_config.get('upsample_audio', False):
             self.model = torch.compile(self.model, mode="reduce-overhead")
 
         # Add input rep to model or audio transforms
