@@ -146,9 +146,15 @@ def get_activations(args):
                 activations[name] = output.detach()
         return hook
 
-    modules = {name:module for name, module in model.model._orig_mod.model_dict.named_children()}
+    if hasattr(model.model, '_orig_mod'):
+        modules = {name:module for name, module in model.model._orig_mod.model_dict.named_children()}
+        relu_fc = model.model._orig_mod.relufc
+
+    else:
+        modules = {name:module for name, module in model.model.model_dict.named_children()}
+        relu_fc = model.model.relufc
+
     # add relu fc 
-    relu_fc = model.model._orig_mod.relufc
     modules = {**modules, **{'relufc': relu_fc}}
     # register hooks for all layers 
     for name, module in modules.items():
@@ -162,8 +168,12 @@ def get_activations(args):
     # Get gain functions
     ##################### 
     ## Init gain modules per layer. 
-    gain_modules = {name:module for name,module in model.model._orig_mod.model_dict.items() if 'attn' in name}
-    gain_functions = {}
+    if hasattr(model.model, '_orig_mod'):
+        gain_modules = {name:module for name,module in model.model._orig_mod.model_dict.items() if 'attn' in name}
+    else:
+        gain_modules = {name:module for name,module in model.model.model_dict.items() if 'attn' in name}
+   
+    gain_functions = {} 
     for name, module in gain_modules.items():
         gain_functions[name] = AttentionalGains(module.slope, module.bias, module.threshold)
 
