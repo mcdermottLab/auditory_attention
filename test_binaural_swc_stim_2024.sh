@@ -7,7 +7,7 @@
 #SBATCH --time=0:15:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0-60 # 0-60 for standard test
+#SBATCH --array=39,44,45 # 0-60 for standard test
 #SBATCH -x dgx001,dgx002,node093
 
 module load openmind8/anaconda/3-2022.10
@@ -33,9 +33,17 @@ rm -r /tmp/torchinductor_imgriff
 #                  --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
 #                  --full_h5_stim_set
 
-python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
-                 --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/sounds \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=4-step=59392.ckpt \
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+#                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/sounds \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=4-step=59392.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
+#                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
+#                  --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
+#                  --full_h5_stim_set
+
+python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=2-step=35108-v1.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \

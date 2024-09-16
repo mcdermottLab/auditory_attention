@@ -94,8 +94,8 @@ def run_eval(args):
     coch_gram = None
     if 'v0' in args.config:
         coch_gram = model.coch_gram.cuda()
-    
-    if args.stim_cond_map and not args.spotlight_expmnt:
+
+    if args.stim_cond_map and not args.spotlight_expmnt or args.full_h5_stim_set:
         if args.full_h5_stim_set:
             dataset = SWCMonoTestSetH5Dataset(h5_path=args.stim_path,
                                             eval_distractor_cond=condition,
@@ -123,7 +123,7 @@ def run_eval(args):
         else:
             condition, snr = dataset.stim_cond_map[args.array_id]
 
-    if 'popham' in str(args.stim_path):
+    elif 'popham' in str(args.stim_path):
         dataset = SWCMonoTestSet(stim_path=args.stim_path,
                                 cond_ix=args.array_id,
                                 model_sr=sr,
@@ -168,7 +168,7 @@ def run_eval(args):
             mixtures = torch.stack([audio_transforms(mix, None)[0] for _, mix,  _ in batch])
             labels = torch.tensor([label for _, _, label in batch]).type(torch.LongTensor)
             return cues, mixtures, labels
-
+    print(dataset)
     dataloader = torch.utils.data.DataLoader(dataset,
                                              batch_size=12,
                                              shuffle=False,
