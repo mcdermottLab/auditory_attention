@@ -2,7 +2,7 @@ corpus:
   name: 'spatialized_commonvoice_audioset_scenes'
   cue_type: "mixed"
   task: "word"
-  root: '/om/scratch/Sun/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v08'
+  root: '/orcd/data/jhm/001/imgriff/datasets/dataset_binaural_attn/v08'
   mixture_percentages:
     voice_only: 0.5
     voice_and_location: 0.5
@@ -50,7 +50,7 @@ hparas:                                   # Experiment hyper-parameters
   valid_step: 2000
   epochs: 1000
   optimizer: 'AdamW'
-  lr: 0.00005
+  lr: 0.001 
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 100 
   batch_size: 288                        # 576 for 8 288 for 4Gets divided by num gpus
@@ -76,6 +76,10 @@ model:                                   # Model architecture
   v08: True 
   attn_constraints: 
     any: False 
-  norm_first: True
+  norm_first: False
   ln_affine: True
+  v2_module: True 
+  fc_attn: False
   control_arch: True
+  block_order: "Conv -> LN -> ReLU"
+

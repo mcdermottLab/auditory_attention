@@ -46,6 +46,9 @@ def run_train(args):
     if args.gpus > 0:
         config['hparas']['batch_size'] = config['hparas']['batch_size'] // args.gpus
 
+    # Add n gpus to config for LR scheduler 
+    config['ngpus'] = args.gpus
+
     config_path = pathlib.Path(config_path)
     checkpoint_dir = args.exp_dir / f"{config_path.stem}/checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)

@@ -1,14 +1,14 @@
 #!/bin/bash -l  
 #SBATCH --job-name=train_new_binaural_attn
-#SBATCH --output=outLogs/word_task_conventional_layer_order_%j.out
-#SBATCH --error=outLogs/word_task_conventional_layer_order_%j.err # train_v08_gender_bal_4M_orig_ learned_avg
+#SBATCH --output=outLogs/word_task_v09_control_no_attn_%j.out
+#SBATCH --error=outLogs/word_task_v09_control_no_attn_%j.err # train_v08_gender_bal_4M_orig_ learned_avg
 #SBATCH --mem=100GB
 #SBATCH -N 1
 
 #SBATCH --cpus-per-task=16
-#SBATCH --time=1-00:00:00
+#SBATCH --time=12:00:00
 #SBATCH --partition=ou_bcs_low
-#SBATCH --gres=gpu:8
+#SBATCH --gres=gpu:4
 
 
 #source /etc/profile.d/modules.sh
@@ -31,7 +31,7 @@ which python3
 #                  --gpus 4 --n_jobs 16 --resume_training True \
 #                  --exp_dir attn_cue_models \
 
-python3 spatialtrain.py --config config/binaural_attn/word_task_conventional_layer_order.yaml \
+python3 spatialtrain.py --config config/binaural_attn/word_task_v09_control_no_attn.yaml \
                  --gpus 4 --n_jobs 16 --resume_training True \
                  --exp_dir attn_cue_models \
 

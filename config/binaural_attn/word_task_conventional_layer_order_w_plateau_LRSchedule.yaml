@@ -47,13 +47,20 @@ noise_kwargs: # parameters for background signal levels
 
 hparas:                                   # Experiment hyper-parameters
   valid_step: 4000
-  epochs: 1000
+  epochs: 10
   optimizer: 'AdamW'
-  lr: 0.001                           # Initial learning rate of 0.001 -> drop if manually testing late-training effects of smaller lr
+  lr: 0.1                           # Initial learning rate of 0.1 -> drop with scheduler
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 100 
   batch_size: 288                       # 576 for 8 288 for 4Gets divided by num gpus
-  mask_cues: False                    
+  mask_cues: False       
+  use_scheduler: True
+  scheduler:
+    type: 'ReduceLROnPlateau'
+    mode: 'max'
+    patience: 0
+    factor: 0.1
+
 
 model:                                    # Model architecture
   input_sr: 10000

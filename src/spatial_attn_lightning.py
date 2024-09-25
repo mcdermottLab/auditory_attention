@@ -1,4 +1,4 @@
-
+import os 
 from collections import namedtuple
 from typing import List, Tuple, Optional, Union
 import numpy as np
@@ -10,7 +10,7 @@ from pytorch_lightning import LightningModule
 import src.audio_transforms as at
 import src.audio_attention_transforms as aat
 import src.custom_modules as cm
-from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, BinauralControlCNN, BinauralAuditoryAttentionCNNV2
+from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, BinauralControlCNN, BinauralAuditoryAttentionCNNV2, BaselineCNNV2
 from corpus.binaural_attention_h5 import BinauralAttentionDataset
 
 ## TO DO:  Import new dataset class
@@ -93,8 +93,13 @@ class BinauralAttentionModule(LightningModule):
         v2_module = self.model_config.get('v2_module', False)
         control_arch = self.model_config.get('control_arch', False)
         if control_arch:
-            print("Using BinauralControlCNN")
-            self.model = BinauralControlCNN(**self.model_config)
+            if v2_module:
+                print("Using BaselineCNNV2")
+                self.model = BaselineCNNV2(**self.model_config)
+            else:
+                print("Using BinauralControlCNN")
+                self.model = BinauralControlCNN(**self.model_config)
+            
         elif v2_module:
             print("Using BinauralAuditoryAttentionCNNV2")
             self.model = BinauralAuditoryAttentionCNNV2(**self.model_config)
@@ -107,6 +112,9 @@ class BinauralAttentionModule(LightningModule):
         getting_acts = self.config.get('getting_acts', False)
         if not getting_acts and int(torch.__version__.split('.')[0]) >= 2:
             self.model = torch.compile(self.model, mode="default")
+
+        ## get local rank
+        print(self.model)
 
         # Add input rep to model or audio transforms
         self.rep_on_gpu = self.audio_config['rep_kwargs']['rep_on_gpu']
@@ -199,16 +207,35 @@ class BinauralAttentionModule(LightningModule):
         model_params = [{'params': self.model.parameters()}]
         self.optimizer = opt(model_params, lr=self.hparas_config['lr'], eps=self.hparas_config['eps'])       
         ## New for v05 dataset - use lr Scheduler 
-        # lr_schedule = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 
-        #                                                        mode='max', # monitoring val_acc, want max
-        #                                                        factor=0.1,
-        #                                                        patience=0.25, # wait a quarter epoch if plateaued
-        #                                                        threshold=0.0001,
-        #                                                        threshold_mode='rel',
-        #                                                        min_lr=1e-7, 
-        #                                                        verbose=True)
-        # schedule = {"scheduler":lr_schedule, "monitor": self.config['val_metric']}
-        return [self.optimizer]#, schedule
+        if self.hparas_config.get('use_scheduler', False):
+            if self.hparas_config['scheduler']['type'] == "OneCycleLR":
+                # quick hack to get len of training set 
+                loader = self.train_dataloader()
+                dataset_len = len(self.train_dataset)
+                del loader 
+                scheduler =  torch.optim.lr_scheduler.OneCycleLR(self.optimizer,
+                                                                max_lr=self.hparas_config['scheduler']['max_lr'],
+                                                                epochs=self.hparas_config['epochs'],
+                                                                three_phase=True,
+                                                                verbose=True,
+                                                                steps_per_epoch=len(self.train_dataset)//self.config['ngpus'])
+
+                lr_scheduler = {'scheduler': scheduler, 'interval': 'step'}
+            elif self.hparas_config['scheduler']['type'] == "ReduceLROnPlateau":
+                scheduler =  torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
+                                                                        mode=self.hparas_config['scheduler']['mode'],
+                                                                        patience=self.hparas_config['scheduler']['patience'],
+                                                                        factor=self.hparas_config['scheduler']['factor'],
+                                                                        )
+                lr_scheduler = {'scheduler': scheduler,
+                            'monitor': self.config['val_metric'], 
+                            'interval': 'epoch',
+                            'frequency': 1 
+                            }
+
+            return {'optimizer': self.optimizer, 'lr_scheduler': lr_scheduler}
+
+        return [self.optimizer]
 
     def forward(self, cue: torch.tensor, scene: torch.tensor, cue_mask_ixs: torch.tensor):
         outputs = self.model(cue, scene, cue_mask_ixs)
@@ -325,10 +352,10 @@ class BinauralAttentionModule(LightningModule):
         return cue_features, cue_mask_ixs, scene_features, labels
 
     def train_dataloader(self):
-        dataset = self.dataset(**self.corpora_config, batch_size=self.hparas_config['batch_size'], mode='train')
-        print(f"len training set = {len(dataset)}")
+        self.train_dataset = self.dataset(**self.corpora_config, batch_size=self.hparas_config['batch_size'], mode='train')
+        print(f"len training set = {len( self.train_dataset )}")
         dataloader = torch.utils.data.DataLoader(
-            dataset,
+            self.train_dataset,
             batch_size=1,
             num_workers=self.config['num_workers'], 
             collate_fn=self._collate_fn,
