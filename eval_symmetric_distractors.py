@@ -67,6 +67,9 @@ def run_eval(args):
     # get model input sr for brir resampling
     model_in_sr = config['audio']['rep_kwargs']['sr']
 
+    dual_task_arch =  config['model'].get("cue_loc_task", False)
+
+
     idx = args.location_idx
     test_dict = pickle.load(open(args.test_manifest, 'rb'))
     n_per_job = args.n_per_job
@@ -241,6 +244,8 @@ def run_eval(args):
 
                 cue, mixture = coch_gram(cue, mixture)
                 logits = model(cue, mixture, None)
+                if dual_task_arch:
+                    logits, _ = logits # unpack dual task output (word, location)
                 # Unpack desired metrics 
                 preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach().numpy().astype('int')
                 true_word = label.numpy().astype('int')

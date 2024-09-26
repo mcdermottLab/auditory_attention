@@ -115,7 +115,11 @@ class BinauralAttentionModule(LightningModule):
             self.model = CNN2DExtractor(**self.model_config) 
         # check if torch version 2 or greater - if so, compile model
         getting_acts = self.config.get('getting_acts', False)
-        if not getting_acts and int(torch.__version__.split('.')[0]) >= 2 and not self.multi_task and not self.audio_config.get('upsample_audio', False):
+        if self.config.get('distractor_opt', False):
+            print("Using distractor optimization")
+            self.model = torch.compile(self.model)
+        elif not getting_acts and int(torch.__version__.split('.')[0]) >= 2 and not self.multi_task and not self.audio_config.get('upsample_audio', False):
+            print("Compiling model for reduced overhead")
             self.model = torch.compile(self.model, mode="reduce-overhead")
 
         # Add input rep to model or audio transforms

@@ -226,11 +226,13 @@ def get_activations(args):
                     target, _ = audio_transforms_0_db(target, None)
                     # convert to cochleagrams
                     cue, target = coch_gram(cue, target)
-                    # get cochleagram gains - is attn0
-                    coch_gains = gain_functions['attn0'](cue)
+                    if not 'control' in config_path:
+                        # get cochleagram gains - is attn0
+                        coch_gains = gain_functions['attn0'](cue)
                 
                     if row == 0:
-                        f.create_dataset('attncoch_gains', shape=[n_rows_to_save, coch_gains.view(-1).shape[0]], dtype=np.float32)
+                        if not 'control' in config_path:
+                            f.create_dataset('attncoch_gains', shape=[n_rows_to_save, coch_gains.view(-1).shape[0]], dtype=np.float32)
                         f.create_dataset('cue_f0', shape=[n_rows_to_save], dtype=np.float32)
                         f.create_dataset('target_f0', shape=[n_rows_to_save], dtype=np.float32)
                         f.create_dataset('target_word_int', shape=[n_rows_to_save], dtype=np.float32)
@@ -239,7 +241,8 @@ def get_activations(args):
                         f.create_dataset('tested_elevs', data=elevs)
                         
                     # save cochleagram outputs and labels 
-                    f['attncoch_gains'][row] = coch_gains.view(-1).cpu().numpy()
+                    if not 'control' in config_path:
+                        f['attncoch_gains'][row] = coch_gains.view(-1).cpu().numpy()
                     f['cue_f0'][row] = cue_f0
                     f['target_f0'][row] = target_f0
                     f['target_word_int'][row] = word_int
@@ -250,7 +253,7 @@ def get_activations(args):
                     gain_shape_dict = {}
                     model(cue, target, None)  # None is cue_mask_ixs which is not used for activations
                     for layer, acts in activations.items():
-                        if 'relufc' in layer or 'attn' in layer:
+                        if 'relufc' in layer or 'attn' in layer or 'control' in config_path:
                             save_activations(f, layer, 'target', acts, row, n_rows_to_save, time_average=args.time_average)
                         else:
                             cue_acts, target_acts = acts
@@ -263,7 +266,7 @@ def get_activations(args):
                                 gains = gain_fn(cue_acts)
                                 gain_shape_dict[f"{layer}_gains"] = gains.shape
                                 save_activations(f, gain_fn_name, 'gains', gains, row, n_rows_to_save)
-                            
+                        
                     if row == 0:
                         layer_shape_dict = {layer: activations[layer].shape for layer in activations.keys()}
                         shape_dict = {**layer_shape_dict, **gain_shape_dict}

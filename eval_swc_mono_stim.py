@@ -38,6 +38,8 @@ def run_eval(args):
         config['data']['audio']['rep_kwargs']['center_crop'] = True
         config['data']['audio']['rep_kwargs']['out_dur'] = 2
         label_type = "WSN"
+    
+    dual_task_arch =  config['model'].get("cue_loc_task", False)
 
     # set audio transforms
     sr = config['audio']['rep_kwargs']['sr']
@@ -208,6 +210,10 @@ def run_eval(args):
                 logits = model(cue, mixture, None)
             else:
                 logits = model(cue, mixture)
+                
+            if dual_task_arch:
+                logits, _ = logits # unpack word and location tuple 
+
             preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach().numpy().astype('int')
             true_word = word.numpy().astype('int')
             accuracy = (true_word == preds).astype('int')

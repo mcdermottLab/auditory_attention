@@ -65,7 +65,8 @@ model:                                    # Model architecture
   pool_stride: [[2, 4], [2, 4], [1, 5], [1, 4], [1, 1], [1, 1], [2, 4]] 
   pool_size: [[9, 13], [9, 13], [1, 13], [1, 13], [1, 1], [1, 1], [6, 13]]
   pool_padding: [[4,6], [4,6], [0,6], [0,6], [0,0], [0,0], [3,6]]
-  attn: [0, 0, 0, 0, 0, 0, 1]
+  attn: [0, 0, 0, 0, 0, 0, 0]          # all 0's means only fc attention added 
+  fc_attn: True
   num_classes:                         # 998 words in cv vocab
     num_words: 800
   fc_size: 512

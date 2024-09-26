@@ -2,9 +2,9 @@
 #SBATCH --job-name=train_new_binaural_attn
 #SBATCH --output=outLogs/word_task_half_co_loc_v09_50Hz_cutoff_%j.out
 #SBATCH --error=outLogs/word_task_half_co_loc_v09_50Hz_cutoff_%j.err 
-#SBATCH --mem=100Gb
+#SBATCH --mem=128Gb
 #SBATCH -N 1
-#SBATCH --time=04:00:00
+#SBATCH --time=2-00:00:00
 #SBATCH --cpus-per-task=16
 #SBATCH --partition=mcdermott   # multi-gpu
 #SBATCH --gres=gpu:a100:4

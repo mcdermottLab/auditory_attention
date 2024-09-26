@@ -49,7 +49,10 @@ def main(args):
     h5_fn = analysis_dir / f"{model}_model_activations_0dB_time_avg.h5"
 
     h5 = h5py.File(h5_fn, 'r')
-    layer_name = f'hann_pool_{args.layer_ix}_cue'
+    if 'control' in model:
+        layer_name = f'hann_pool_{args.layer_ix}_target'
+    else:
+        layer_name = f'hann_pool_{args.layer_ix}_cue'
 
     target_f0s = h5["target_f0"][:]
     target_locs = h5["target_loc"][:]

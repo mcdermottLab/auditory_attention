@@ -105,6 +105,7 @@ class LearnedTimeAveragedGains(nn.Module):
             mixture = torch.mul(mixture, gain)
         return mixture
 
+
 class BinauralAuditoryAttentionCNNV2(nn.Module):
     def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
                   fc_size=512, global_avg_cue=False, num_classes={"num_words":800, "num_locs":504}, frequency_dim=40,
@@ -156,6 +157,9 @@ class BinauralAuditoryAttentionCNNV2(nn.Module):
             self.block_order = block_order.lower().split(' -> ')
             if self.block_order[0] == 'ln':
                 self.norm_first = True
+            else:
+                self.norm_first = False
+            print(f"Norm first: {self.norm_first}")
         # Set to original order for backwards compat 
         elif not norm_first and not block_order:
             print(f"Conv block order: Conv -> ReLU -> LN")
@@ -300,13 +304,12 @@ class BinauralAuditoryAttentionCNNV2(nn.Module):
                 block.add_module("relu", nn.ReLU())
         return block
     
-
     
 class BinauralAuditoryAttentionCNN(nn.Module):
     def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
                   fc_size=512, global_avg_cue=False, num_classes={"num_words":800, "num_locs":504}, frequency_dim=40,
                   residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, ln_affine=True, 
-                  v08=False, additive=False, cue_loc_task=False, **kwargs):
+                  v08=False, additive=False, cue_loc_task=False, fc_attn=True, **kwargs):
         super(BinauralAuditoryAttentionCNN, self).__init__()
         # Setup
         print('v08', v08)
@@ -354,6 +357,8 @@ class BinauralAuditoryAttentionCNN(nn.Module):
         if residual_attn:
             print(f"Using residual attention")
         self.v08 = v08
+        self.fc_attn = fc_attn
+        print(f"fc_attn: {fc_attn}")
 
         self.model_dict = nn.ModuleDict()
         self.output_height = frequency_dim
@@ -422,7 +427,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
                 if self.n_cue_frames:
                     self.n_cue_frames = int(np.floor((self.n_cue_frames - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
 
-        if v08:
+        if v08 and fc_attn:
             self.model_dict[f'attnfc'] = SimpleAttentionalGain(self.output_height, nOut, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
 
         self.output_size = self.output_height * nOut * self.output_len
@@ -470,7 +475,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
                     cue = self.model_dict[f'hann_pool_{idx}'](cue)
                     attn = self.model_dict[f'hann_pool_{idx}'](attn)
 
-            if self.v08:
+            if self.v08 and 'attnfc' in self.model_dict.keys(): 
                 attn = self.model_dict['attnfc'](cue, attn, cue_mask_ixs)
             out = attn
             
