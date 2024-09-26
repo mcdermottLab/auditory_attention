@@ -19,7 +19,7 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
     foreground excerpts from Spoken Wikipedia.  Backgrounds are 
     either also from SWC.
     """
-    def __init__(self, manifest_path, excerpt_path, cue_type, sr=20_000, symmetric_distractor_test=False, modulated_ssn_distractors=False):
+    def __init__(self, manifest_path, excerpt_path, cue_type, sr=20_000, symmetric_distractor_test=False, modulated_ssn_distractors=False, return_stim_ixs=False):
         """
         Args:
             manifest_path (str): path to pandas manifest with trials defined
@@ -33,6 +33,7 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
         self.sr = sr 
         self.symmetric_distractor_test = symmetric_distractor_test
         self.modulated_ssn_distractors = modulated_ssn_distractors
+        self.return_stim_ixs = return_stim_ixs
 
         self.class_map, self.word_2_class = self.class_map()
 
@@ -74,6 +75,8 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
         dist_word_label = self.word_2_class[dist_word]
 
         if not self.symmetric_distractor_test:
+            if self.return_stim_ixs:
+                return cue, src, bg, word_label, dist_word_label, index
             return cue, src, bg, word_label, dist_word_label
 
         elif self.symmetric_distractor_test:
@@ -92,6 +95,8 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
                 bg_2 = util_audio.festen_plomp_fluctuating_noise(bg_2, bg_noise2, sr=self.sr, two_band_cutoff=None)
                 bg = torch.from_numpy(bg).float()
                 bg_2 = torch.from_numpy(bg_2).float()
+            if self.return_stim_ixs:
+                return cue, src, bg, word_label, dist_word_label, index
             return cue, src, bg, bg_2, word_label, dist_word_label, dist_word_label2
 
 

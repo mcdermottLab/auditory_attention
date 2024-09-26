@@ -5,9 +5,9 @@
 #SBATCH --mem=10Gb
 #SBATCH --cpus-per-task=2
 #SBATCH --time=2:00:00
-#SBATCH --partition=use-everything
+#SBATCH --partition=normal
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0-50 #0-50
+#SBATCH --array=25 #0-50
 #SBATCH -x dgx001,dgx002
 
 module load openmind8/anaconda/3-2022.10
@@ -22,11 +22,25 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #                  --model_name word_task_standard_v06sm_lr --location_idx $SLURM_ARRAY_TASK_ID \
 #                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/human_pilot_conds \
 #                  --cue_type voice_and_location --overwrite
+# which python3
+# python3 eval_binaural_w_manifest.py --config config/binaural_attn/word_task_half_co_loc_v08.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08/checkpoints/epoch=1-step=21252.ckpt \
+#                  --location_manifest binaural_test_manifests/match_human_pilot_conds.pkl \
+#                  --model_name word_task_half_co_loc_v08 --location_idx $SLURM_ARRAY_TASK_ID \
+#                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/human_pilot_conds \
+#                  --cue_type voice_and_location --no-overwrite
 which python3
-python3 eval_binaural_w_manifest.py --config config/binaural_attn/word_task_half_co_loc_v08.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08/checkpoints/epoch=1-step=21252.ckpt \
+# python3 eval_binaural_w_manifest.py --config config/binaural_attn/word_task_deep_fc_1024_v08.yaml \
+#                  --ckpt_path attn_cue_models/word_task_deep_fc_1024_v08/checkpoints/epoch=2-step=42472.ckpt \
+#                  --location_manifest binaural_test_manifests/match_human_pilot_conds.pkl \
+#                  --model_name word_task_deep_fc_1024_v08 --location_idx $SLURM_ARRAY_TASK_ID \
+#                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/human_pilot_conds \
+#                  --cue_type voice_and_location --no-overwrite
+
+python3 eval_binaural_w_manifest.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=4-step=59392.ckpt \
                  --location_manifest binaural_test_manifests/match_human_pilot_conds.pkl \
-                 --model_name word_task_half_co_loc_v08 --location_idx $SLURM_ARRAY_TASK_ID \
+                 --model_name word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/human_pilot_conds \
                  --cue_type voice_and_location --no-overwrite
 

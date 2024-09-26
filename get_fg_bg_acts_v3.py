@@ -7,6 +7,8 @@ from pathlib import Path
 import numpy as np 
 import argparse
 from argparse import ArgumentParser
+from scipy.stats import pearsonr
+from sklearn.metrics.pairwise import cosine_similarity
 
 
 import src.spatial_attn_lightning as binaural_lightning 
@@ -31,7 +33,6 @@ snr_dict = {2: -8,
 }
 
 def get_activations(args):
-    print(f"Using attention: {args.attention}")
 
     # set random seeds 
     torch.manual_seed(0)
@@ -54,7 +55,7 @@ def get_activations(args):
     config['data'] = {}
     config['data']['corpus'] = {}
     config['data']['corpus']['n_talkers'] = 1
-    config['data']['corpus']['root'] = '/om2/user/msaddler/projects/ibmHearingAid/assets/data/datasets/JSIN_v3.00/nStim_20000/2000ms/rms_0.1/noiseSNR_-10_10/stimSR_20000/reverb_none/noise_all/JSIN_all_v3/subsets/' # Path to raw GigaSpeech dataset
+    config['data']['corpus']['root'] = '/om/user/imgriff/datasets/dataset_word_speaker_noise/JSIN_all_v3/subsets/' # New path to JSIN dataset
     model_name = pathlib.Path(args.config).stem
 
     # Set audio transforms  
@@ -159,9 +160,9 @@ def get_activations(args):
     # send model to gpu 
     model = model.eval().cuda()
     # get activations 
-    n_acts = 0
-        
-    outname = Path(f'binaural_model_attn_stage_reps/{model_name}/{model_name}_model_activations_{snr}dB_w_cues_v3.h5')
+    
+
+    outname = Path(f'binaural_model_attn_stage_reps/{model_name}/{model_name}_model_activations_{snr}dB_w_cues_and_corrs_v3.h5')
     outname.parent.mkdir(parents=True, exist_ok=True)
     print(f"Preparing to write activations to {outname}")
     # outname = 'test_act_outs.h5'
@@ -170,7 +171,12 @@ def get_activations(args):
         with torch.no_grad():
             for ix, batch in tqdm(enumerate(dataloader),  total = n_activations):
                 fg_cue, foreground, background, mixture, fg_target = batch
-
+                if ix == 0:
+                    if args.silence_w_uncued:
+                        uncued_cue = torch.zeros_like(fg_cue, device='cuda')
+                        uncued_cue, _ = coch_gram(uncued_cue, None)
+                    else:
+                        uncued_cue = None
                 # send to device
                 foreground, background, mixture = foreground.cuda(), background.cuda(), mixture.cuda()
                 fg_cue =  fg_cue.cuda()
@@ -184,26 +190,45 @@ def get_activations(args):
                     f.create_dataset('cochleagram_mixture', shape=[n_activations, mixture.view(-1).shape[0]], dtype=np.float32)
                     f.create_dataset('cochleagram_fg', shape=[n_activations, mixture.view(-1).shape[0]], dtype=np.float32)
                     f.create_dataset('cochleagram_bg', shape=[n_activations, mixture.view(-1).shape[0]], dtype=np.float32)
+                    f.create_dataset('cochleagram_cue_mixture_corr', shape=[n_activations, 2], dtype=np.float32)
+                    f.create_dataset('cochleagram_fg_mixture_corr', shape=[n_activations, 2], dtype=np.float32)
+                    f.create_dataset('cochleagram_bg_mixture_corr', shape=[n_activations, 2], dtype=np.float32)
+                    f.create_dataset('cochleagram_cue_mixture_cos', shape=[n_activations], dtype=np.float32)
+                    f.create_dataset('cochleagram_fg_mixture_cos', shape=[n_activations], dtype=np.float32)
+                    f.create_dataset('cochleagram_bg_mixture_cos', shape=[n_activations], dtype=np.float32)
                 f['cochleagram_cue'][ix] = fg_cue.view(-1).cpu().numpy()
                 f['cochleagram_mixture'][ix] = mixture.view(-1).cpu().numpy()
                 f['cochleagram_fg'][ix] = foreground.view(-1).cpu().numpy()
                 f['cochleagram_bg'][ix] = background.view(-1).cpu().numpy()
-
-
+                # get cors 
+                f['cochleagram_cue_mixture_corr'][ix,:] = pearsonr(fg_cue.view(-1).cpu().numpy(), mixture.view(-1).cpu().numpy())
+                f['cochleagram_fg_mixture_corr'][ix,:] = pearsonr(foreground.view(-1).cpu().numpy(), mixture.view(-1).cpu().numpy())
+                f['cochleagram_bg_mixture_corr'][ix,:] = pearsonr(background.view(-1).cpu().numpy(), mixture.view(-1).cpu().numpy())
+                # get cos sim
+                f['cochleagram_cue_mixture_cos'][ix] = cosine_similarity(fg_cue.view(1,-1).cpu().numpy(), mixture.view(1,-1).cpu().numpy())
+                f['cochleagram_fg_mixture_cos'][ix] = cosine_similarity(foreground.view(1,-1).cpu().numpy(), mixture.view(1,-1).cpu().numpy())
+                f['cochleagram_bg_mixture_cos'][ix] = cosine_similarity(background.view(1,-1).cpu().numpy(), mixture.view(1,-1).cpu().numpy())
+                
                 # run mixture
                 pred = model(fg_cue, mixture, None)
                 for layer in activations.keys():
                     if 'relufc' in layer:
-                        mixture_acts = activations[layer] 
+                        mixture_acts = activations[layer]
+                        mixture_acts = mixture_acts.cpu() 
                         if ix == 0:
                             f.create_dataset(f'{layer}_mixture', shape=[n_activations, np.prod(mixture_acts.shape)], dtype=np.float32)
                     else:
                         cue_acts, mixture_acts = activations[layer] 
+                        cue_acts, mixture_acts = cue_acts.cpu(), mixture_acts.cpu()
                         if ix == 0:
                             f.create_dataset(f'{layer}_cue', shape=[n_activations, np.prod(cue_acts.shape)], dtype=np.float32)
                             f.create_dataset(f'{layer}_mixture', shape=[n_activations, np.prod(mixture_acts.shape)], dtype=np.float32)
-                        f[f'{layer}_cue'][ix] = cue_acts.view(-1).cpu().numpy()
-                    f[f'{layer}_mixture'][ix] = mixture_acts.view(-1).cpu().numpy()
+                            f.create_dataset(f'{layer}_cue_mixture_corr', shape=[n_activations, 2], dtype=np.float32)
+                            f.create_dataset(f'{layer}_cue_mixture_cos', shape=[n_activations], dtype=np.float32)
+                        f[f'{layer}_cue'][ix] = cue_acts.view(-1).numpy()
+                        f[f'{layer}_cue_mixture_corr'][ix,:] = pearsonr(cue_acts.view(-1).numpy(), mixture_acts.view(-1).numpy())
+                        f[f'{layer}_cue_mixture_cos'][ix] = cosine_similarity(cue_acts.view(1,-1).numpy(), mixture_acts.view(1,-1).numpy())
+                    f[f'{layer}_mixture'][ix] = mixture_acts.view(-1).numpy()
                 activations = {}
 
                 # run fg - can skip cue 
@@ -215,7 +240,12 @@ def get_activations(args):
                         _, fg_acts = activations[layer]
                     if ix == 0:
                         f.create_dataset(f'{layer}_fg', shape=[n_activations, np.prod(fg_acts.shape)], dtype=np.float32)
-                    f[f'{layer}_fg'][ix] = fg_acts.view(-1).cpu().numpy()
+                        f.create_dataset(f'{layer}_fg_mixture_corr', shape=[n_activations, 2], dtype=np.float32)
+                        f.create_dataset(f'{layer}_fg_mixture_cos', shape=[n_activations], dtype=np.float32)
+                    fg_acts = fg_acts.cpu()
+                    f[f'{layer}_fg_mixture_corr'][ix,:] = pearsonr(fg_acts.view(-1).numpy(), f[f'{layer}_mixture'][ix])
+                    f[f'{layer}_fg_mixture_cos'][ix] = cosine_similarity(fg_acts.view(1,-1).numpy(), f[f'{layer}_mixture'][ix].reshape(1,-1))
+                    f[f'{layer}_fg'][ix] = fg_acts.view(-1).numpy()
                 activations = {}
 
                 # run bg
@@ -228,36 +258,61 @@ def get_activations(args):
                     if ix == 0:
                         # get flattened shape of bg_acts 
                         f.create_dataset(f'{layer}_bg', shape=[n_activations, np.prod(bg_acts.shape)], dtype=np.float32)
-                    f[f'{layer}_bg'][ix] = bg_acts.view(-1).cpu().numpy()
+                        f.create_dataset(f'{layer}_bg_mixture_corr', shape=[n_activations, 2], dtype=np.float32)
+                        f.create_dataset(f'{layer}_bg_mixture_cos', shape=[n_activations], dtype=np.float32)
+                    bg_acts = bg_acts.cpu()
+                    f[f'{layer}_bg_mixture_corr'][ix,:] = pearsonr(bg_acts.view(-1).numpy(),  f[f'{layer}_mixture'][ix])
+                    f[f'{layer}_bg_mixture_cos'][ix] = cosine_similarity(bg_acts.view(1,-1).numpy(), f[f'{layer}_mixture'][ix].reshape(1,-1))
+                    f[f'{layer}_bg'][ix] = bg_acts.view(-1).numpy()
                 activations = {}
                 
 
                 # Save signals without cue in forward pass 
                 # run mixture
-                pred = model(None, mixture, None)
+                pred = model(uncued_cue, mixture, None)
                 for layer in activations.keys():
-                    mixture_acts = activations[layer] 
+                    if 'relufc' in layer:
+                        uncued_mixture_acts = activations[layer] 
+                    else:
+                        _, uncued_mixture_acts = activations[layer]
                     if ix == 0:
-                        f.create_dataset(f'{layer}_mixture_no_cue', shape=[n_activations, np.prod(mixture_acts.shape)], dtype=np.float32)
-                    f[f'{layer}_mixture_no_cue'][ix] = mixture_acts.view(-1).cpu().numpy()
+                        f.create_dataset(f'{layer}_mixture_no_cue', shape=[n_activations, np.prod(uncued_mixture_acts.shape)], dtype=np.float32)
+                    uncued_mixture_acts = uncued_mixture_acts.cpu()
+                    f[f'{layer}_mixture_no_cue'][ix] = uncued_mixture_acts.view(-1).numpy()
                 activations = {}
 
                 # run fg - can skip cue
-                pred = model(None, foreground, None)
+                pred = model(uncued_cue, foreground, None)
                 for layer in activations.keys():
-                    fg_acts = activations[layer] 
+                    if 'relufc' in layer:
+                        fg_acts = activations[layer] 
+                    else:
+                        _, fg_acts = activations[layer]
+                    fg_acts = fg_acts.cpu()
                     if ix == 0:
                         f.create_dataset(f'{layer}_fg_no_cue', shape=[n_activations, np.prod(fg_acts.shape)], dtype=np.float32)
-                    f[f'{layer}_fg_no_cue'][ix] = fg_acts.view(-1).cpu().numpy()
+                        f.create_dataset(f'{layer}_fg_mixture_corr_no_cue', shape=[n_activations, 2], dtype=np.float32)
+                        f.create_dataset(f'{layer}_fg_mixture_cos_no_cue', shape=[n_activations], dtype=np.float32)
+                    f[f'{layer}_fg_no_cue'][ix] = fg_acts.view(-1).numpy()
+                    f[f'{layer}_fg_mixture_corr_no_cue'][ix,:] = pearsonr(fg_acts.view(-1).numpy(), f[f'{layer}_mixture'][ix])
+                    f[f'{layer}_fg_mixture_cos_no_cue'][ix] = cosine_similarity(fg_acts.view(1,-1).numpy(), f[f'{layer}_mixture'][ix].reshape(1,-1))
                 activations = {}
 
                 # run bg
-                pred = model(None, background, None)
+                pred = model(uncued_cue, background, None)
                 for layer in activations.keys():
-                    bg_acts = activations[layer]
+                    if 'relufc' in layer:
+                        bg_acts = activations[layer] 
+                    else:
+                        _, bg_acts = activations[layer]
+                    bg_acts = bg_acts.cpu()
                     if ix == 0:
                         f.create_dataset(f'{layer}_bg_no_cue', shape=[n_activations, np.prod(bg_acts.shape)], dtype=np.float32)
-                    f[f'{layer}_bg_no_cue'][ix] = bg_acts.view(-1).cpu().numpy()
+                        f.create_dataset(f'{layer}_bg_mixture_corr_no_cue', shape=[n_activations, 2], dtype=np.float32)
+                        f.create_dataset(f'{layer}_bg_mixture_cos_no_cue', shape=[n_activations], dtype=np.float32)
+                    f[f'{layer}_bg_no_cue'][ix] = bg_acts.view(-1).numpy()
+                    f[f'{layer}_bg_mixture_corr_no_cue'][ix,:] = pearsonr(bg_acts.view(-1).numpy(), f[f'{layer}_mixture'][ix])
+                    f[f'{layer}_bg_mixture_cos_no_cue'][ix] = cosine_similarity(bg_acts.view(1,-1).numpy(), f[f'{layer}_mixture'][ix].reshape(1,-1))
                 activations = {}
 
                 if ix == n_activations-1:
@@ -304,9 +359,9 @@ def cli_main():
         )
     # create overwrite flag to handle overwrite of existing results
     parser.add_argument(
-        "--attention",
+        "--silence_w_uncued",
         action=argparse.BooleanOptionalAction,
-        help="If False, will skip cue and gains in forward pass",
+        help="If True, use silence in uncued trials. (Default: False)",
     )
 
     args = parser.parse_args()

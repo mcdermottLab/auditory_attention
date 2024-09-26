@@ -1,10 +1,10 @@
 #!/bin/bash -l 
 #SBATCH --job-name=eval_popham_swc
-#SBATCH --output=outLogs/binaural_popham_swc_conds_%A_%a.out
-#SBATCH --error=outLogs/binaural_popham_swc_conds_%A_%a.err
+#SBATCH --output=outLogs/binaural_popham_swc_conds_all_stim_%A_%a.out
+#SBATCH --error=outLogs/binaural_popham_swc_conds_all_stim_%A_%a.err
 #SBATCH --mem=12Gb
 #SBATCH --cpus-per-task=4
-#SBATCH --time=0:20:00
+#SBATCH --time=0:10:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
 #SBATCH --array=0-11 # 0-11
@@ -29,10 +29,56 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/sounds/ \
 #                  --exp_dir popham_swc_eval/ \
 
-python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_v08_control_no_attn.yaml \
-                 --ckpt_path attn_cue_models/word_task_v08_control_no_attn/checkpoints/epoch=2-step=42504.ckpt \
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_v08_control_no_attn.yaml \
+#                  --ckpt_path attn_cue_models/word_task_v08_control_no_attn/checkpoints/epoch=2-step=42504.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 \
+#                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/sounds/ \
+#                  --exp_dir popham_swc_eval/ \
+
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_orig.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_orig/checkpoints/epoch=0-step=6000-v1.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 \
+#                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/sounds/ \
+#                  --exp_dir popham_swc_eval/ \
+
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=4-step=59392.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 \
+#                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/sounds/ \
+#                  --exp_dir popham_swc_eval/ \
+
+# python3 eval_swc_popham_2024.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=4-step=59392.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 \
+#                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/model_eval_h5s/ \
+#                  --stim_cond_map all_stim_swc_popham_exmpt_2024_cond_manifest.pkl \
+#                  --exp_dir popham_swc_eval_all_stim/ \
+
+
+# python3 eval_swc_popham_2024.py --config config/binaural_attn/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=2-step=35108-v1.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 \
+#                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/model_eval_h5s/ \
+#                  --stim_cond_map all_stim_swc_popham_exmpt_2024_cond_manifest.pkl \
+#                  --exp_dir popham_swc_eval_all_stim/ \
+
+python3 eval_swc_popham_2024.py --config config/binaural_attn/word_task_conventional_layer_order.yaml \
+                 --ckpt_path attn_cue_models/word_task_conventional_layer_order/checkpoints/epoch=0-step=8000-v5.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 \
-                 --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/sounds/ \
-                 --exp_dir popham_swc_eval/ \
+                 --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/model_eval_h5s/ \
+                 --stim_cond_map all_stim_swc_popham_exmpt_2024_cond_manifest.pkl \
+                 --exp_dir popham_swc_eval_all_stim/ \
 
+# python3 eval_swc_popham_2024.py --config config/binaural_attn/word_task_half_co_loc_v09_50Hz_cutoff.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v09_50Hz_cutoff/checkpoints/epoch=1-step=16554.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 \
+#                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/model_eval_h5s/ \
+#                  --stim_cond_map all_stim_swc_popham_exmpt_2024_cond_manifest.pkl \
+#                  --exp_dir popham_swc_eval_all_stim/ \

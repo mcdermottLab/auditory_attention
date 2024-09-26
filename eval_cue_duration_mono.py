@@ -5,6 +5,7 @@ import pickle
 import csv
 import torch 
 import soxr
+import re 
 import h5py
 import numpy as np 
 import pandas as pd
@@ -14,6 +15,7 @@ from src.spatial_attn_architecture import CueDurationCNN2DExtractor, CueDuration
 from corpus.swc_mono_test import SWCMonoTestSet
 import src.audio_transforms as at
 import src.custom_modules as cm
+
 
 seed_everything(1)
 
@@ -120,7 +122,11 @@ def run_eval(args):
 
     # Load model
     ln_affine = config['model'].get('ln_affine', True)
-    if 'no_affine' in args.config or not ln_affine:
+    if "v0" in args.config:
+        model_version = int(re.search("v\d+", model_name).group(0).strip('v'))
+    else:
+        model_version = 6
+    if 'no_affine' in args.config or not ln_affine or model_version > 7:
         model = CueDurationCNNNew(**config['model'])
     else:
         model = CueDurationCNN2DExtractor(**config['model'])

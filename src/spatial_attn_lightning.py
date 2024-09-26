@@ -10,7 +10,7 @@ from pytorch_lightning import LightningModule
 import src.audio_transforms as at
 import src.audio_attention_transforms as aat
 import src.custom_modules as cm
-from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, BinauralControlCNN 
+from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, BinauralControlCNN, BinauralAuditoryAttentionCNNV2
 from corpus.binaural_attention_h5 import BinauralAttentionDataset
 
 ## TO DO:  Import new dataset class
@@ -76,6 +76,16 @@ class BinauralAttentionModule(LightningModule):
                                                   v2_demean=v2_demean),
                 at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02, v2_demean=v2_demean), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
             ])
+        
+        if self.audio_config.get('upsample_audio', False):
+            self.audio_transforms = at.AudioCompose([
+                at.AudioToTensor(),
+                at.BinauralCombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'],
+                                                  high_snr=config['noise_kwargs']['high_snr'],
+                                                  v2_demean=v2_demean),
+                at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02, v2_demean=v2_demean), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+                at.Resample(**self.audio_config['upsample_kwargs'])
+            ])
 
         self.test_step = self._test_step
 
@@ -89,19 +99,27 @@ class BinauralAttentionModule(LightningModule):
         # Init Model
         # Get model architecture
         norm_first = self.model_config.get('norm_first', True)
-        new_module = self.model_config.get('new_module', False)
+        new_module = self.model_config.get('v08', False)
+        v2_module = self.model_config.get('v2_module', False)
         control_arch = self.model_config.get('control_arch', False)
         if control_arch:
             print("Using BinauralControlCNN")
             self.model = BinauralControlCNN(**self.model_config)
-        elif norm_first == False or new_module:
+        elif v2_module:
+            print("Using BinauralAuditoryAttentionCNNV2")
+            self.model = BinauralAuditoryAttentionCNNV2(**self.model_config)
+        elif (norm_first == False or new_module) and not v2_module:
             print("Using BinauralAuditoryAttentionCNN")
             self.model = BinauralAuditoryAttentionCNN(**self.model_config)
         else:
             self.model = CNN2DExtractor(**self.model_config) 
         # check if torch version 2 or greater - if so, compile model
         getting_acts = self.config.get('getting_acts', False)
-        if not getting_acts and int(torch.__version__.split('.')[0]) >= 2:
+        if self.config.get('distractor_opt', False):
+            print("Using distractor optimization")
+            self.model = torch.compile(self.model)
+        elif not getting_acts and int(torch.__version__.split('.')[0]) >= 2 and not self.multi_task and not self.audio_config.get('upsample_audio', False):
+            print("Compiling model for reduced overhead")
             self.model = torch.compile(self.model, mode="reduce-overhead")
 
         # Add input rep to model or audio transforms
@@ -134,7 +152,7 @@ class BinauralAttentionModule(LightningModule):
                         }
 
         # Constraints
-        self.attn_modules = [mod for name, mod in self.model._modules.items() if 'attn' in name]
+        self.attn_modules = [module for name, module in  self.model.model_dict.items() if 'attn' in name]
         self.bias_constraint = AttnBiasConstraint(min_val=0, max_val=1)
         self.constrain_slope = self.model_config['attn_constraints'].get('slope', False)
         if self.constrain_slope:
@@ -144,7 +162,10 @@ class BinauralAttentionModule(LightningModule):
         if batch is None:
             print(f"Batch on step {batch_idx} was None")
             return None
-        cue_features, cue_mask_ixs, scene_features, labels = batch
+        if self.multi_task:
+            cue_features, cue_mask_ixs, loc_task_ixs, scene_features, labels = batch
+        else:
+            cue_features, cue_mask_ixs, scene_features, labels = batch
 
         cue_features, scene_features = self.coch_gram(cue_features, scene_features)
 
@@ -153,12 +174,18 @@ class BinauralAttentionModule(LightningModule):
         if self.multi_task:
             word, location = outputs
             word_label = labels[:,0]
-            location_label = labels[:,1]
             word_loss = self.loss_fn(word, word_label)
+            # Take valid examples for location task using loc_task_mask
+            location_label = labels[:,1]
+            if loc_task_ixs is not None:
+                location = location[loc_task_ixs, :]
+                location_label = location_label[loc_task_ixs]
             loc_loss = self.loss_fn(location, location_label)
             loss = word_loss + loc_loss
             self.accuracy[step_type]['word'](word, word_label) # word accuracy
             self.accuracy[step_type]['location'](location, location_label) # location accuracy
+            self.log(f"{step_type}_word_loss", word_loss.detach(), on_step=True, on_epoch=False, prog_bar=True)
+            self.log(f"{step_type}_location_loss", loc_loss.detach(), on_step=True, on_epoch=False, prog_bar=True)
             self.log(f"{step_type}_loss", loss.detach(), on_step=True, on_epoch=False, prog_bar=True)
             self.log(f"{step_type}_word_acc", self.accuracy[step_type]['word'], on_step=False, on_epoch=True, prog_bar=True)
             self.log(f"{step_type}_location_acc", self.accuracy[step_type]['location'], on_step=False, on_epoch=True, prog_bar=True)
@@ -280,7 +307,11 @@ class BinauralAttentionModule(LightningModule):
 
     def get_cue_mask_ixs(self, cue: torch.tensor):
         cue_flat = cue.reshape(cue.shape[0], -1)
-        mask_ixs = torch.argwhere(torch.sum(torch.abs(cue_flat), dim=1) == 0)
+        mask_ixs = torch.argwhere(torch.sum(torch.abs(cue_flat), dim=1) == 0).squeeze()
+        if self.multi_task:
+            # Only use examples in batch with cue for location task 
+            loc_task_mask = torch.argwhere(torch.sum(torch.abs(cue_flat), dim=1) != 0).squeeze()
+            return mask_ixs, loc_task_mask
         return mask_ixs
 
     def _extract_features(self, samples: List, sample_ix: Union[int, list]):
@@ -305,9 +336,14 @@ class BinauralAttentionModule(LightningModule):
         # samples is a single-element list holding a tuple batches
         samples = samples[0]
         cue_features, _ = self.audio_transforms(samples[0], None)
-        cue_mask_ixs = None
+        if self.hparas_config.get('mask_cues', False):  # default is to not mask cues
+            cue_mask_ixs, loc_task_ixs = self.get_cue_mask_ixs(cue_features)
+        else:
+            cue_mask_ixs, loc_task_ixs = None, None  # loc task ixs are not used if not multi_task
         scene_features, _ = self.audio_transforms(samples[1], samples[2])
         labels = torch.from_numpy(samples[3]).type(torch.LongTensor)
+        if self.multi_task:
+            return cue_features, cue_mask_ixs, loc_task_ixs, scene_features, labels
         return cue_features, cue_mask_ixs, scene_features, labels
 
     def test_collate_fn(self, samples: List):
