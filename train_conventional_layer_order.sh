@@ -6,9 +6,9 @@
 #SBATCH -N 1
 
 #SBATCH --cpus-per-task=16
-#SBATCH --time=1-00:00:00
+#SBATCH --time=12:00:00
 #SBATCH --partition=ou_bcs_low
-#SBATCH --gres=gpu:8
+#SBATCH --gres=gpu:4
 
 
 #source /etc/profile.d/modules.sh
