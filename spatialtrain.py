@@ -19,6 +19,7 @@ torch.backends.cudnn.allow_tf32 = True
 hostname = socket.gethostname()
 
 def run_train(args):
+    seed_everything(123)
 
     if args.config != "":
         config_path = args.config
@@ -51,13 +52,12 @@ def run_train(args):
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     ckpt_paths = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)
 
+    ckpt_path = None 
     if args.resume_training and len(ckpt_paths) != 0:
         ckpt_path = ckpt_paths[-1]
-        seed_everything(int(os.path.getatime(ckpt_path)))
         model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
         print('Resuming training from checkpoint: ', ckpt_path)
     else:
-        seed_everything(123)
         model = BinauralAttentionModule(config)
 
     callbacks = []
@@ -112,8 +112,14 @@ def run_train(args):
         profiler=None,
         callbacks=callbacks)
 
-    trainer.fit(model)
-    
+    # add try except for compat with old models 
+    try: 
+        # this is the right way to re-init in pytorch lighning versions 2.0+
+        trainer.fit(model,  ckpt_path = ckpt_path if args.resume_training else None)
+    except KeyError as e:
+        print(e)
+        trainer.fit(model) 
+
 
 def cli_main():
     parser = ArgumentParser()
