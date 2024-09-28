@@ -29,7 +29,7 @@ def run_eval(args):
     print(f"Loading model from {checkpoint_path}")
     
     # load model 
-    if 'binaural_attn' in args.config:
+    if 'binaural_attn' in args.config or 'word_task' in args.config:
         module = BinauralAttentionModule
         label_type = 'CV'
 
@@ -93,8 +93,9 @@ def run_eval(args):
 
     # load and freeze model
     model = module.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).eval().cuda()
+    use_coch = True if ('v0' in args.config or 'word_task' in args.config) else False 
     coch_gram = None
-    if 'v0' in args.config:
+    if use_coch:
         coch_gram = model.coch_gram.cuda()
 
     if args.stim_cond_map and not args.spotlight_expmnt or args.full_h5_stim_set:

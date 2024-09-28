@@ -26,5 +26,5 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 which python3
 python3 spatialtrain.py --config_list /om2/user/imgriff/projects/torch_2_aud_attn/binaural_train_manifests/v09_control_arch_manifest.pkl --job_id $SLURM_ARRAY_TASK_ID \
-                 --gpus 4 --n_jobs 4  --resume_training  \
+                 --gpus 4 --n_jobs 16  --resume_training  True \
                  --exp_dir /om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models \
