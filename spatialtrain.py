@@ -70,7 +70,7 @@ def run_train(args):
                 monitor=value,
                 mode="max",
                 save_top_k=1,
-                save_weights_only=True,
+                # save_weights_only=True,
                 verbose=True,
             ))
 
@@ -80,7 +80,7 @@ def run_train(args):
             monitor=f"{config['val_metric']}",
             mode="max" if 'acc' in config['val_metric'] else "min",
             save_top_k=1,
-            save_weights_only=True,
+            # save_weights_only=True,
             verbose=True,
         ))
 
@@ -89,7 +89,7 @@ def run_train(args):
         monitor="train_loss",
         mode="min",
         save_top_k=1,
-        save_weights_only=True,
+        # save_weights_only=True,
         verbose=True,
     )
 
@@ -113,12 +113,12 @@ def run_train(args):
         callbacks=callbacks)
 
     # add try except for compat with old models 
-    try: 
-        # this is the right way to re-init in pytorch lighning versions 2.0+
-        trainer.fit(model,  ckpt_path = ckpt_path if args.resume_training else None)
-    except KeyError as e:
-        print(e)
-        trainer.fit(model) 
+    # try: 
+    #     # this is the right way to re-init in pytorch lighning versions 2.0+
+    #     trainer.fit(model,  ckpt_path = ckpt_path if args.resume_training else None)
+    # except KeyError as e:
+    #     print(e)
+    trainer.fit(model, ckpt_path = ckpt_path if args.resume_training else None) 
 
 
 def cli_main():

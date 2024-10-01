@@ -146,7 +146,7 @@ def run_eval(args):
         model.layer_norm_params[f'{layer_name}'][f'cue_{param_type}'] = param[..., : n_cue_frames_at_layer]
     
     # load checkpoint 
-    model.load_state_dict(new_state_dict, strict=False) # strict=False to skip attn weights 
+    model.load_state_dict(new_state_dict, strict=True) # strict=False to skip attn weights 
     model = model.eval().cuda()
 
     # load and freeze model

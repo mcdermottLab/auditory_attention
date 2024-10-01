@@ -7,7 +7,7 @@
 #SBATCH --time=0:15:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=51-53 # 0-60 for standard test
+#SBATCH --array=0-60 # 0-60 for standard test
 #SBATCH -x dgx001,dgx002,node093
 
 module load openmind8/anaconda/3-2022.10
@@ -51,7 +51,7 @@ rm -r /tmp/torchinductor_imgriff
 #                  --full_h5_stim_set
 
 # python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v09_50Hz_cutoff.yaml \
-#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v09_50Hz_cutoff/checkpoints/epoch=1-step=16554.ckpt \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v09_50Hz_cutoff/checkpoints/epoch=2-step=33108.ckpt \
 #                  --array_id $SLURM_ARRAY_TASK_ID \
 #                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
 #                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
@@ -59,7 +59,7 @@ rm -r /tmp/torchinductor_imgriff
 #                  --full_h5_stim_set
 
 python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_conventional_layer_order.yaml \
-                 --ckpt_path attn_cue_models/word_task_conventional_layer_order/checkpoints/epoch=0-step=8000-v5.ckpt \
+                 --ckpt_path attn_cue_models/word_task_conventional_layer_order_lr0001/checkpoints/epoch=0-step=8000-v6.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \

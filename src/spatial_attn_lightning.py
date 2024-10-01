@@ -192,7 +192,7 @@ class BinauralAttentionModule(LightningModule):
         else:
             loss = self.loss_fn(outputs, labels)
             self.accuracy[step_type](outputs, labels)
-            self.log(f"{step_type}_loss", loss.detach(), on_step=True, on_epoch=False, prog_bar=True)
+            self.log(f"{step_type}_loss", loss.detach(), on_step=True, on_epoch=True, prog_bar=True)
             self.log(f"{step_type}_acc", self.accuracy[step_type], on_step=False, on_epoch=True, prog_bar=True)
 
         return loss

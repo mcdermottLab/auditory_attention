@@ -29,8 +29,14 @@ which python3
 #                 --n_jobs 0 --time_average
 
 
-python3 get_unit_activations_for_tuning_analysis.py --config config/binaural_attn/word_task_v09_control_no_attn.yaml \
-                --ckpt_path attn_cue_models/word_task_v09_control_no_attn/checkpoints/epoch=4-step=60216.ckpt \
+# python3 get_unit_activations_for_tuning_analysis.py --config config/binaural_attn/word_task_v09_control_no_attn.yaml \
+#                 --ckpt_path attn_cue_models/word_task_v09_control_no_attn/checkpoints/epoch=4-step=60216.ckpt \
+#                 --model_dir binaural_unit_tuning \
+#                 --n_activations 100 \
+#                 --n_jobs 0 --time_average
+
+python3 get_unit_activations_for_tuning_analysis.py --config config/binaural_attn/word_task_conventional_layer_order.yaml \
+                --ckpt_path attn_cue_models/word_task_conventional_layer_order_lr0001/checkpoints/epoch=0-step=8000-v6.ckpt \
                 --model_dir binaural_unit_tuning \
                 --n_activations 100 \
                 --n_jobs 0 --time_average

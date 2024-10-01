@@ -24,7 +24,12 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2_sva
 #                 --layer_ix $SLURM_ARRAY_TASK_ID \
 #                 --n_jobs 12 \
 
-python3 src/unit_tuning_anova.py --model_name "word_task_v09_control_no_attn" \
+# python3 src/unit_tuning_anova.py --model_name "word_task_v09_control_no_attn" \
+#                 --analysis_dir "binaural_unit_activations" \
+#                 --layer_ix $SLURM_ARRAY_TASK_ID \
+#                 --n_jobs 12 \
+
+python3 src/unit_tuning_anova.py --model_name "word_task_conventional_layer_order" \
                 --analysis_dir "binaural_unit_activations" \
                 --layer_ix $SLURM_ARRAY_TASK_ID \
                 --n_jobs 12 \
