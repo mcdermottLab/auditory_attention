@@ -52,7 +52,7 @@ hparas:                                   # Experiment hyper-parameters
   optimizer: 'AdamW'
   lr: 0.00001
   eps: 0.0000001                         # 1e-7
-  gradient_clip_val: 100 
+  gradient_clip_val: 1 
   batch_size: 288                        # 576 for 8 288 for 4Gets divided by num gpus
   mask_cues: False                    
 

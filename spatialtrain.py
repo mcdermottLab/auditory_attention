@@ -54,13 +54,13 @@ def run_train(args):
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     ckpt_paths = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)
 
+    seed_everything(123)
     if args.resume_training and len(ckpt_paths) != 0:
         ckpt_path = ckpt_paths[-1]
-        seed_everything(int(os.path.getatime(ckpt_path)))
+        # seed_everything(int(os.path.getatime(ckpt_path)))
         model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
         print('Resuming training from checkpoint: ', ckpt_path)
     else:
-        seed_everything(123)
         model = BinauralAttentionModule(config)
 
     callbacks = []
@@ -73,7 +73,7 @@ def run_train(args):
                 monitor=value,
                 mode="max",
                 save_top_k=1,
-                save_weights_only=True,
+                save_weights_only=False,
                 verbose=True,
             ))
 
@@ -83,7 +83,7 @@ def run_train(args):
             monitor=f"{config['val_metric']}",
             mode="max" if 'acc' in config['val_metric'] else "min",
             save_top_k=1,
-            save_weights_only=True,
+            save_weights_only=False,
             verbose=True,
         ))
 
@@ -92,7 +92,7 @@ def run_train(args):
         monitor="train_loss",
         mode="min",
         save_top_k=1,
-        save_weights_only=True,
+        # save_weights_only=True,
         verbose=True,
     )
 
@@ -115,8 +115,12 @@ def run_train(args):
         profiler=None,
         callbacks=callbacks)
 
+    # try:
+    #     trainer.fit(model,  ckpt_path = ckpt_path if args.resume_training else None)
+    # except Exception as err:
+    # print(f"Catch: {e}")
     trainer.fit(model)
-    
+
 
 def cli_main():
     parser = ArgumentParser()

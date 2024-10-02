@@ -35,3 +35,4 @@ python3 spatialtrain.py --config config/binaural_attn/word_task_v09_control_no_a
                  --gpus 4 --n_jobs 16 --resume_training True \
                  --exp_dir attn_cue_models \
 
+
