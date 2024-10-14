@@ -50,7 +50,7 @@ hparas:                                   # Experiment hyper-parameters
   valid_step: 2000
   epochs: 1000
   optimizer: 'AdamW'
-  lr: 0.00001
+  lr: 0.00005
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 1 
   batch_size: 288                        # 576 for 8 288 for 4Gets divided by num gpus
@@ -76,10 +76,7 @@ model:                                   # Model architecture
   v08: True 
   attn_constraints: 
     any: False 
-  norm_first: False
+  norm_first: True
   ln_affine: True
-  v2_module: True 
-  fc_attn: False
   control_arch: True
-  block_order: "Conv -> LN -> ReLU"
 

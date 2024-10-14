@@ -29,7 +29,7 @@ def run_eval(args):
     print(f"Loading model from {checkpoint_path}")
     
     # load model 
-    if 'binaural_attn' in args.config:
+    if 'binaural_attn' in args.config or 'word_task' in args.config:
         module = BinauralAttentionModule
         label_type = 'CV'
 
@@ -38,6 +38,8 @@ def run_eval(args):
         config['data']['audio']['rep_kwargs']['center_crop'] = True
         config['data']['audio']['rep_kwargs']['out_dur'] = 2
         label_type = "WSN"
+    
+    dual_task_arch =  config['model'].get("cue_loc_task", False)
 
     # set audio transforms
     sr = config['audio']['rep_kwargs']['sr']
@@ -91,11 +93,12 @@ def run_eval(args):
 
     # load and freeze model
     model = module.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).eval().cuda()
+    use_coch = True if ('v0' in args.config or 'word_task' in args.config) else False 
     coch_gram = None
-    if 'v0' in args.config:
+    if use_coch:
         coch_gram = model.coch_gram.cuda()
-    
-    if args.stim_cond_map and not args.spotlight_expmnt:
+
+    if args.stim_cond_map and not args.spotlight_expmnt or args.full_h5_stim_set:
         if args.full_h5_stim_set:
             dataset = SWCMonoTestSetH5Dataset(h5_path=args.stim_path,
                                             eval_distractor_cond=condition,
@@ -123,7 +126,7 @@ def run_eval(args):
         else:
             condition, snr = dataset.stim_cond_map[args.array_id]
 
-    if 'popham' in str(args.stim_path):
+    elif 'popham' in str(args.stim_path):
         dataset = SWCMonoTestSet(stim_path=args.stim_path,
                                 cond_ix=args.array_id,
                                 model_sr=sr,
@@ -168,7 +171,7 @@ def run_eval(args):
             mixtures = torch.stack([audio_transforms(mix, None)[0] for _, mix,  _ in batch])
             labels = torch.tensor([label for _, _, label in batch]).type(torch.LongTensor)
             return cues, mixtures, labels
-
+    print(dataset)
     dataloader = torch.utils.data.DataLoader(dataset,
                                              batch_size=12,
                                              shuffle=False,
@@ -208,6 +211,10 @@ def run_eval(args):
                 logits = model(cue, mixture, None)
             else:
                 logits = model(cue, mixture)
+                
+            if dual_task_arch:
+                logits, _ = logits # unpack word and location tuple 
+
             preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach().numpy().astype('int')
             true_word = word.numpy().astype('int')
             accuracy = (true_word == preds).astype('int')

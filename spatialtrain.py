@@ -19,6 +19,7 @@ torch.backends.cudnn.allow_tf32 = True
 hostname = socket.gethostname()
 
 def run_train(args):
+    seed_everything(123)
 
     if args.config != "":
         config_path = args.config
@@ -26,7 +27,7 @@ def run_train(args):
     else:
         with open(args.config_list, 'rb') as f:
             model_config = pickle.load(f)
-        config_path = model_config[args.job_id]
+        config_path = str(model_config[args.job_id])
 
     print(config_path)
 
@@ -43,21 +44,18 @@ def run_train(args):
     model_name = config['model_name']
 
     config['num_workers'] = args.n_jobs
+    config['ngpus'] = args.gpus
     if args.gpus > 0:
         config['hparas']['batch_size'] = config['hparas']['batch_size'] // args.gpus
-
-    # Add n gpus to config for LR scheduler 
-    config['ngpus'] = args.gpus
 
     config_path = pathlib.Path(config_path)
     checkpoint_dir = args.exp_dir / f"{config_path.stem}/checkpoints"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     ckpt_paths = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)
 
-    seed_everything(123)
+    ckpt_path = None 
     if args.resume_training and len(ckpt_paths) != 0:
         ckpt_path = ckpt_paths[-1]
-        # seed_everything(int(os.path.getatime(ckpt_path)))
         model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
         print('Resuming training from checkpoint: ', ckpt_path)
     else:
@@ -73,7 +71,7 @@ def run_train(args):
                 monitor=value,
                 mode="max",
                 save_top_k=1,
-                save_weights_only=False,
+                # save_weights_only=True,
                 verbose=True,
             ))
 
@@ -83,7 +81,7 @@ def run_train(args):
             monitor=f"{config['val_metric']}",
             mode="max" if 'acc' in config['val_metric'] else "min",
             save_top_k=1,
-            save_weights_only=False,
+            # save_weights_only=True,
             verbose=True,
         ))
 
@@ -115,11 +113,13 @@ def run_train(args):
         profiler=None,
         callbacks=callbacks)
 
-    # try:
+    # add try except for compat with old models 
+    # try: 
+    #     # this is the right way to re-init in pytorch lighning versions 2.0+
     #     trainer.fit(model,  ckpt_path = ckpt_path if args.resume_training else None)
-    # except Exception as err:
-    # print(f"Catch: {e}")
-    trainer.fit(model)
+    # except KeyError as e:
+    #     print(e)
+    trainer.fit(model) 
 
 
 def cli_main():

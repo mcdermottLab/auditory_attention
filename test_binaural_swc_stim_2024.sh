@@ -33,14 +33,46 @@ rm -r /tmp/torchinductor_imgriff
 #                  --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
 #                  --full_h5_stim_set
 
-python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
-                 --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/sounds \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=4-step=59392.ckpt \
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+#                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/sounds \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=4-step=59392.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
+#                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
+#                  --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
+#                  --full_h5_stim_set
+
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=2-step=35108-v1.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
+#                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
+#                  --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
+#                  --full_h5_stim_set
+
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_half_co_loc_v09_50Hz_cutoff.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v09_50Hz_cutoff/checkpoints/epoch=2-step=33108.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
+#                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
+#                  --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
+#                  --full_h5_stim_set
+
+python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_conventional_layer_order.yaml \
+                 --ckpt_path attn_cue_models/word_task_conventional_layer_order_lr0001/checkpoints/epoch=0-step=8000-v6.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
                  --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
                  --full_h5_stim_set
+
+# python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_v09_cue_loc_task.yaml \
+#                  --ckpt_path attn_cue_models/word_task_v09_cue_loc_task/checkpoints/epoch=3-step=43662-best_word_task.ckpt \
+#                  --array_id $SLURM_ARRAY_TASK_ID \
+#                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
+#                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
+#                  --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
+#                  --full_h5_stim_set
 
 ## Baseline model with no gains
 # python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_v08_control_no_attn.yaml \

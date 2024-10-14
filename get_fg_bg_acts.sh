@@ -24,8 +24,16 @@ which python3
 #                  --attention  \
 #                  --job_id $SLURM_ARRAY_TASK_ID
 
-python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=4-step=59392.ckpt \
+# python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=4-step=59392.ckpt \
+#                  --model_dir binaural_model_attn_stage_reps \
+#                  --n_jobs 0 \
+#                  --n_activations 100 \
+#                  --silence_w_uncued  \
+#                  --job_id $SLURM_ARRAY_TASK_ID
+
+python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_conventional_layer_order.yaml \
+                 --ckpt_path attn_cue_models/word_task_conventional_layer_order_lr0001/checkpoints/epoch=0-step=8000-v6.ckpt \
                  --model_dir binaural_model_attn_stage_reps \
                  --n_jobs 0 \
                  --n_activations 100 \
