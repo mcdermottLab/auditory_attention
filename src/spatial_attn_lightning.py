@@ -192,8 +192,8 @@ class BinauralAttentionModule(LightningModule):
         else:
             loss = self.loss_fn(outputs, labels)
             self.accuracy[step_type](outputs, labels)
-            self.log(f"{step_type}_loss", loss.detach(), on_step=True, on_epoch=True, prog_bar=True)
-            self.log(f"{step_type}_acc", self.accuracy[step_type], on_step=False, on_epoch=True, prog_bar=True)
+            self.log(f"{step_type}_loss", loss.detach(), on_step=True, on_epoch=True, prog_bar=True, sync_dist=True)
+            self.log(f"{step_type}_acc", self.accuracy[step_type], on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
 
         return loss
 
@@ -222,16 +222,36 @@ class BinauralAttentionModule(LightningModule):
         model_params = [{'params': self.model.parameters()}]
         self.optimizer = opt(model_params, lr=self.hparas_config['lr'], eps=self.hparas_config['eps'])       
         ## New for v05 dataset - use lr Scheduler 
-        # lr_schedule = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 
-        #                                                        mode='max', # monitoring val_acc, want max
-        #                                                        factor=0.1,
-        #                                                        patience=0.25, # wait a quarter epoch if plateaued
-        #                                                        threshold=0.0001,
-        #                                                        threshold_mode='rel',
-        #                                                        min_lr=1e-7, 
-        #                                                        verbose=True)
-        # schedule = {"scheduler":lr_schedule, "monitor": self.config['val_metric']}
-        return [self.optimizer]#, schedule
+        if self.hparas_config.get('use_scheduler', False):
+            print(f"Using learning rate schedule: {self.hparas_config['scheduler']['type']}")
+            if self.hparas_config['scheduler']['type'] == "OneCycleLR":
+                # quick hack to get len of training set 
+                loader = self.train_dataloader()
+                dataset_len = len(self.train_dataset)
+                del loader 
+                scheduler = torch.optim.lr_scheduler.OneCycleLR(self.optimizer,
+                                                                max_lr=self.hparas_config['scheduler']['max_lr'],
+                                                                epochs=self.hparas_config['epochs'],
+                                                                three_phase=False,
+                                                                # verbose=True,
+                                                                steps_per_epoch=dataset_len//self.config['ngpus'])
+
+                lr_scheduler = {'scheduler': scheduler, 'interval': 'step'}
+            elif self.hparas_config['scheduler']['type'] == "ReduceLROnPlateau":
+                scheduler =  torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer,
+                                                                        mode=self.hparas_config['scheduler']['mode'],
+                                                                        patience=self.hparas_config['scheduler']['patience'],
+                                                                        factor=self.hparas_config['scheduler']['factor'],
+                                                                        )
+                lr_scheduler = {'scheduler': scheduler,
+                            'monitor': self.config['val_metric'], 
+                            'interval': 'epoch',
+                            'frequency': 1 
+                            }
+
+            return {'optimizer': self.optimizer, 'lr_scheduler': lr_scheduler}
+
+        return [self.optimizer]
 
     def forward(self, cue: torch.tensor, scene: torch.tensor, cue_mask_ixs: torch.tensor):
         outputs = self.model(cue, scene, cue_mask_ixs)
@@ -356,6 +376,7 @@ class BinauralAttentionModule(LightningModule):
     def train_dataloader(self):
         dataset = self.dataset(**self.corpora_config, batch_size=self.hparas_config['batch_size'], mode='train')
         print(f"len training set = {len(dataset)}")
+        # self.train_dataset = dataset
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=1,

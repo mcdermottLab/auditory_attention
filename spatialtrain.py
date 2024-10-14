@@ -27,7 +27,7 @@ def run_train(args):
     else:
         with open(args.config_list, 'rb') as f:
             model_config = pickle.load(f)
-        config_path = model_config[args.job_id]
+        config_path = str(model_config[args.job_id])
 
     print(config_path)
 
@@ -44,6 +44,7 @@ def run_train(args):
     model_name = config['model_name']
 
     config['num_workers'] = args.n_jobs
+    config['ngpus'] = args.gpus
     if args.gpus > 0:
         config['hparas']['batch_size'] = config['hparas']['batch_size'] // args.gpus
 
@@ -118,7 +119,7 @@ def run_train(args):
     #     trainer.fit(model,  ckpt_path = ckpt_path if args.resume_training else None)
     # except KeyError as e:
     #     print(e)
-    trainer.fit(model, ckpt_path = ckpt_path if args.resume_training else None) 
+    trainer.fit(model) 
 
 
 def cli_main():

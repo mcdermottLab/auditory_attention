@@ -37,11 +37,11 @@ corpus:
   task: word
   v06: true
 hparas:
-  batch_size: 288
+  batch_size: 192
   epochs: 1000
   eps: 1.0e-07
   gradient_clip_val: 100
-  lr: 0.001
+  lr: 5.0e-05
   mask_cues: false
   optimizer: AdamW
   valid_step: 4000
@@ -56,34 +56,36 @@ model:
   - 1
   - 1
   - 1
+  - 1
   attn_constraints:
     slope: true
-  block_order: Conv -> LN -> ReLU
   dropout: 0.5
   fc_size: 512
   global_avg_cue: false
   input_sr: 10000
   kernel:
-  - - 2
-    - 16
-  - - 2
-    - 73
+  - - 1
+    - 52
+  - - 1
+    - 26
   - - 5
-    - 4
-  - - 6
-    - 5
-  - - 3
     - 3
   - - 4
     - 5
   - - 6
-    - 6
+    - 5
   - - 6
-    - 6
+    - 3
   - - 6
     - 4
+  - - 5
+    - 5
+  - - 3
+    - 5
+  - - 3
+    - 5
   ln_affine: true
-  norm_first: false
+  norm_first: true
   num_classes:
     num_words: 800
   out_channels:
@@ -91,6 +93,7 @@ model:
   - 64
   - 128
   - 256
+  - 512
   - 512
   - 512
   - 512
@@ -106,63 +109,70 @@ model:
   - valid_time
   - valid_time
   - valid_time
+  - valid_time
   pool_padding:
   - - 4
-    - 10
+    - 0
   - - 4
-    - 12
-  - - 0
-    - 4
-  - - 0
     - 4
   - - 0
     - 0
   - - 0
-    - 4
+    - 6
   - - 0
     - 6
   - - 0
-    - 4
+    - 6
   - - 0
-    - 4
+    - 6
+  - - 0
+    - 6
+  - - 0
+    - 6
+  - - 0
+    - 6
   pool_size:
   - - 8
-    - 20
+    - 1
   - - 8
-    - 24
-  - - 1
-    - 8
-  - - 1
     - 8
   - - 1
     - 1
-  - - 1
-    - 8
   - - 1
     - 12
   - - 1
-    - 8
+    - 12
   - - 1
-    - 8
+    - 12
+  - - 1
+    - 12
+  - - 1
+    - 12
+  - - 1
+    - 12
+  - - 1
+    - 12
   pool_stride:
   - - 2
-    - 5
+    - 1
   - - 2
-    - 6
-  - - 1
-    - 2
-  - - 1
     - 2
   - - 1
     - 1
   - - 1
-    - 2
+    - 3
   - - 1
     - 3
   - - 1
-    - 2
+    - 3
   - - 1
-    - 2
+    - 3
+  - - 1
+    - 3
+  - - 1
+    - 3
+  - - 1
+    - 3
   stride:
   - - 1
     - 1
@@ -182,8 +192,9 @@ model:
     - 1
   - - 1
     - 1
+  - - 1
+    - 1
   v08: true
-  v2_module: true
 model_name: gender_balanced_training_v09_4M_no_cue_learned
 noise_kwargs:
   high_snr: 10

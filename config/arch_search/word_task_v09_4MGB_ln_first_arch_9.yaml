@@ -41,7 +41,7 @@ hparas:
   epochs: 1000
   eps: 1.0e-07
   gradient_clip_val: 100
-  lr: 0.001
+  lr: 5.0e-05
   mask_cues: false
   optimizer: AdamW
   valid_step: 4000
@@ -55,32 +55,37 @@ model:
   - 1
   - 1
   - 1
+  - 1
+  - 1
   attn_constraints:
     slope: true
-  block_order: Conv -> LN -> ReLU
   dropout: 0.5
   fc_size: 512
   global_avg_cue: false
   input_sr: 10000
   kernel:
-  - - 1
-    - 22
+  - - 2
+    - 11
   - - 3
-    - 41
+    - 60
+  - - 4
+    - 5
+  - - 4
+    - 4
   - - 3
+    - 4
+  - - 4
+    - 3
+  - - 5
+    - 3
+  - - 4
     - 6
-  - - 6
-    - 4
-  - - 6
-    - 4
   - - 3
     - 3
-  - - 6
-    - 4
-  - - 3
+  - - 5
     - 6
   ln_affine: true
-  norm_first: false
+  norm_first: true
   num_classes:
     num_words: 800
   out_channels:
@@ -88,6 +93,8 @@ model:
   - 64
   - 128
   - 256
+  - 512
+  - 512
   - 512
   - 512
   - 512
@@ -101,13 +108,17 @@ model:
   - valid_time
   - valid_time
   - valid_time
+  - valid_time
+  - valid_time
   pool_padding:
   - - 4
-    - 10
-  - - 4
-    - 8
-  - - 0
     - 4
+  - - 4
+    - 12
+  - - 0
+    - 0
+  - - 0
+    - 6
   - - 0
     - 6
   - - 0
@@ -117,41 +128,51 @@ model:
   - - 0
     - 6
   - - 0
-    - 6
+    - 4
+  - - 0
+    - 0
   pool_size:
   - - 8
-    - 20
+    - 8
   - - 8
-    - 16
+    - 24
+  - - 1
+    - 1
+  - - 1
+    - 12
+  - - 1
+    - 12
+  - - 1
+    - 1
+  - - 1
+    - 12
+  - - 1
+    - 12
   - - 1
     - 8
   - - 1
-    - 12
+    - 1
+  pool_stride:
+  - - 2
+    - 2
+  - - 2
+    - 6
   - - 1
     - 1
   - - 1
-    - 12
+    - 3
   - - 1
-    - 12
+    - 3
   - - 1
-    - 12
-  pool_stride:
-  - - 2
-    - 5
-  - - 2
-    - 4
+    - 1
+  - - 1
+    - 3
+  - - 1
+    - 3
   - - 1
     - 2
   - - 1
-    - 3
-  - - 1
     - 1
-  - - 1
-    - 3
-  - - 1
-    - 3
-  - - 1
-    - 3
   stride:
   - - 1
     - 1
@@ -169,8 +190,11 @@ model:
     - 1
   - - 1
     - 1
+  - - 1
+    - 1
+  - - 1
+    - 1
   v08: true
-  v2_module: true
 model_name: gender_balanced_training_v09_4M_no_cue_learned
 noise_kwargs:
   high_snr: 10
