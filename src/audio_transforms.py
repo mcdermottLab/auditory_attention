@@ -13,6 +13,10 @@ from .time_domain_cochleagram import TimeDomainCochleagram
 import torchaudio.transforms as T
 from . import util_filters
 
+# sys.path.append('/om2/user/annesyab/summer2022/CI_Model_HearingImpairment/cochlear_implant_param_infer/utils')
+import src.util_cimodel_soundcoding_master as ci_model
+
+
 def ch_demean(x, dim=0, mean_keepdim=False):
     '''
     Helper function to mean-subtract tensor.
@@ -187,6 +191,8 @@ class AudioToAudioRepresentation(torch.nn.Module):
             self.rep = AudioToCochleagram(cgram_kwargs=self.rep_kwargs)
         elif self.rep_type == 'cochlea_filt':
             self.rep = AudioToCochlearRep(cgram_kwargs=self.rep_kwargs)
+        elif self.rep_type == 'cochlear_implant':
+            self.rep = AudioToCIRep(cgram_kwargs=self.rep_kwargs)
         else:
             raise NotImplementedError('Audio Representation of type '
               '%s is not implemented'%self.rep_type)
@@ -355,6 +361,39 @@ class AudioToCochlearRep(torch.nn.Module):
 
         return foreground_coch, None
 
+
+class AudioToCIRep(torch.nn.Module):
+    """
+    Converts audio to cochlear implant nervegram
+    """
+    def __init__(self, cgram_kwargs={}):
+        super(AudioToCIRep, self).__init__()
+        self.cgram_kwargs = cgram_kwargs
+
+        ci_simulator = ci_model.SequentialCIModel(self.cgram_kwargs)
+
+        self.CISimulator = ci_simulator
+
+    def forward(self, foreground_wav, background_wav):
+        """
+        Args:
+            foreground_wav (torch.Tensor): the waveform that will be used as
+                the foreground audio sample (usually speech)
+            background_wav (torch.Tensor): the waveform that will be used as
+                the background audio sample
+        """
+        del background_wav
+
+        # hanlde the case where the input is binaural 
+        if foreground_wav.ndim >= 2 and foreground_wav.shape[-2] == 2:
+            fg_left = self.CISimulator(foreground_wav[:,0,:].squeeze())
+            fg_rigth = self.CISimulator(foreground_wav[:,1,:].squeeze())
+            foreground_ci_nervegram = torch.concat([fg_left, fg_rigth], dim=1)
+        else:
+            foreground_ci_nervegram = self.CISimulator(foreground_wav.sqeeze())
+
+        return foreground_ci_nervegram, None
+    
 
 class AudioToTensor(torch.nn.Module):
     """

@@ -12,54 +12,55 @@ corpus:
 
 audio:                                  # Attributes of audio feature
   rep_type:  'cochlear_implant'
+  v2_demean: True
   rep_kwargs:
     rep_on_gpu: True
-  v2_demean: True
-  kwargs_anf_input:
-    elec_min_x: 8.125
-    num_anfs: 50
-    verbose: true
-    elec_max_x: 23.875 
-    anfs_min_cf: 125
-    anfs_max_cf: 8000.0
+    kwargs_spike_generator_binomial:
+      mode: "approx"
+      n_per_channel:  [384] ##[384,160,96]
+    kwargs_anf_input:
+      elec_min_x: 8.125
+      num_anfs: 40
+      verbose: true
+      num_elec: 16
+      elec_max_x: 23.875 
+      anfs_min_cf: 125
+      anfs_max_cf: 8000.0
     kwargs_current_spread": 
       V0: 1.0
       lambda_current_spread: 2.35
-  kwargs_anf_output:
-    kwargs_anf_impulse_response: 
-      ref_mean_period: 0.0016
-      exc_mean_latency: 0.0006
-      kernel_dur: 0.005
-      ref_weight: 0.1
-      ref_std_frac: 0.15
-      exc_weight: 1.0
-      exc_std_frac: 1.0
-      absolute_latency: 0.0
-    kwargs_sigmoid_rate_level_function: 
-      dynamic_range: [15.0, 15.0, 15.0]
-      dynamic_range_interval: 0.95
-      rate_max: [250.0,250.0,250.0]
-      rate_spont: [0.1,0.1,0.1]
-      threshold: [-5.0,-5.0,-5.0]
     kwargs_pulsetrains:
       compression_power: 1.0
       offset: 0.0002
       pps: 500.0
+    kwargs_anf_output:
+      kwargs_anf_impulse_response: 
+        ref_mean_period: 0.0016
+        exc_mean_latency: 0.0006
+        kernel_dur: 0.005
+        ref_weight: 0.1
+        ref_std_frac: 0.15
+        exc_weight: 1.0
+        exc_std_frac: 1.0
+        absolute_latency: 0.0
+      kwargs_sigmoid_rate_level_function: 
+        dynamic_range: [15.0] # [15.0, 15.0, 15.0]
+        dynamic_range_interval: 0.95
+        rate_max: [250.0] # [250.0,250.0,250.0]
+        rate_spont: [0.1] # [0.1,0.1,0.1]
+        threshold: [-5.0] # [-5.0,-5.0,-5.0]
     kwargs_subbands:
-      max_hi: 8e3
-      min_lo: 80.0
+      max_hi: 8000
+      min_lo: 80
       mode: "half_cosine_filterbank"
       num_cf: 16
       return_io_function: false
-    kwargs_spike_generator_binomial:
-      mode: "approx"
-      n_per_channel: [384,160,96]
     kwargs_envelopes: 
       envelope_lowpass_ideal: true
       kwargs_fir_lowpass_filter:
         cutoff: 50
         dur_fir: 0.05
-        window": ["kaiser", 5.0]
+        window: ["kaiser", 5.0]
     kwargs_currentmap_sigmoid:
       TL: -19.5
       MCL: 0.5
@@ -67,16 +68,8 @@ audio:                                  # Attributes of audio feature
       dynamic_range: 60  
     sr_coch: 10000.0
     sr_audio: 44100.0
-  compression_type: None
-  compression_kwargs: None
-  upsample_audio: True
-  upsample_kwargs:
-    orig_freq: 44100
-    new_freq: 50000
-    lowpass_filter_width: 64
-    rolloff: 0.9475937167399596
-    resampling_method: "sinc_interp_kaiser"
-    beta: 14.769656459379492
+  compression_type: 'none'
+  compression_kwargs: 'none'
 
 
 val_metric: 'val_acc'
