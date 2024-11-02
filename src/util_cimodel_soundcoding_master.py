@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import src.utils_ci_signal as utils_signal
 
 class SequentialCIModel(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, center_crop=True, out_dur = 2.0):
         super(SequentialCIModel, self).__init__()
         self.config = config
         self.get_spike =  SpikeGeneratorBinomial(**config['kwargs_spike_generator_binomial'])
@@ -15,38 +15,46 @@ class SequentialCIModel(nn.Module):
         self.current_from_pressure = sigmoid_current_map(**config['kwargs_currentmap_sigmoid'])
         self.env_from_subband = subbands_to_envelopes(sr_input=config['sr_audio'],sr_output=config['sr_coch'],**config['kwargs_envelopes'])
         self.subband_from_audio = audio_to_subbands(sr=self.config['sr_audio'],**config['kwargs_subbands'])
-    
+        self.n_out_frames = int(out_dur * config['sr_coch'])
+        self.center_crop = center_crop
+
     def forward(self, x):
-        print('Input shape:', x.shape)
+        # print('Input shape:', x.shape)
         if self.config.get('kwargs_subbands', False):
             x = self.subband_from_audio(x)
-            print('Subbands shaepe:', x.shape)
+            # print('Subbands shaepe:', x.shape)
         
         if self.config.get('kwargs_envelopes', False):
             x = self.env_from_subband(x)
-            print('Envelopes shaepe:', x.shape)
+            # print('Envelopes shaepe:', x.shape)
         
         if self.config.get('kwargs_currentmap_sigmoid', False):
             x = self.current_from_pressure(x)
-            print('Compressed envelope shaepe:', x.shape)
+            # print('Compressed envelope shaepe:', x.shape)
         
         if self.config.get('kwargs_pulsetrains', False):
             x = self.pulse_from_current(x)
-            print('Pulsetrain shaepe:', x.shape)
+            # print('Pulsetrain shaepe:', x.shape)
         
         if self.config.get('kwargs_anf_input', False):
             x = self.anf_in_from_pulse(x)
-            print('ANF stimulation shaepe:', x.shape)
+            # print('ANF stimulation shaepe:', x.shape)
         
         if self.config.get('kwargs_anf_output', False):
             x = self.anf_out_from_in(x)
-            print('ANF firing response shaepe:', x.shape)
+            # print('ANF firing response shaepe:', x.shape)
 
         if self.config.get('kwargs_spike_generator_binomial', False):
-            x = self.get_spike(x)
-            print('Final nervegram shaepe:', x.shape)
+            x = self.get_spike(x).permute(1,0,2,3)
+            # print('Final nervegram shaepe:', x.shape)
 
-        return x
+        if self.center_crop:
+            x_dur = x.shape[-1]
+            diff = (x_dur - self.n_out_frames) // 2
+            frame_start = diff 
+            frame_end = int(x_dur - diff)
+            x = x[..., frame_start : frame_end]
+        return x.float()
 
 class audio_to_subbands(nn.Module):
     def __init__(self, sr=32000, rectify=True, **kwargs_subbands):
@@ -56,7 +64,8 @@ class audio_to_subbands(nn.Module):
         self.config_filterbank = kwargs_subbands
         self.signal_length = self.config_filterbank.get('signal_length', 110_250)
         self.filterbank_mode = self.config_filterbank.pop('mode', None)
-        self.filterbank = self.get_filterbank()
+        # register buffer
+        self.register_buffer('filterbank', self.get_filterbank())
         # Convert audio to subbands as specified by config_filterbank
         print('[cimodel] converting audio to subbands using {}'.format(self.filterbank_mode))
 
@@ -127,7 +136,7 @@ class subbands_to_envelopes(nn.Module):
         tensor_envelopes = F.relu(tensor_subbands)
         
         if self.envelope_lowpass_ideal:
-            print("[cimodel] Performing subband envelope extraction with ideal lowpass filter")
+            # print("[cimodel] Performing subband envelope extraction with ideal lowpass filter")
             
             # If an ideal lowpass filter is needed, extract envelopes by downsampling
             # to 2 x envelope_lowpass_cutoff, and then upsampling to sr_output
@@ -142,29 +151,37 @@ class sigmoid_current_map(nn.Module):
         super(sigmoid_current_map, self).__init__()
         
         # Convert TL, MCL, threshold, and dynamic_range to the required form
-        self.rate_spont = 1e-3 * 10 ** (TL / 20)
-        self.rate_max = 1e-3 * 10 ** (MCL / 20)
-        self.rate_spont = np.array(self.rate_spont).reshape([-1])
-        self.rate_max = np.array(self.rate_max).reshape([-1])
-        self.threshold = np.array(threshold).reshape([-1])
-        self.dynamic_range = np.array(dynamic_range).reshape([-1])
-        
-        # Constants for sigmoid calculation
-        self.y_threshold = (1 - dynamic_range_interval) / 2
-        self.k = np.log((1 / self.y_threshold) - 1) / (self.dynamic_range / 2)
-        self.x0 = self.threshold - (np.log((1 / self.y_threshold) - 1) / (-self.k))
+        rate_spont = 1e-3 * 10 ** (TL / 20)
+        rate_max = 1e-3 * 10 ** (MCL / 20)
+        rate_spont = np.array(rate_spont).reshape([-1])
+        rate_max = np.array(rate_max).reshape([-1])
+        self.threshold = torch.tensor(threshold).reshape([-1])
+        self.dynamic_range = torch.tensor(dynamic_range).reshape([-1])
         
         # Ensure valid arguments
-        assert np.all(self.rate_max > self.rate_spont), "rate_max must be greater than rate_spont"
-        self.argument_lengths = [len(self.rate_spont), len(self.rate_max), len(self.threshold), len(self.dynamic_range)]
+        assert np.all(rate_max > rate_spont), "rate_max must be greater than rate_spont"
+        self.argument_lengths = [len(rate_spont), len(rate_max), len(self.threshold), len(self.dynamic_range)]
         self.n_channels = max(self.argument_lengths)
+        channel_specific_shape = [1, 1, 1, self.n_channels]
         msg = "inconsistent argument lengths for rate_spont, rate_max, threshold, dynamic_range"
         assert np.all([_ in (1, self.n_channels) for _ in self.argument_lengths]), msg
         
-    def forward(self, X):
-        # Set up channel-specific shape
-        channel_specific_shape = [1, 1, 1, self.n_channels]
+        # Constants for sigmoid calculation
+        self.y_threshold = torch.tensor((1 - dynamic_range_interval) / 2).view(channel_specific_shape)
+        k = (torch.log((1 / self.y_threshold) - 1) / (self.dynamic_range / 2)).view(channel_specific_shape)
+        x0 = (self.threshold - (torch.log((1 / self.y_threshold) - 1) / (-k))).view(channel_specific_shape)
+        rate_spont = torch.from_numpy(rate_spont).view(channel_specific_shape)
+        rate_max = torch.from_numpy(rate_max).view(channel_specific_shape)
+        self.log_of_10 = np.log(10)
         
+        # register buffer
+        self.register_buffer('rate_spont', rate_spont)
+        self.register_buffer('rate_max', rate_max)
+        self.register_buffer('k', k)
+        self.register_buffer('x0', x0)
+
+        
+    def forward(self, X):        
         # Handle 3D or 4D inputs
         if len(X.shape) == 4:
             assert X.shape[-1] in (1, self.n_channels), "Number of channels in tensor_subbands must be 1 or {}".format(self.n_channels)
@@ -172,18 +189,18 @@ class sigmoid_current_map(nn.Module):
             if self.n_channels != 1:
                 X = X.unsqueeze(-1)  # Add a channel dimension if necessary
         
-        # Convert numpy arrays to torch tensors, matching the input dtype
-        rate_spont = torch.tensor(self.rate_spont, dtype=X.dtype).view(channel_specific_shape)
-        rate_max = torch.tensor(self.rate_max, dtype=X.dtype).view(channel_specific_shape)
-        k = torch.tensor(self.k, dtype=X.dtype).view(channel_specific_shape)
-        x0 = torch.tensor(self.x0, dtype=X.dtype).view(channel_specific_shape)
+        # # Convert numpy arrays to torch tensors, matching the input dtype
+        # rate_spont = torch.tensor(self.rate_spont, dtype=X.dtype).view(channel_specific_shape)
+        # rate_max = torch.tensor(self.rate_max, dtype=X.dtype).view(channel_specific_shape)
+        # k = torch.tensor(self.k, dtype=X.dtype).view(channel_specific_shape)
+        # x0 = torch.tensor(self.x0, dtype=X.dtype).view(channel_specific_shape)
         
         # Compute the sigmoid function in PyTorch
-        x = 20.0 * torch.log(X / 20e-6) / torch.log(torch.tensor(10.0, dtype=X.dtype))
-        y = 1.0 / (1.0 + torch.exp(-k * (x - x0)))
+        x = 20.0 * torch.log(X / 20e-6) / self.log_of_10
+        y = 1.0 / (1.0 + torch.exp(-self.k * (x - self.x0)))
         
         # Compute the current map
-        current_map = rate_spont + (rate_max - rate_spont) * y
+        current_map = self.rate_spont + (self.rate_max - self.rate_spont) * y
         return current_map.squeeze(0)
 
 
@@ -199,12 +216,13 @@ class currentmap_to_pulsetrains(nn.Module):
         offset_in_samples = int(self.offset * self.sr)  # offset in samples
         
 
-        self.pulse_mask_array = self.get_pulse_mask(
+        pulse_mask_array = self.get_pulse_mask(
             num_elec=num_elec,
             num_samples= num_samples + self.ipi_in_samples,
             ipi=self.ipi_in_samples,
             offset=offset_in_samples
         ).unsqueeze(0)
+        self.register_buffer('pulse_mask_array', pulse_mask_array)
 
     def get_pulse_mask(self, num_elec, num_samples, ipi=1, offset=0):
         """
@@ -232,12 +250,12 @@ class currentmap_to_pulsetrains(nn.Module):
         
         # Apply compression if compression_power is provided
         if self.compression_power is not None:
-            tensor_pulsetrains = torch.pow(tensor_pulsetrains, self.compression_power)
+            tensor_pulsetrains = torch.pow(tensor_pulsetrains, self.compression_power).float()
         
         return tensor_pulsetrains
     
 class pulsetrains_to_anf_input(nn.Module):
-    def __init__(self, num_anfs=100, elec_min_x=8.125, elec_max_x=23.875, anfs_min_x=None, anfs_max_x=None, anfs_min_cf=125.0, anfs_max_cf=14e3, verbose=True, num_elec=16, kwargs_current_spread={}):
+    def __init__(self, num_anfs=100, elec_min_x=8.125, elec_max_x=23.875, anfs_min_x=None, anfs_max_x=None, anfs_min_cf=125.0, anfs_max_cf=14e3, verbose=False, num_elec=16, kwargs_current_spread={}):
         super(pulsetrains_to_anf_input, self).__init__()
         self.num_anfs = num_anfs  # number of auditory nerve fibers
         self.elec_min_x = elec_min_x  # electrode position in cochlea
@@ -249,7 +267,7 @@ class pulsetrains_to_anf_input(nn.Module):
         self.kwargs_current_spread = kwargs_current_spread
         self.num_elec = num_elec
         self.verbose = verbose  # verbose
-        self.tensor_current_spread = self.get_nerve_interface() 
+        self.register_buffer("tensor_current_spread", self.get_nerve_interface().float()) 
         
     def get_current_spread_matrix(self, elec_x,
                               anfs_x,
@@ -307,8 +325,9 @@ class anf_input_to_anf_output(nn.Module):
         super(anf_input_to_anf_output, self).__init__()
         self.kwargs_sigmoid_rate_level_function = kwargs_anf_output['kwargs_sigmoid_rate_level_function']
         self.kwargs_anf_impulse_response = kwargs_anf_output['kwargs_anf_impulse_response']
-        self.kernel = self.get_anf_impulse_response(**self.kwargs_anf_impulse_response)
-        self.kernel = self.kernel.flip(0).unsqueeze(0).unsqueeze(0).unsqueeze(0)  # Reverse kernel and reshape
+        kernel = self.get_anf_impulse_response(**self.kwargs_anf_impulse_response)
+        kernel = kernel.flip(0).unsqueeze(0).unsqueeze(0).unsqueeze(0)  # Reverse kernel and reshape
+        self.register_buffer('kernel', kernel)
 
         if self.kwargs_sigmoid_rate_level_function:
             self.rate_level_function = SigmoidRateLevelFunction(**self.kwargs_sigmoid_rate_level_function)
@@ -387,27 +406,33 @@ class SigmoidRateLevelFunction(nn.Module):
         super(SigmoidRateLevelFunction, self).__init__()
         
         # Convert rate_spont, rate_max, threshold, and dynamic_range to the required form
-        self.rate_spont = np.array(rate_spont).reshape([-1])
-        self.rate_max = np.array(rate_max).reshape([-1])
+        rate_spont = np.array(rate_spont).reshape([-1])
+        rate_max = np.array(rate_max).reshape([-1])
         self.threshold = np.array(threshold).reshape([-1])
         self.dynamic_range = np.array(dynamic_range).reshape([-1])
         
         # Constants for sigmoid calculation
         self.y_threshold = (1 - dynamic_range_interval) / 2
-        self.k = np.log((1 / self.y_threshold) - 1) / (self.dynamic_range / 2)
-        self.x0 = self.threshold - (np.log((1 / self.y_threshold) - 1) / (-self.k))
+        k = np.log((1 / self.y_threshold) - 1) / (self.dynamic_range / 2)
+        x0 = self.threshold - (np.log((1 / self.y_threshold) - 1) / (-k))
         
         # Ensure valid arguments
-        assert np.all(self.rate_max > self.rate_spont), "rate_max must be greater than rate_spont"
-        self.argument_lengths = [len(self.rate_spont), len(self.rate_max), len(self.threshold), len(self.dynamic_range)]
+        assert np.all(rate_max > rate_spont), "rate_max must be greater than rate_spont"
+        self.argument_lengths = [len(rate_spont), len(rate_max), len(self.threshold), len(self.dynamic_range)]
         self.n_channels = max(self.argument_lengths)
         msg = "Inconsistent argument lengths for rate_spont, rate_max, threshold, dynamic_range"
         assert np.all([_ in (1, self.n_channels) for _ in self.argument_lengths]), msg
-
-    def forward(self, tensor_subbands):
-        # Set up channel-specific shape
         channel_specific_shape = [1, 1, 1, self.n_channels]
 
+        # register buffer
+        self.register_buffer('rate_spont', torch.tensor(rate_spont).view(channel_specific_shape))
+        self.register_buffer('rate_max', torch.tensor(rate_max).view(channel_specific_shape))
+        self.register_buffer('k', torch.tensor(k).view(channel_specific_shape))
+        self.register_buffer('x0', torch.tensor(x0).view(channel_specific_shape))
+
+        self.log_of_10 = np.log(10)
+
+    def forward(self, tensor_subbands):
         # Handle 3D or 4D inputs
         if len(tensor_subbands.shape) == 4:
             assert tensor_subbands.shape[-1] in (1, self.n_channels), \
@@ -416,18 +441,13 @@ class SigmoidRateLevelFunction(nn.Module):
             if self.n_channels != 1:
                 tensor_subbands = tensor_subbands.unsqueeze(-1)  # Add channel dimension if necessary
 
-        # Convert numpy arrays to torch tensors, matching the input dtype
-        rate_spont = torch.tensor(self.rate_spont, dtype=tensor_subbands.dtype).view(channel_specific_shape)
-        rate_max = torch.tensor(self.rate_max, dtype=tensor_subbands.dtype).view(channel_specific_shape)
-        k = torch.tensor(self.k, dtype=tensor_subbands.dtype).view(channel_specific_shape)
-        x0 = torch.tensor(self.x0, dtype=tensor_subbands.dtype).view(channel_specific_shape)
-
-        # Compute the sigmoid function in PyTorch
-        x = 20.0 * torch.log(tensor_subbands / 1e-3) / torch.log(torch.tensor(10.0, dtype=tensor_subbands.dtype))
-        y = 1.0 / (1.0 + torch.exp(-k * (x - x0)))
+        # Compute the sigmoid function in PyTorch 
+        # TODO: make this a general function - don't hardcode in each class
+        x = 20.0 * torch.log(tensor_subbands / 1e-3) / self.log_of_10
+        y = 1.0 / (1.0 + torch.exp(-self.k * (x - self.x0)))
 
         # Compute the spiking rate
-        tensor_rates = rate_spont + (rate_max - rate_spont) * y
+        tensor_rates = self.rate_spont + (self.rate_max - self.rate_spont) * y
         return tensor_rates
     
 class SpikeGeneratorBinomial(nn.Module):
@@ -440,17 +460,18 @@ class SpikeGeneratorBinomial(nn.Module):
         self.p_dtype = torch.float32
         self.max_prop = max_prop
         self.min_prop = min_prop
+        n = torch.tensor(self.n_per_channel, dtype=self.p_dtype)
+        self.register_buffer('n', n)    
 
     def forward(self, inputs):
-        tensor_spike_probs = torch.multiply(inputs.to(self.p_dtype), 1 / self.sr)
+        tensor_spike_probs = torch.multiply(inputs, 1 / self.sr)
         if len(tensor_spike_probs.shape) < 4:
             tensor_spike_probs = torch.unsqueeze(tensor_spike_probs, dim=-1)
         # Approx implementation: sample from normal approximation of binomial distribution
         p = tensor_spike_probs
         q = 1 - tensor_spike_probs
-        n = torch.tensor(self.n_per_channel).to(self.p_dtype)
-        mean = (n * p).expand_as(tensor_spike_probs)
-        std = torch.sqrt(n * p * q).expand_as(tensor_spike_probs)
+        mean = (self.n * p).expand_as(tensor_spike_probs)
+        std = torch.sqrt(self.n * p * q).expand_as(tensor_spike_probs)
         tensor_spike_counts = torch.normal(
             mean,                # Mean of the normal distribution
             std,  # Standard deviation
@@ -460,11 +481,11 @@ class SpikeGeneratorBinomial(nn.Module):
         tensor_spike_counts = torch.round(F.relu(tensor_spike_counts))
 
         # Cast tensor to the same type as `inputs`
-        tensor_spike_counts = tensor_spike_counts.to(inputs.dtype)
+        tensor_spike_counts = tensor_spike_counts
         return tensor_spike_counts
 
 class tf_fir_resample(torch.nn.Module):
-    def __init__(self, sr_input, sr_output, kwargs_fir_lowpass_filter={}, verbose=True, return_io_function=True):
+    def __init__(self, sr_input, sr_output, kwargs_fir_lowpass_filter={}, verbose=False, return_io_function=True):
                   
         """
         Class for resampling time-domain signals with an FIR lowpass filter.
@@ -500,7 +521,9 @@ class tf_fir_resample(torch.nn.Module):
         self.down = int(sr_input) // greatest_common_divisor
         filt, sr_filt = utils_signal.fir_lowpass_filter(sr_input, sr_output, **kwargs_fir_lowpass_filter, verbose=verbose)
         filt = filt * self.up # Re-scale filter to offset attenuation from upsampling
-        self.tensor_kernel_lowpass_filter = torch.unsqueeze(torch.unsqueeze(torch.from_numpy(filt),0),0).float()
+        tensor_kernel_lowpass_filter = torch.unsqueeze(torch.unsqueeze(torch.from_numpy(filt),0),0).float()
+        # register buffer
+        self.register_buffer('tensor_kernel_lowpass_filter', tensor_kernel_lowpass_filter)
         self.verbose = verbose  
         # First upsample by a factor of `up` by adding `up-1` zeros between each sample in original signal
         self.nzeros = self.up - 1

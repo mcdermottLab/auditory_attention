@@ -21,7 +21,7 @@ audio:                                  # Attributes of audio feature
     kwargs_anf_input:
       elec_min_x: 8.125
       num_anfs: 40
-      verbose: true
+      verbose: false
       num_elec: 16
       elec_max_x: 23.875 
       anfs_min_cf: 125
