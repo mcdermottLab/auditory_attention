@@ -56,6 +56,58 @@ class SimpleAttentionalGain(nn.Module):
             mixture = torch.mul(mixture, gain)
         return mixture
     
+
+class KernelAttentionalGain(nn.Module):
+    def __init__(self, frequency_dim, cnn_channels, global_avg_cue=False, n_cue_frames=None, additive=False, **kwargs):
+        super(KernelAttentionalGain, self).__init__()
+        self.frequency_dim = frequency_dim
+
+        if global_avg_cue:
+            self.ouptut_shape = (1,1)
+        else:
+            self.ouptut_shape = (frequency_dim, 1)
+            # self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) # outsize is N, C, FreqDim, 1
+        self.bias = nn.Parameter(torch.zeros(1, cnn_channels, 1, 1)) # init gain scaling to zero
+        self.slope = nn.Parameter(torch.ones(1, cnn_channels, 1, 1)) # init slope to one
+        self.threshold = nn.Parameter(torch.zeros(1, cnn_channels, 1, 1)) # init threshold to zero
+        self.n_cue_frames = n_cue_frames # duration of cue in frames - full cue if None
+        self.additive = additive # if True, gain is added to mixture, else multiplied
+
+        if self.n_cue_frames:
+            if n_cue_frames < 0:
+                self.n_cue_frames = 1 
+            print(f"Using cue duration of {self.n_cue_frames} frames")
+        self.reset_parameters() 
+
+    def reset_parameters(self):
+        nn.init.constant_(self.bias, 0)
+        nn.init.constant_(self.slope, 1)
+        nn.init.constant_(self.threshold, 0)
+
+    def forward(self, cue, mixture, cue_mask_ixs):
+        ## Process cue 
+        # time average - same as nn op, but is compat with compile 
+        if self.n_cue_frames:
+            cue = cue[...,  : self.n_cue_frames]
+        cue = cue.mean(axis=-1,keepdim=True)
+        # cue = self.time_average(cue)
+        # apply threshold shift
+        cue = cue - self.threshold
+        # apply slope
+        cue = cue * self.slope
+        # apply sigmoid & bias
+        gain = self.bias + (1-self.bias) * torch.sigmoid(cue)
+        ## account for no-cue examples - no gain scaling applied
+        if cue_mask_ixs is not None:
+            gain[cue_mask_ixs,:] = 1
+        # Apply to mixture (element mult)
+        if self.additive:
+            mixture = torch.add(mixture, gain)
+        else:
+            mixture = torch.mul(mixture, gain)
+        return mixture
+
+
 class LearnedTimeAveragedGains(nn.Module):
     def __init__(self, frequency_dim, cnn_channels, time_dim, global_avg_cue=False, n_cue_frames=None, additive=False, **kwargs):
         super(LearnedTimeAveragedGains, self).__init__()
@@ -461,7 +513,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
     def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
                   fc_size=512, global_avg_cue=False, num_classes={"num_words":800, "num_locs":504}, frequency_dim=40,
                   residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, ln_affine=True, 
-                  v08=False, additive=False, cue_loc_task=False, fc_attn=True, **kwargs):
+                  v08=False, additive=False, cue_loc_task=False, fc_attn=True,  per_kernel_gain=False, **kwargs):
         super(BinauralAuditoryAttentionCNN, self).__init__()
         # Setup
         print('v08', v08)
@@ -497,6 +549,14 @@ class BinauralAuditoryAttentionCNN(nn.Module):
         self.n_layers = len(out_channels)
         self.norm_first = norm_first
         self.cue_loc_task  = cue_loc_task
+        self.per_kernel_gain = per_kernel_gain
+        if per_kernel_gain:
+            self.gain_module = KernelAttentionalGain
+            print(f"Using per-kernel gain functions")
+        else:
+            self.gain_module = SimpleAttentionalGain
+            print(f"Using singe gain function per layer")
+
 
         if norm_first:
             print(f"Conv block order: LN -> Conv -> ReLU")
@@ -513,10 +573,9 @@ class BinauralAuditoryAttentionCNN(nn.Module):
         self.fc_attn = fc_attn
         print(f"fc_attn: {fc_attn}")
 
-
         self.model_dict = nn.ModuleDict()
         self.output_height = frequency_dim
-        self.output_len = starting_output_len # softcode eventually
+        self.output_len = starting_output_len 
 
         # build architecture
         if v08:
@@ -538,7 +597,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
             # Attentional block:
             if self.attn[idx] == 1:
                 # is SimpleAttentionalGain(self.frequency_dim, self.input_channels, ... ) when ix == 0; normal for ix > 0 
-                self.model_dict[f'attn{idx}'] = SimpleAttentionalGain(self.output_height, nIn, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
+                self.model_dict[f'attn{idx}'] = self.gain_module (self.output_height, nIn, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
 
             # pre-compute conv output sizes - will assign to self.output_height and self.output_len after defining block
             # Sizes will be used for normalization layers, but depend on order of norm and conv 
@@ -582,7 +641,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
                     self.n_cue_frames = int(np.floor((self.n_cue_frames - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
 
         if v08 and fc_attn:
-            self.model_dict[f'attnfc'] = SimpleAttentionalGain(self.output_height, nOut, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
+            self.model_dict[f'attnfc'] = self.gain_module (self.output_height, nOut, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
 
         self.output_size = self.output_height * nOut * self.output_len
         self.fullyconnected = nn.Linear(self.output_size, fc_size)
