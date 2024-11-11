@@ -71,6 +71,7 @@ def estimate_thresholds(x, y, threshold_value="half", **kwargs):
 
 model_name_dict = {
                    'word_task_v08_control_no_attn': 'Baseline CNN v08',
+                   'word_task_v09_control_no_attn': 'Baseline CNN v09',
                    'word_task_early_only_v09': 'Early-only',
                    'word_task_late_only_v09': 'Late-only',
                    "word_task_gender_balanced_fc_1024_v08": "Gender Balanced large fc v08",
