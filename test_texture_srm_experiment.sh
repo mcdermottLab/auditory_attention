@@ -41,7 +41,7 @@ python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_la
                  --cue_type voice_and_location --no-overwrite --n_per_job 1 --texture_distractor --run_all_stim 
 
 python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_v09_control_no_attn.yaml \
-                 --ckpt_path attn_cue_models/word_task_v09_control_no_attn/checkpoints/epoch=4-step=60216.ckpt \
+                 --ckpt_path attn_cue_models/word_task_v09_control_no_attn/checkpoints/epoch=0-step=10000.ckpt \
                  --test_manifest binaural_test_manifests/symmetric_distractor_conditions_w_front_back_neg_21_to_6_dBSNR_test_rooms.pkl \
                  --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/texture_srm_experiment \

@@ -26,7 +26,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #                  --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
 #                  --full_h5_stim_set
 
-rm -r /tmp/torchinductor_imgriff
+# rm -r /tmp/torchinductor_imgriff
 
 
 # python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_late_only_v09.yaml \
@@ -36,7 +36,7 @@ rm -r /tmp/torchinductor_imgriff
 #                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
 #                  --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
 #                  --full_h5_stim_set
-# rm -r /tmp/torchinductor_imgriff
+rm -r /tmp/torchinductor_imgriff
 
 
 python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_v09_control_no_attn.yaml \
