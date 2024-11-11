@@ -22,14 +22,37 @@ torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
     
 def run_eval(args):
+    if args.config != "":
+        config_path = pathlib.Path(args.config)
+        checkpoint_path = args.ckpt_path
+        test_idx = args.array_id
 
-    model_name = pathlib.Path(args.config).stem
-    checkpoint_path = args.ckpt_path
-    config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
+    elif args.config_list_path != "":
+        with open(args.config_list_path, 'rb') as f:
+            config_dict = pickle.load(f)
+            config_output = config_dict[args.array_id]
+            if isinstance(config_output, dict):
+                print(f"Loading config from {config_output['config_path']}")
+                config_path, checkpoint_path, test_idx = config_output['config_path'], config_output['ckpt_path'], config_output['test_idx']
+                config_path = pathlib.Path(config_path)
+            else:
+                config_path = pathlib.Path(config_output)
+                checkpoint_path = args.ckpt_path
+                test_idx = args.array_id
+
+    config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
+    config_str_name = str(config_path)
+    model_name = config_path.stem
+
+    # handle checkpoint path - if not provided, get latest 
+    if checkpoint_path == "":
+        ckpt_dir = Path('attn_cue_models/') / model_name / 'checkpoints'
+        checkpoint_path = sorted(ckpt_dir.glob("*.ckpt"), key=os.path.getctime)[-1]
+
     print(f"Loading model from {checkpoint_path}")
     
     # load model 
-    if 'binaural_attn' in args.config or 'word_task' in args.config:
+    if 'binaural_attn' in config_str_name or 'word_task' in config_str_name:
         module = BinauralAttentionModule
         label_type = 'CV'
 
@@ -49,7 +72,7 @@ def run_eval(args):
     if args.full_h5_stim_set:
         with open(args.stim_cond_map, 'rb') as f:
             condition_dict = pickle.load(f)
-        condition, snr = condition_dict[args.array_id]
+        condition, snr = condition_dict[test_idx]
 
     IIR_COCH = not audio_config['rep_kwargs']['rep_on_gpu']
 
@@ -61,7 +84,7 @@ def run_eval(args):
                 at.UnsqueezeAudio(dim=0),
                 at.AudioToAudioRepresentation(**audio_config),
             ])
-    if 'mono' not in args.config:
+    if 'mono' not in config_str_name:
         print(f"Using diotic input")
         if args.full_h5_stim_set:
             audio_transforms = at.AudioCompose([
@@ -93,7 +116,7 @@ def run_eval(args):
 
     # load and freeze model
     model = module.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).eval().cuda()
-    use_coch = True if ('v0' in args.config or 'word_task' in args.config) else False 
+    use_coch = True if ('v0' in config_str_name or 'word_task' in config_str_name) else False 
     coch_gram = None
     if use_coch:
         coch_gram = model.coch_gram.cuda()
@@ -106,33 +129,33 @@ def run_eval(args):
                                             label_type=label_type)
         else:
             dataset = SWCMonoTestSet(stim_path=args.stim_path,
-                            cond_ix=args.array_id,
+                            cond_ix=test_idx,
                             model_sr=sr,
                             label_type=label_type,
                             stim_cond_map=args.stim_cond_map)
 
-            condition, snr = dataset.stim_cond_map[args.array_id]
+            condition, snr = dataset.stim_cond_map[test_idx]
 
     elif '2024' in str(args.stim_path) or args.spotlight_expmnt:
         dataset = SWCMonoTestSet2024(stim_path=args.stim_path,
-                                cond_ix=args.array_id,
+                                cond_ix=test_idx,
                                 model_sr=sr,
                                 label_type=label_type,
                                 stim_cond_map=args.stim_cond_map)
         if args.spotlight_expmnt:
-            condition_dict = dataset.stim_cond_map[args.array_id]
+            condition_dict = dataset.stim_cond_map[test_idx]
             condition = f"target_azim_{condition_dict['target_azim']}_distractor_azim_{condition_dict['distractor_azim']}"
             snr = 0
         else:
-            condition, snr = dataset.stim_cond_map[args.array_id]
+            condition, snr = dataset.stim_cond_map[test_idx]
 
     elif 'popham' in str(args.stim_path):
         dataset = SWCMonoTestSet(stim_path=args.stim_path,
-                                cond_ix=args.array_id,
+                                cond_ix=test_idx,
                                 model_sr=sr,
                                 label_type=label_type,
                                 popham_stim=True)  
-        condition_dict = dataset.stim_cond_map[args.array_id]
+        condition_dict = dataset.stim_cond_map[test_idx]
         target_harm = condition_dict['target_harmonicity']
         dist_harm = condition_dict['distractor_harmonicity']
         dist_harm = "no" if dist_harm is None else dist_harm
@@ -141,12 +164,12 @@ def run_eval(args):
 
     else:
         dataset = SWCMonoTestSet(stim_path=args.stim_path,
-                                cond_ix=args.array_id,
+                                cond_ix=test_idx,
                                 model_sr=sr,
                                 label_type=label_type,
                                 unfamiliar_distractor = True if 'language' in args.stim_path.as_posix() else False)
         
-        condition, snr = dataset.stim_cond_map[args.array_id]
+        condition, snr = dataset.stim_cond_map[test_idx]
     print(f"Evaluating {model_name} on {condition} at {snr}db SNR")
     if args.full_h5_stim_set:
         def collate_fn(batch):
@@ -173,7 +196,7 @@ def run_eval(args):
             return cues, mixtures, labels
     print(dataset)
     dataloader = torch.utils.data.DataLoader(dataset,
-                                             batch_size=12,
+                                             batch_size=8,
                                              shuffle=False,
                                              collate_fn=collate_fn,
                                              num_workers=args.n_jobs)
@@ -237,6 +260,7 @@ def run_eval(args):
 def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--config', type=str, default="", help='Path to experiment config.')
+    parser.add_argument('--config_list_path', type=str, default="", help='Path to experiment config pkl file.')
     parser.add_argument(
         "--exp_dir",
         default=pathlib.Path("./exp"),
