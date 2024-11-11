@@ -87,6 +87,13 @@ def get_part_df(fname):
     # part_df['participant'] = fname.stem
     return part_df
 
+def get_part_df_loc_check(fname):
+    part_df = pd.read_csv(fname)
+    part_df = part_df[~part_df.trial_num.isna()].reset_index(drop=True)
+    part_df.trial_num = part_df.trial_num.astype(float).astype('int')
+    # part_df['participant'] = fname.stem
+    return part_df
+
 def slice_transcript_path(path_str):
     return Path(path_str).stem
 
@@ -134,8 +141,8 @@ def get_manifest_df(fname):
     trial_nums =  manifest_df.index.to_list()
     manifest_df['trial_num'] = trial_nums
     # unpack locations to azimuth and elevation 
-    manifest_df['target_azim'] = manifest_df['target_loc'].apply(lambda x: x[0])
-    manifest_df['target_elev'] = manifest_df['target_loc'].apply(lambda x: x[1])
+    manifest_df['target_azim'] = manifest_df['target_loc'].apply(lambda x: x[1][0] if isinstance(x, list) else x[0])
+    manifest_df['target_elev'] = manifest_df['target_loc'].apply(lambda x: x[1][1] if isinstance(x, list) else x[1])
     dist_azim, dist_elev, n_dist = zip(*manifest_df['distractor_loc'].apply(lambda x: unpack_loc_tuple(x)))
     manifest_df['distractor_azim'] = dist_azim
     manifest_df['distractor_elev'] = dist_elev
