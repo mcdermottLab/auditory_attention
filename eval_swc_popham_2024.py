@@ -22,9 +22,32 @@ torch.backends.cudnn.allow_tf32 = True
     
 def run_eval(args):
 
-    model_name = pathlib.Path(args.config).stem
-    checkpoint_path = args.ckpt_path
-    config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
+    if args.config != "":
+        config_path = pathlib.Path(args.config)
+        checkpoint_path = args.ckpt_path
+        test_idx = args.array_id
+
+    elif args.config_list_path != "":
+        with open(args.config_list_path, 'rb') as f:
+            config_dict = pickle.load(f)
+            config_output = config_dict[args.array_id]
+            if isinstance(config_output, dict):
+                print(f"Loading config from {config_output['config_path']}")
+                config_path, checkpoint_path, test_idx = config_output['config_path'], config_output['ckpt_path'], config_output['test_idx']
+                config_path = pathlib.Path(config_path)
+            else:
+                config_path = pathlib.Path(config_output)
+                checkpoint_path = args.ckpt_path
+                test_idx = args.array_id
+
+    model_name = config_path.stem
+    config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
+
+    # handle checkpoint path - if not provided, get latest 
+    if checkpoint_path == "":
+        ckpt_dir = pathlib.Path('attn_cue_models/') / model_name / 'checkpoints'
+        checkpoint_path = sorted(ckpt_dir.glob("*.ckpt"), key=os.path.getctime)[-1]
+
     print(f"Loading model from {checkpoint_path}")
     
     # load model 
@@ -38,7 +61,7 @@ def run_eval(args):
     # get snr for audio transforms if part of the config
     with open(args.stim_cond_map, 'rb') as f:
         condition_dict = pickle.load(f)
-    test_cond = condition_dict[args.array_id]
+    test_cond = condition_dict[test_idx]
     target_harmonicity = test_cond['target_harmonicity']
     distractor_harmonicity = test_cond['distractor_harmonicity']
     
@@ -83,7 +106,7 @@ def run_eval(args):
 
 
     dataloader = torch.utils.data.DataLoader(dataset,
-                                             batch_size=12,
+                                             batch_size=8,
                                              shuffle=False,
                                              collate_fn=collate_fn,
                                              num_workers=args.n_jobs)
@@ -135,6 +158,7 @@ def run_eval(args):
 def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--config', type=str, default="", help='Path to experiment config.')
+    parser.add_argument('--config_list_path', type=str, default="", help='Path to experiment config manifest (.pkl) file.')
     parser.add_argument(
         "--exp_dir",
         default=pathlib.Path("./exp"),

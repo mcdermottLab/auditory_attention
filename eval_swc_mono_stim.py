@@ -4,8 +4,7 @@ import yaml
 import pickle
 import csv
 import torch 
-import soxr
-import h5py
+import os 
 import numpy as np 
 import pandas as pd
 from tqdm.auto import tqdm
@@ -46,7 +45,7 @@ def run_eval(args):
 
     # handle checkpoint path - if not provided, get latest 
     if checkpoint_path == "":
-        ckpt_dir = Path('attn_cue_models/') / model_name / 'checkpoints'
+        ckpt_dir = pathlib.Path('attn_cue_models/') / model_name / 'checkpoints'
         checkpoint_path = sorted(ckpt_dir.glob("*.ckpt"), key=os.path.getctime)[-1]
 
     print(f"Loading model from {checkpoint_path}")

@@ -7,7 +7,7 @@
 #SBATCH --time=0:10:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=1-426 # 0-426 for 7 archs on each test
+#SBATCH --array=51-60 # 0-426 for 7 archs on each test
 #SBATCH -x dgx001,dgx002,node093
 
 module load openmind8/anaconda/3-2022.10
