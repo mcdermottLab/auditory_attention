@@ -7,7 +7,7 @@
 #SBATCH --time=4:00:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0-1259 #0-1259 for new 3 room test manifest 
+#SBATCH --array=0-839 #0-1259 for new 3 room test manifest 0-419 for min reverb 420-839 for anechoic reverb 840-1259 normal reverb
 #SBATCH -x dgx001,dgx002
 
 module load openmind8/anaconda/3-2022.10
@@ -19,22 +19,22 @@ which python3
 rm -r /tmp/torchinductor_imgriff
 
 
-python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=2-step=35108-v1.ckpt \
-                 --test_manifest binaural_test_manifests/symmetric_distractor_conditions_w_front_back_neg_21_to_6_dBSNR_test_rooms.pkl \
-                 --location_idx $SLURM_ARRAY_TASK_ID \
-                 --gpus 1 --n_jobs 2 --exp_dir binaural_eval/texture_srm_experiment \
-                 --cue_type voice_and_location --no-overwrite --n_per_job 1 --texture_distractor --run_all_stim 
+# python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+#                  --ckpt_path attn_cue_models/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=2-step=35108-v1.ckpt \
+#                  --test_manifest binaural_test_manifests/symmetric_distractor_conditions_w_front_back_neg_21_to_6_dBSNR_test_rooms.pkl \
+#                  --location_idx $SLURM_ARRAY_TASK_ID \
+#                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/texture_srm_experiment \
+#                  --cue_type voice_and_location --no-overwrite --n_per_job 1 --texture_distractor --run_all_stim 
 
 python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_early_only_v09.yaml \
-                 --ckpt_path attn_cue_models/word_task_early_only_v09/checkpoints/epoch=2-step=31108.ckpt \
+                 --ckpt_path attn_cue_models/word_task_early_only_v09/checkpoints/epoch=3-step=39662.ckpt \
                  --test_manifest binaural_test_manifests/symmetric_distractor_conditions_w_front_back_neg_21_to_6_dBSNR_test_rooms.pkl \
                  --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/texture_srm_experiment \
                  --cue_type voice_and_location --no-overwrite --n_per_job 1 --texture_distractor --run_all_stim 
 
 python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_late_only_v09.yaml \
-                 --ckpt_path attn_cue_models/word_task_late_only_v09/checkpoints/epoch=0-step=10000.ckpt \
+                 --ckpt_path attn_cue_models/word_task_late_only_v09/checkpoints/epoch=2-step=37108.ckpt \
                  --test_manifest binaural_test_manifests/symmetric_distractor_conditions_w_front_back_neg_21_to_6_dBSNR_test_rooms.pkl \
                  --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/texture_srm_experiment \

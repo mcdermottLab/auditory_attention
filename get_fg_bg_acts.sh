@@ -4,7 +4,7 @@
 #SBATCH --error=outLogs/get_fg_bg_acts_%A_%a.err
 #SBATCH --mem=8Gb                           # Logs say job uses 30Gb, get OOM if less than 48Gb
 #SBATCH --cpus-per-task=1
-#SBATCH --time=0:30:00
+#SBATCH --time=1:30:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:1 --constraint=20GB
 #SBATCH -x dgx001,dgx002
@@ -32,11 +32,36 @@ which python3
 #                  --silence_w_uncued  \
 #                  --job_id $SLURM_ARRAY_TASK_ID
 
-python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_conventional_layer_order.yaml \
-                 --ckpt_path attn_cue_models/word_task_conventional_layer_order_lr0001/checkpoints/epoch=0-step=8000-v6.ckpt \
+# python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_conventional_layer_order.yaml \
+#                  --ckpt_path attn_cue_models/word_task_conventional_layer_order_lr0001/checkpoints/epoch=0-step=8000-v6.ckpt \
+#                  --model_dir binaural_model_attn_stage_reps \
+#                  --n_jobs 0 \
+#                  --n_activations 100 \
+#                  --silence_w_uncued  \
+#                  --job_id $SLURM_ARRAY_TASK_ID
+
+python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
+                 --ckpt_path attn_cue_models/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout/checkpoints/epoch=2-step=35108-v1.ckpt \
                  --model_dir binaural_model_attn_stage_reps \
                  --n_jobs 0 \
                  --n_activations 100 \
                  --silence_w_uncued  \
                  --job_id $SLURM_ARRAY_TASK_ID
+
+python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_early_only_v09.yaml \
+                 --ckpt_path attn_cue_models/word_task_early_only_v09/checkpoints/epoch=3-step=39662.ckpt \
+                 --model_dir binaural_model_attn_stage_reps \
+                 --n_jobs 0 \
+                 --n_activations 100 \
+                 --silence_w_uncued  \
+                 --job_id $SLURM_ARRAY_TASK_ID
+
+python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_late_only_v09.yaml \
+                 --ckpt_path attn_cue_models/word_task_late_only_v09/checkpoints/epoch=2-step=37108.ckpt \
+                 --model_dir binaural_model_attn_stage_reps \
+                 --n_jobs 0 \
+                 --n_activations 100 \
+                 --silence_w_uncued  \
+                 --job_id $SLURM_ARRAY_TASK_ID
+
 

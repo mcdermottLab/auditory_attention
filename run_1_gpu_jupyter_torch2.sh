@@ -1,4 +1,4 @@
-#!/bin/bash -l
+#!/bin/bash 
 #SBATCH --job-name=jupyter_notebook
 #SBATCH --output=outLogs/notebook%j.out
 #SBATCH --error=outLogs/notebook%j.err
@@ -6,10 +6,11 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --time=1:00:00
 #SBATCH --partition=mcdermott 
-#SBATCH --gres=gpu:a100-mcdermott:1 
+#SBATCH --gres=gpu:a100:1 
 #SBATCH -x dgx001,dgx002,node093,node115
 
-# module load /openmind/miniconda
+
+source /etc/profile.d/modules.sh
 module load openmind8/anaconda/3-2022.10
 
 export HDF5_USE_FILE_LOCKING=FALSE

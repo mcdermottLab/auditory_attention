@@ -7,7 +7,7 @@
 #SBATCH --time=0:10:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=51-60 # 0-426 for 7 archs on each test
+#SBATCH --array=61-426 # 0-426 for 7 archs on each test
 #SBATCH -x dgx001,dgx002,node093
 
 module load openmind8/anaconda/3-2022.10
@@ -19,7 +19,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 rm -r /tmp/torchinductor_imgriff
 
 
-python3 eval_swc_mono_stim.py --config_list_path swc_test_manifests/arch_search_configs_2024_all_conds_w_latest_ckpts.pkl \
+python3 eval_swc_mono_stim.py --config_list_path swc_test_manifests/arch_search_configs_11_17_2024_all_conds_w_best_ckpts.pkl \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
