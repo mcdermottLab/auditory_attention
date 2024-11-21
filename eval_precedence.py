@@ -105,9 +105,17 @@ def run_eval(args):
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
 
     # use anechoic BRIRs for free-field test
-    new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/ruggles_shinncunningham_2011/manifest_brir.pdpkl')
-    only14_manifest = new_room_manifest[(new_room_manifest['index_room'] == 0)]
-    
+    if args.use_anchoic_46_room:
+        new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/eval/manifest_brir.pdpkl')
+        # index_room == 0 is Anechoic room 
+        only14_manifest = new_room_manifest[(new_room_manifest['index_room'] == 0)]
+        h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/eval/room0000.hdf5'
+
+    else:
+        new_room_manifest = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/brir/ruggles_shinncunningham_2011/manifest_brir.pdpkl')
+        only14_manifest = new_room_manifest[(new_room_manifest['index_room'] == 0)]
+        h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/ruggles_shinncunningham_2011/room0000.hdf5'
+
     for idx in range(start,end):
         target_loc = test_dict[idx]['target_loc']
         distract_loc = test_dict[idx]['distract_loc']
@@ -154,7 +162,6 @@ def run_eval(args):
                         coords[0] += 360 
 
                 df_row = only14_manifest[(only14_manifest['src_azim'] == coords[0]) & (only14_manifest['src_elev'] == coords[1])]
-                h5_fn = f'/om2/user/msaddler/spatial_audio_pipeline/assets/brir/ruggles_shinncunningham_2011/room0000.hdf5'
                 index_brir = df_row['index_brir'].values[0]
                 sr_src = df_row['sr'].values[0]
                 with h5py.File(h5_fn, 'r') as f:
@@ -333,6 +340,11 @@ def cli_main():
         "--overwrite",
         action=argparse.BooleanOptionalAction,
         help="If true, will overwrite existing results",
+    )
+    parser.add_argument(
+        "--use_anchoic_46_room",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will use anechoic BRIRs for free-field test",
     )
 
     args = parser.parse_args()

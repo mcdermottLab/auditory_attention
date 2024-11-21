@@ -179,8 +179,7 @@ def run_eval(args):
         log_name = log_name.replace('__', '_')      
         print(log_name)
         output_name = str(experiment_dir) + log_name + '.pkl'
-        if idx % 10 == 0:
-            print("Overwrite ", args.overwrite)
+        print("Overwrite ", args.overwrite)
         if not args.overwrite and os.path.exists(output_name):
             continue
         
