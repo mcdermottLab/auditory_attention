@@ -2,12 +2,12 @@
 #SBATCH --job-name=train_binaural_attn
 #SBATCH --output=outLogs/train_binaural_attn_v09_alt_arch_%A_%a.out
 #SBATCH --error=outLogs/train_binaural_attn_v09_alt_arch_%A_%a.err
-#SBATCH --mem=200GB
+#SBATCH --mem=400GB
 #SBATCH -N 1
 #SBATCH --cpus-per-task=16
 #SBATCH --time=4-00:00:00
 #SBATCH --partition=mcdermott
-#SBATCH --gres=gpu:a100:4
+#SBATCH --gres=gpu:a100-mcdermott:4
 #SBATCH --array=0#,5# 10 models in manifest
 
 #source /etc/profile.d/modules.sh
@@ -23,6 +23,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #module add openmind/cudnn/11.5-v8.3.3.40
 #module add openmind/cuda/12.3
 # 
+rm -r /tmp/torchinductor_imgriff
 
 which python3
 python3 spatialtrain.py --config_list /om2/user/imgriff/projects/torch_2_aud_attn/binaural_train_manifests/v09_alt_arch_search_manifest.pkl --job_id $SLURM_ARRAY_TASK_ID \
