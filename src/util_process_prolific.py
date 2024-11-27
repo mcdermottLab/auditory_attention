@@ -104,7 +104,7 @@ def unpack_loc_tuple(loc_tup):
     else:
         n_dist = 1
     azim, elev = loc_tup 
-    azim = abs(azim)
+    # azim = abs(azim)
     return azim, elev, n_dist
 
 def unpack_dist_words(dist_word_list):
