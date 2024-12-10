@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --job-name=temp_calibration
+#SBATCH --job-name=power_analysis
 #SBATCH --output=outLogs/run_power_analysis_%A_%a.out
 #SBATCH --error=outLogs/run_power_analysis_%A_%a.err
 #SBATCH --mem=12GB
 #SBATCH --cpus-per-task=8
-#SBATCH --time=4:30:00
+#SBATCH --time=00:30:00
 #SBATCH --partition=use-everything
-#SBATCH --array=0-600 #-7 # 2-7
+#SBATCH --array=0-700 #-7 # 2-7
 
 source /etc/profile.d/modules.sh
 module add openmind/miniconda

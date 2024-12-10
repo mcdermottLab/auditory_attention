@@ -6,6 +6,7 @@ from tqdm.auto import tqdm
 import sys
 import util_analysis
 from pathlib import Path 
+import re
 
 ## Get all participant data into one df for analysis
 def get_part_df(fname):
@@ -97,8 +98,11 @@ def get_info_from_trial_dict(fname):
 def sample_thresholds(args):
     group_names, k, group_data = args
     ci_group_names = np.random.choice(group_names, k, replace=True)
-    ci_data = group_data[group_data.participant.isin(ci_group_names)]
-    ci_thresh, _, _ = util_analysis.estimate_thresholds(ci_data.snr.values, ci_data.correct_mean.values, bounds_from_data=True)
+    ci_data = group_data[group_data.participant.isin(ci_group_names)].groupby('snr').agg({'correct_mean':'mean'}).reset_index()
+    try:
+        ci_thresh, _ = util_analysis.estimate_threshold_poly(ci_data.snr.values, ci_data.correct_mean.values)
+    except:
+        ci_thresh = np.nan
     return ci_thresh
 
 def bootstrap_ci(k, participants, n_ci_boots, azim_data):
@@ -116,17 +120,19 @@ def get_sample_size_from_job_index(k):
     Subests are in ranges of 100 jobs, with the first 10 jobs corresponding to a sample size of 2, the next 10 jobs corresponding to a sample size of 3, and so on.
     """
     if k < 100:
-        return 2
-    elif k >= 100 and k < 200:
         return 3
-    elif k >= 200 and k < 300:
+    elif k >= 100 and k < 200:
         return 4
-    elif k >= 300 and k < 400:
+    elif k >= 200 and k < 300:
         return 5
-    elif k >= 400 and k < 500:
+    elif k >= 300 and k < 400:
         return 6
-    elif k >= 500 and k < 600:
+    elif k >= 400 and k < 500:
         return 7
+    elif k >= 500 and k < 600:
+        return 8
+    elif k >= 600 and k < 700:
+        return 9
     else:
         raise ValueError("k must be less than 600.")
 
@@ -142,7 +148,7 @@ def main(k):
     parent_dir = Path("/om/user/imgriff/datasets/human_word_rec_SWC_2024/")
     # manifest = pd.read_pickle(parent_dir / "full_cue_target_distractor_df_w_meta_paths.pdpkl")
 
-    outdir = Path('human_loc_power_analysis/')
+    outdir = Path('human_loc_power_analysis_v2/')
     outdir.mkdir(exist_ok=True, parents=True)
     out_name = outdir / f'conf_interval_sizes_sample_size_{samp_size}_subset_{subset}.npy'
 
@@ -178,16 +184,21 @@ def main(k):
         part_name = result_file.stem
         # remove space 
         if 'pilot' in result_file.parent.stem:
-            part_name = "pilot_" + "_".join(result_file.stem.split('_')[:2])
+            part_name_str = "pilot_" + "_".join(result_file.stem.split('_')[:2])
+        else:
+        # get digits in string pattern participant_xxx_ or participant_XXX. 
+            part_ix = int(re.search(r'\d+', part_name).group())
+            part_name_str = f"participant_{part_ix:03d}"
         if ' ' in part_name:
-            part_name = part_name.split(' ')[0]
-        manifest_file = manifest_dict[part_name]
+            part_name_str = part_name.split(' ')[0]
+
+        manifest_file = manifest_dict[part_name_str]
         part_df = get_part_df(result_file)
         manifest_df = get_manifest_df(manifest_file)
         # merge on shared trial_index
         part_df = pd.merge(part_df[['trial_num', 'response', 'correct_response', 'correct']],
                 manifest_df, left_on='trial_num', right_on='trial_num', how='left')
-        part_df['participant'] = part_name
+        part_df['participant'] = part_name_str
         dfs.append(part_df)
 
     results_df = pd.concat(dfs, ignore_index=True)
@@ -204,8 +215,8 @@ def main(k):
     ## clean up pilot trial
     results_df = results_df[~((results_df.participant == 'pilot_participant_002') & (results_df.trial_num == 359) & (results_df.response == 'trees'))].reset_index(drop=True)
     ## Remove new participants
-    pilot_participants = ['participant_001', 'participant_002', 'participant_003',
-       'participant_004', 'participant_005', 'pilot_participant_001', 'pilot_participant_002']
+    pilot_participants = ['participant_001', 'participant_002', 'participant_003', 'participant_004',
+                         'participant_005', 'participant_034', 'participant_035', 'pilot_participant_001', 'pilot_participant_002']
     
     results_df = results_df[results_df.participant.isin(pilot_participants)]
 

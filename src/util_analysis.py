@@ -1,5 +1,7 @@
 import scipy 
 import numpy as np 
+from scipy.optimize import curve_fit
+from numpy.polynomial import Polynomial
 
 ################################################
 # Psychometric functions written by Mark Saddler 
@@ -64,6 +66,23 @@ def estimate_thresholds(x, y, threshold_value="half", **kwargs):
     srt = compute_srt_from_popt(popt, threshold_value=threshold_value)
     return srt, popt, pcov
 
+##################################################
+# Psychometric functions written by Ian Griffith 
+##################################################
+
+def fit_threshold_poly(snrs, prop_correct, degree=3):
+    poly = Polynomial.fit(x=snrs, y=prop_correct, deg=degree)
+    return poly
+
+def get_dBSNR_threshold(poly, threshold=0.5, precision=1_000):
+    snrs, prop_correct = poly.linspace(n=precision)
+    dB_threshold = snrs[np.argwhere(prop_correct >=threshold).min()]
+    return dB_threshold
+
+def estimate_threshold_poly(snrs, prop_correct, degree=2, threshold=0.5, precision=1_000):
+    poly = fit_threshold_poly(snrs, prop_correct, degree)
+    threshold = get_dBSNR_threshold(poly, threshold, precision)
+    return threshold, poly
 
 ##################################
 # model names for plotting
@@ -88,5 +107,6 @@ model_name_dict = {
                    "word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout": "Feature-gain model v09",
                    "word_task_conventional_layer_order": "Conventional Layer Order",
                    "word_task_half_co_loc_v09_50Hz_cutoff": "50Hz Cutoff model",
-				   "word_task_v09_cue_loc_task": "Dual task model "
+				   "word_task_v09_cue_loc_task": "Dual task model ",
+				   "word_task_v10_main_feature_gain_config": "Feature-gain v10 "
                   }

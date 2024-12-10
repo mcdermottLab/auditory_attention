@@ -23,6 +23,9 @@ def get_part_df_swc(fname):
                     over_ear = False if item['response']['headphones'] == 'In-ear headphones or earbuds' else True
                 if 'hearing_loss' in item['response']:
                     hearing_loss = False if item['response']['hearing_loss'] == "Not aware of any hearing loss" else True
+                else:
+                    for key, value in item['response'].items():
+                        part_df[key] = value 
     part_df['over_ear_hf'] = over_ear
     part_df['hearing_loss'] = hearing_loss
     return part_df
