@@ -164,7 +164,8 @@ class H5Dataset(torch.utils.data.Dataset):
         if self.skip_negative_elev:
             return np.array(((elev / 10) * 72) + (azim / 5) + 1, dtype=np.int64)
         else:
-            return np.array((((elev + 30) / 10) * 72) + (azim / 5), dtype=np.int64)
+            # + 40 is so lowest elevation is 0 in label index
+            return np.array((((elev + 40) / 10) * 72) + (azim / 5), dtype=np.int64)
 
     def __getitem__(self, index):
         """
@@ -432,7 +433,8 @@ class H5DatasetV06(torch.utils.data.Dataset):
         if self.skip_negative_elev:
             return np.array(((elev / 10) * 72) + (azim / 5), dtype=np.int64)
         else:
-            return np.array((((elev + 30) / 10) * 72) + (azim / 5), dtype=np.int64)
+            # + 40 is so lowest elevation is 0 in label index
+            return np.array((((elev + 40) / 10) * 72) + (azim / 5), dtype=np.int64)
 
     def label_to_azim_elev(self, label):
         """
