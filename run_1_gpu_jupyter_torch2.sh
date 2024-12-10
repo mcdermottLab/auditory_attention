@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --time=1:00:00
 #SBATCH --partition=mcdermott 
-#SBATCH --gres=gpu:a100:1 
+#SBATCH --gres=gpu:a100-mcdermott:1 
 #SBATCH -x dgx001,dgx002,node093,node115
 
 

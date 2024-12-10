@@ -196,6 +196,7 @@ def get_activations(args):
                     f.create_dataset('cochleagram_cue_mixture_cos', shape=[n_activations], dtype=np.float32)
                     f.create_dataset('cochleagram_fg_mixture_cos', shape=[n_activations], dtype=np.float32)
                     f.create_dataset('cochleagram_bg_mixture_cos', shape=[n_activations], dtype=np.float32)
+                    
                 f['cochleagram_cue'][ix] = fg_cue.view(-1).cpu().numpy()
                 f['cochleagram_mixture'][ix] = mixture.view(-1).cpu().numpy()
                 f['cochleagram_fg'][ix] = foreground.view(-1).cpu().numpy()
