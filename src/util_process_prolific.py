@@ -79,6 +79,13 @@ def get_distractor_tscript(fname, df_w_transcripts):
         tscript = df_w_transcripts.loc[df_w_transcripts['dist_2_src_stem'].eq(fname), 'distractor_2_transcripts'].values[0]
     return tscript
 
+def get_array_expmt_sex_cond(row, df_w_transcripts):
+    sex_cond = df_w_transcripts.loc[((df_w_transcripts['dist_1_src_stem'].eq(row.distractor_1_fn)) & (df_w_transcripts['dist_2_src_stem'].eq(row.distractor_2_fn)) & (df_w_transcripts['targ_src_stem'].eq(row.src_fn))), 'sex_cond'].values
+    if len(sex_cond) > 1:
+        print(f"Multiple talker sex conditions: {sex_cond}")
+    return sex_cond
+
+
 # More-generalized functions
 ##############################
 

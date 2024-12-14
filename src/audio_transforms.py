@@ -598,6 +598,58 @@ class RMSNormalizeForegroundAndBackground(torch.nn.Module):
         return foreground_wav, background_wav
 
 
+class DBSPLNormalizeForegroundAndBackground(torch.nn.Module):
+    """
+    Set the foreground and background sounds to a specified sound pressure 
+    level (dBSPL)
+
+    Args:
+        dbspl (float): desired sound pressure level in dB re 20e-6 Pa
+
+    Returns:
+        foreground_wav, background_wav
+    """
+    def __init__(self, dbspl=60):
+        super(DBSPLNormalizeForegroundAndBackground, self).__init__()
+        self.dbspl=dbspl
+        self.rms_level = 20e-6 * np.power(10.0, self.dbspl / 20.0)
+
+    def forward(self, foreground_wav, background_wav):
+        """
+        Args:
+            foreground_wav (torch.Tensor): the waveform that will be used as
+                the foreground audio sample (usually speech)
+            background_wav (torch.Tensor): the waveform that will be used as
+                the background audio sample
+        """
+        if foreground_wav is not None:
+            if foreground_wav.ndim == 3 and foreground_wav.shape[-2] == 2:
+                foreground_wav = ch_global_demean(foreground_wav, v2=True)
+                rms_foreground = ch_global_rms(foreground_wav)
+            else:
+                foreground_wav = ch_demean(foreground_wav)
+                rms_foreground = ch_rms(foreground_wav)
+
+            if rms_foreground !=0:
+                foreground_wav = foreground_wav * self.rms_level / rms_foreground
+            else:
+                foreground_wav = None
+
+        if background_wav is not None:
+            if background_wav.ndim == 3 and background_wav.shape[-2] == 2:
+                background_wav = ch_global_demean(background_wav, v2=True)
+                rms_background = ch_global_rms(background_wav)
+            else:
+                background_wav = ch_demean(background_wav)
+                rms_background = ch_rms(background_wav)
+            if rms_background !=0:
+                background_wav = background_wav * self.rms_level / rms_background
+            else:
+                background_wav = None
+
+        return foreground_wav, background_wav
+
+
 class BinauralRMSNormalizeForegroundAndBackground(torch.nn.Module):
     """
     RMS normalize the foreground and background sounds

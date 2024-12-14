@@ -4,9 +4,9 @@
 #SBATCH --error=outLogs/notebook%j.err
 #SBATCH --mem=8Gb
 #SBATCH --cpus-per-task=1
-#SBATCH --time=1:00:00
-#SBATCH --partition=mcdermott 
-#SBATCH --gres=gpu:a100-mcdermott:1 
+#SBATCH --time=2:00:00
+#SBATCH --partition=normal 
+#SBATCH --gres=gpu:1 --constraint=20GB
 #SBATCH -x dgx001,dgx002,node093,node115
 
 
