@@ -81,6 +81,14 @@ class Spatialize(torch.nn.Module):
         return spatialized
 
 
+def get_texture_eg(texture_dataset):
+    ix = np.random.randint(len(texture_dataset))
+    _, _, texture_signal, _, texture_label = texture_dataset[ix]
+
+    # texture_labels.append(texture_label)
+    texture_signal = torch.from_numpy(texture_signal).unsqueeze(0)
+    return texture_signal, texture_label
+
 
 def run_eval(args):
     # seed rngs 
@@ -94,7 +102,7 @@ def run_eval(args):
     # load model config 
     config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
     config['num_workers'] = args.n_jobs
-    config['hparas']['batch_size'] = 30 # config['data']['loader']['batch_size'] // args.gpus
+    config['hparas']['batch_size'] = 48 # config['data']['loader']['batch_size'] // args.gpus
     # get model input sr for brir resampling
     model_in_sr = config['audio']['rep_kwargs']['sr']
 
@@ -125,8 +133,7 @@ def run_eval(args):
     texture_dataset = SpeechAndTextureTestSet(file_path='/om/user/imgriff/datasets/speech_in_synthetic_textures/separated_sources/stim.hdf5',
                                         separated_signals=True,
                                         symmetric_distractor=False) # only need one 
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
-    
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers']//2)
     # use anechoic BRIRs for testing
     new_room_manifest = None 
     only14_manifest = None
@@ -260,19 +267,18 @@ def run_eval(args):
                 # combine signals 
                 mixture = target + bg_1 + bg_2 
 
-                # get texture stim 
+                # get texture stim for this batch
                 if texture_db:
-                    texture_ixs = np.sort(np.random.randint(len(texture_dataset), size=config['hparas']['batch_size']))
-                    _, _, texture_signal, _, texture_label = texture_dataset[texture_ixs]
-                    # log the texture used 
-                    texture_list.extend(texture_label)
+                    texture_signal, texture_label = get_texture_eg(texture_dataset)
+                    # log the texture used for this batch 
+                    texture_list.extend([texture_label] * config['hparas']['batch_size'])
                     # spatialize 
-                    spatial_texutre = texture_brir(torch.from_numpy(texture_signal).cuda().float().unsqueeze(1))
+                    spatial_texutre = texture_brir(texture_signal.cuda())
                     # set texture level 
                     spatial_texture, _ = set_texture_level(spatial_texutre, None)
-                
                     # combine signals 
                     mixture = mixture + spatial_texture
+                    cue = cue + spatial_texture
                 else:
                     texture_list.extend([None] * config['hparas']['batch_size'] )  
         

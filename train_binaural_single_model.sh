@@ -6,7 +6,7 @@
 #SBATCH -N 1
 
 
-#SBATCH --time=2-00:00:00
+#SBATCH --time=1-00:00:00
 #SBATCH --cpus-per-task=16
 #SBATCH --partition=normal   # multi-gpu
 #SBATCH --gres=gpu:a100:4
