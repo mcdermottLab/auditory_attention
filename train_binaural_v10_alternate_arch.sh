@@ -8,7 +8,7 @@
 #SBATCH --time=2-00:00:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:a100:4
-#SBATCH --array=0-8# 9 models in manifest
+#SBATCH --array=0-7# 9 models in manifest
 
 #source /etc/profile.d/modules.sh
 #module use /cm/shared/modulefiles
@@ -25,7 +25,11 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 # 
 rm -r /tmp/torchinductor_imgriff
 
-which python3
+# which python3
+# python3 spatialtrain.py --config config/arch_search/word_task_v10_4MGB_ln_first_arch_12.yaml \
+#                  --gpus 4 --n_jobs 16  --resume_training  True \
+#                  --exp_dir /om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models \
+
 python3 spatialtrain.py --config_list /om2/user/imgriff/projects/torch_2_aud_attn/binaural_train_manifests/v10_alt_arch_search_manifest.pkl --job_id $SLURM_ARRAY_TASK_ID \
                  --gpus 4 --n_jobs 16  --resume_training  True \
                  --exp_dir /om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models \
