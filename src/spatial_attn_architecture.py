@@ -55,7 +55,7 @@ class SimpleAttentionalGain(nn.Module):
         else:
             mixture = torch.mul(mixture, gain)
         return mixture
-
+    
 
 class KernelAttentionalGain(nn.Module):
     def __init__(self, frequency_dim, cnn_channels, global_avg_cue=False, n_cue_frames=None, additive=False, **kwargs):
@@ -64,7 +64,6 @@ class KernelAttentionalGain(nn.Module):
 
         if global_avg_cue:
             self.ouptut_shape = (1,1)
-            # self.time_average = nn.AdaptiveAvgPool2d((1, 1)) # outsize is N, C, 1, 1
         else:
             self.ouptut_shape = (frequency_dim, 1)
             # self.time_average = nn.AdaptiveAvgPool2d((frequency_dim, 1)) # outsize is N, C, FreqDim, 1
@@ -107,7 +106,8 @@ class KernelAttentionalGain(nn.Module):
         else:
             mixture = torch.mul(mixture, gain)
         return mixture
-    
+
+
 class LearnedTimeAveragedGains(nn.Module):
     def __init__(self, frequency_dim, cnn_channels, time_dim, global_avg_cue=False, n_cue_frames=None, additive=False, **kwargs):
         super(LearnedTimeAveragedGains, self).__init__()
@@ -512,8 +512,8 @@ class BaselineCNNV2(nn.Module):
 class BinauralAuditoryAttentionCNN(nn.Module):
     def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
                   fc_size=512, global_avg_cue=False, num_classes={"num_words":800, "num_locs":504}, frequency_dim=40,
-                  residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, ln_affine=True,
-                   v08=False, additive=False, per_kernel_gain=False, **kwargs):
+                  residual_attn=False, n_cue_frames=None, starting_output_len = 20000, norm_first=True, ln_affine=True, 
+                  v08=False, additive=False, cue_loc_task=False, fc_attn=True,  per_kernel_gain=False, **kwargs):
         super(BinauralAuditoryAttentionCNN, self).__init__()
         # Setup
         print('v08', v08)
@@ -548,6 +548,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
         self.frequency_dim = frequency_dim
         self.n_layers = len(out_channels)
         self.norm_first = norm_first
+        self.cue_loc_task  = cue_loc_task
         self.per_kernel_gain = per_kernel_gain
         if per_kernel_gain:
             self.gain_module = KernelAttentionalGain
@@ -569,10 +570,12 @@ class BinauralAuditoryAttentionCNN(nn.Module):
         if residual_attn:
             print(f"Using residual attention")
         self.v08 = v08
+        self.fc_attn = fc_attn
+        print(f"fc_attn: {fc_attn}")
 
         self.model_dict = nn.ModuleDict()
         self.output_height = frequency_dim
-        self.output_len = starting_output_len # softcode eventually
+        self.output_len = starting_output_len 
 
         # build architecture
         if v08:
@@ -594,7 +597,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
             # Attentional block:
             if self.attn[idx] == 1:
                 # is SimpleAttentionalGain(self.frequency_dim, self.input_channels, ... ) when ix == 0; normal for ix > 0 
-                self.model_dict[f'attn{idx}'] = self.gain_module(self.output_height, nIn, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
+                self.model_dict[f'attn{idx}'] = self.gain_module (self.output_height, nIn, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
 
             # pre-compute conv output sizes - will assign to self.output_height and self.output_len after defining block
             # Sizes will be used for normalization layers, but depend on order of norm and conv 
@@ -637,15 +640,20 @@ class BinauralAuditoryAttentionCNN(nn.Module):
                 if self.n_cue_frames:
                     self.n_cue_frames = int(np.floor((self.n_cue_frames - pool_size[idx][1] + 2 * pool_padding[idx][1]) / pool_stride[idx][1]) + 1)
 
-        if v08:
-            self.model_dict[f'attnfc'] = self.gain_module(self.output_height, nOut, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
+        if v08 and fc_attn:
+            self.model_dict[f'attnfc'] = self.gain_module (self.output_height, nOut, global_avg_cue=global_avg_cue, n_cue_frames=self.n_cue_frames, additive=additive)
 
         self.output_size = self.output_height * nOut * self.output_len
         self.fullyconnected = nn.Linear(self.output_size, fc_size)
         self.relufc = nn.ReLU()
         self.dropout = nn.Dropout(dropout)
+        
+        if self.cue_loc_task:
+            self.loc_fc = nn.Linear(self.output_size, fc_size)
+            self.locrelufc = nn.ReLU()
+            self.locdropout = nn.Dropout(dropout)
 
-        if self.dual_task:
+        if self.dual_task or self.cue_loc_task:
             self.classificationWord = nn.Linear(fc_size, self.num_words)
             self.classificationLoc = nn.Linear(fc_size, self.num_locs)
         else:
@@ -680,14 +688,23 @@ class BinauralAuditoryAttentionCNN(nn.Module):
                     cue = self.model_dict[f'hann_pool_{idx}'](cue)
                     attn = self.model_dict[f'hann_pool_{idx}'](attn)
 
-            if self.v08:
+            if self.v08 and 'attnfc' in self.model_dict.keys(): 
                 attn = self.model_dict['attnfc'](cue, attn, cue_mask_ixs)
             out = attn
             
         out = out.view(out.size(0), self.output_size) # B x FC size
         out = self.fullyconnected(out)        
         out = self.relufc(out)
-        out = self.dropout(out)        
+        out = self.dropout(out)  
+        if self.cue_loc_task:
+            word_out = self.classificationWord(out)
+            cue = cue.view(cue.size(0), self.output_size) # B x FC size
+            loc_out = self.loc_fc(cue)
+            loc_out = self.locrelufc(loc_out)
+            loc_out = self.locdropout(loc_out)
+            loc_out = self.classificationLoc(loc_out)
+            return word_out, loc_out
+            
         if self.dual_task:
             word_out = self.classificationWord(out)
             loc_out = self.classificationLoc(out)

@@ -119,7 +119,7 @@ def run_train(args):
     #     trainer.fit(model,  ckpt_path = ckpt_path if args.resume_training else None)
     # except KeyError as e:
     #     print(e)
-    trainer.fit(model) 
+    trainer.fit(model, ckpt_path=ckpt_path if args.resume_training else None) 
 
 
 def cli_main():

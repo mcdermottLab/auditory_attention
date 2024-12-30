@@ -282,7 +282,7 @@ def backend_hann2d(x, ramp_dur_ms, samplerate=48000):
     
     # calc window
     # https://stackoverflow.com/questions/56485663/hanning-window-values-doesnt-match-in-python-and-matlab
-    win = sig.hann((2 * ramp_dur_smp) + 2)[1:-1]
+    win = sig.windows.hann((2 * ramp_dur_smp) + 2)[1:-1]
     
     # Middle part (steady state)
     steady_win = x[:,:stim_dur_smp-ramp_dur_smp]
