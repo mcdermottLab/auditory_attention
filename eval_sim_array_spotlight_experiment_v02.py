@@ -15,7 +15,6 @@ import yaml
 
 import argparse
 from argparse import ArgumentParser
-from corpus.speech_and_texture_test import SpeechAndTextureTestSet
 from corpus.binaural_swc_currated_pd import SWCHumanExperimentStimDataset
 from tqdm.auto import tqdm
 from datetime import datetime
@@ -47,11 +46,11 @@ class SpatializeAllLocs(torch.nn.Module):
 
     def forward(self, signal):
         n = signal.shape[0]
-        padded_texture = torch.nn.functional.pad(signal, (self.n_taps - 1, 0)).view(n, 1, 1, -1)
-        # repeat texture along height dimension for conv 
-        padded_texture = padded_texture.repeat(1, 1, self.n_locs, 1)
+        padded_bg_noise = torch.nn.functional.pad(signal, (self.n_taps - 1, 0)).view(n, 1, 1, -1)
+        # repeat bg_noise along height dimension for conv 
+        padded_bg_noise = padded_bg_noise.repeat(1, 1, self.n_locs, 1)
 
-        spatialized = torch.nn.functional.conv2d(padded_texture,
+        spatialized = torch.nn.functional.conv2d(padded_bg_noise,
                                                 self.brir_kernel,
                                                 stride=1)  
         spatialized = spatialized.squeeze() 
@@ -76,18 +75,19 @@ class Spatialize(torch.nn.Module):
         # pad last dim of words with ir.shape[0] - 1 zeros
         words_padded = torch.nn.functional.pad(words, (self.n_taps - 1, 0))
         spatialized = torch.nn.functional.conv1d(words_padded.view(n_words, 1, -1), self.ir)
-        # resize to desired shape - so we can add texture 
+        # resize to desired shape - so we can add bg_noise 
         spatialized = spatialized[:, :, self.start_frame:self.end_frame]
         return spatialized
 
 
-def get_texture_eg(texture_dataset):
-    ix = np.random.randint(len(texture_dataset))
-    _, _, texture_signal, _, texture_label = texture_dataset[ix]
+def get_bg_noise_eg(bg_noise_dataset):
+    ix = np.random.randint(len(bg_noise_dataset))
+    _, _, bg_noise_signal, _, bg_noise_label = bg_noise_dataset[ix]
 
-    # texture_labels.append(texture_label)
-    texture_signal = torch.from_numpy(texture_signal).unsqueeze(0)
-    return texture_signal, texture_label
+    # bg_noise_labels.append(bg_noise_label)
+    bg_noise_signal = torch.from_numpy(bg_noise_signal).unsqueeze(0)
+    return bg_noise_signal, bg_noise_label
+
 
 def gen_pink_noise_batch(duration, n_examples=1):
     uneven = duration % 2
@@ -97,6 +97,7 @@ def gen_pink_noise_batch(duration, n_examples=1):
     if uneven:
         Y = Y[:, : -1]
     return Y
+
 
 def run_eval(args):
     # seed rngs 
@@ -136,11 +137,12 @@ def run_eval(args):
     dataset = SWCHumanExperimentStimDataset(path='/om/user/imgriff/datasets/human_word_rec_SWC_2024/full_cue_target_distractor_df_w_meta.pdpkl',
                                             run_all_stim=args.run_all_stim,
                                             sr=model_in_sr)
-    if args.texture_distractor:
-        print("Using textures as background noise")
-        texture_dataset = SpeechAndTextureTestSet(file_path='/om/user/imgriff/datasets/speech_in_synthetic_textures/separated_sources/stim.hdf5',
-                                            separated_signals=True,
-                                            symmetric_distractor=False) # only need one 
+    # elif args.bg_noise_distractor:
+    # print("Using bg_noises as background noise")
+    # bg_noise_dataset = SpeechAndTextureTestSet(file_path='/om/user/imgriff/datasets/speech_in_synthetic_bg_noises/separated_sources/stim.hdf5',
+    #                                     separated_signals=True,
+    #                                     symmetric_distractor=False) # only need one 
+    
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers']//2)
     # use anechoic BRIRs for testing
     new_room_manifest = None 
@@ -149,7 +151,6 @@ def run_eval(args):
     for idx in range(start,end):
         target_loc = test_dict[idx]['target_loc']
         distract_loc = test_dict[idx]['distract_loc']
-        threshold_snr = test_dict[idx]['snr']
         print(test_dict[idx])
 
         test_manifest_path = test_dict[idx]['test_room_meta']['room_manifest']
@@ -164,15 +165,12 @@ def run_eval(args):
         else:
             room_str = f'mitb46_room{test_room_idx:04}'
 
-        
+    
         ir_dict = dict()
-        for loc in ['target', 'distractor_l', 'distractor_r']:
+        for loc in ['target', 'distractor']:
             if loc == 'target':
                 coords = target_loc
-            elif loc == 'distractor_r':
-                coords = distract_loc.copy()
-                coords[0] = 360 - coords[0] if coords[0] != 0 else 0 
-            elif loc == 'distractor_l':
+            elif loc == 'distractor':
                 coords = distract_loc.copy()
             df_row = only14_manifest[(only14_manifest['src_azim'] == coords[0]) & (only14_manifest['src_elev'] == coords[1])]
             index_brir = df_row['index_brir'].values[0]
@@ -191,41 +189,33 @@ def run_eval(args):
         # matching human array experiment 
         ########################################################
 
-        # texture transform 
-        texture_db = test_dict[idx]['bg_noise_level']
-        if texture_db:
-            print('Running with texture distractors')
-            rms_texture_level = db_to_rms(texture_db)
-            set_texture_level = at.BinauralRMSNormalizeForegroundAndBackground(rms_texture_level).cuda()
+        # Noise transforms
+        print('Running with pink noise in background')
+        bg_noise_level_db = 50 
+        rms_bg_noise_level = db_to_rms(bg_noise_level_db)
+        set_bg_noise_level = at.BinauralRMSNormalizeForegroundAndBackground(rms_bg_noise_level).cuda()
 
-        # manually set distractors to level, then spatialize, then add 
-        dist_level = 65 - 10*np.log10(2) # 2 is the number of distractors
-        dist_rms = db_to_rms(dist_level)
-        set_dist_level = at.BinauralRMSNormalizeForegroundAndBackground(dist_rms).cuda()
 
-        SNR = threshold_snr
-        target_rms = db_to_rms(65 + SNR)
-        set_target_level = at.BinauralRMSNormalizeForegroundAndBackground(target_rms).cuda()
+        # manually set cue, target, and distractor to level, then spatialize, then add. All signals at same level
+        signal_level = 65 # only one distractor
+        signal_level_rms = db_to_rms(signal_level)
+        set_signal_level = at.BinauralRMSNormalizeForegroundAndBackground(signal_level_rms).cuda()
 
-        # set cue transform 
-        cue_rms = db_to_rms(65)
-        set_cue_level = at.BinauralRMSNormalizeForegroundAndBackground(cue_rms).cuda()
+        # target_rms = db_to_rms(65)
+        # set_target_level = at.BinauralRMSNormalizeForegroundAndBackground(target_rms).cuda()
+
+        # # set cue transform 
+        # cue_rms = db_to_rms(65)
+        # set_cue_level = at.BinauralRMSNormalizeForegroundAndBackground(cue_rms).cuda()
 
         ###################################################
         # Set output file name based on test conditions
         ###################################################
 
-        dist_str = "speech_distractor"
-        sym_str = "symmetric"  
         all_stim_str = 'all_stim' if args.run_all_stim else 'subset_stim'
-        if args.texture_distractor:
-            bg_noise_str = "bg_texture"
-        elif args.pink_noise_distractor:
-            bg_noise_str = "bg_pink_noise"
-            
-        texture_str = f"{int(texture_db)}dB_{bg_noise_str}" if texture_db else 'no_texture'
+        bg_noise_str = f"{int(bg_noise_level_db)}dB_pink_noise_bg" 
 
-        log_name = f"/{model_name}_cue_{cue_type}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_{int(threshold_snr)}_SNR_{dist_str}_{texture_str}_{room_str}_{sym_str}_{all_stim_str}"  
+        log_name = f"/{model_name}_target_loc_{target_loc[0]}_{target_loc[1]}_distract_loc_{distract_loc[0]}_{distract_loc[1]}_0_SNR_single_distractor_{bg_noise_str}_{room_str}_{all_stim_str}"  
         # replace __ with _ in log_name in case format produces it 
         log_name = log_name.replace('__', '_')      
         print(log_name)
@@ -238,11 +228,9 @@ def run_eval(args):
         ###################################
         # Setup BRIRs for spatialization
         ###################################
-        if texture_db:
-            texture_brir  = SpatializeAllLocs(all_brirs[::4], model_sr=model_in_sr).cuda()
+        bg_noise_brir  = SpatializeAllLocs(all_brirs[::4], model_sr=model_in_sr).cuda()
         tar_brir = Spatialize(ir_dict['target'], model_sr=model_in_sr).cuda()
-        dist_brir_l = Spatialize(ir_dict['distractor_l'], model_sr=model_in_sr).cuda()
-        dist_brir_r = Spatialize(ir_dict['distractor_r'], model_sr=model_in_sr).cuda()
+        dist_brir = Spatialize(ir_dict['distractor'], model_sr=model_in_sr).cuda()
 
         ###################################
         # Arrays for storing results
@@ -254,7 +242,7 @@ def run_eval(args):
         pred_list = []
         true_word_int = []
         stim_ix_list = []
-        texture_list = []
+        bg_noise_list = []
     
         ###################################
         # Main inference loop
@@ -262,42 +250,32 @@ def run_eval(args):
 
         with torch.no_grad(): 
             for batch in tqdm(dataloader):
-                cue, fg, bg, bg_2, label, dist_word_label, dist_word_label2, stim_ixs = batch
+                cue, fg, bg, _, label, dist_word_label, dist_word_label2, stim_ixs = batch
                 # log ix of stimuli for meta tracking
                 stim_ix_list.append(stim_ixs)
 
                 # set levels then spatialize 
-                cue, _ = set_cue_level(cue, None)
-                target, _ = set_target_level(fg, None)
-                bg_1, bg_2 = set_dist_level(bg, bg_2)
+                cue, _ = set_signal_level(cue, None)
+                target, _ = set_signal_level(fg, None)
+                bg_1, bg_2 = set_signal_level(bg, None)
 
                 # spatialize signals 
                 cue = tar_brir(cue.cuda())
                 target = tar_brir(target.cuda())
-                bg_1 = dist_brir_l(bg_1.cuda())
-                bg_2 = dist_brir_r(bg_2.cuda())
+                bg_1 = dist_brir(bg_1.cuda())
 
                 # combine signals 
-                mixture = target + bg_1 + bg_2 
+                mixture = target + bg_1 
 
-                # get texture stim for this batch
-                if texture_db:
-                    if args.texture_distractor:
-                        diffuse_bg_signal , texture_label = get_texture_eg(texture_dataset)
-                        # log the texture used for this batch 
-                        texture_list.extend([texture_label] * config['hparas']['batch_size'])
-                        # spatialize 
-                    elif args.pink_noise_distractor:
-                        diffuse_bg_signal = gen_pink_noise_batch(mixture.shape[-1], mixture.shape[0])
-                        texture_list.extend(['pink_noise'] * config['hparas']['batch_size'])
-                    spatial_texutre = texture_brir(diffuse_bg_signal.cuda())
-                    # set texture level 
-                    spatial_texture, _ = set_texture_level(spatial_texutre, None)
-                    # combine signals 
-                    mixture = mixture + spatial_texture
-                    cue = cue + spatial_texture
-                else:
-                    texture_list.extend([None] * config['hparas']['batch_size'] )  
+                # get bg_noise stim for this batch
+                bg_noise_signal = gen_pink_noise_batch(mixture.shape[-1], mixture.shape[0])
+                # spatialize 
+                spatial_texutre = bg_noise_brir(bg_noise_signal.cuda())
+                # set bg_noise level 
+                spatial_bg_noise, _ = set_bg_noise_level(spatial_texutre, None)
+                # combine signals 
+                mixture = mixture + spatial_bg_noise
+                cue = cue + spatial_bg_noise
         
                 # get cochleagrams 
                 cue, mixture = coch_gram(cue, mixture)
@@ -317,12 +295,8 @@ def run_eval(args):
 
                 # log confusions 
                 dist_word_label = dist_word_label.numpy().astype('int')
-                dist_word_label2 = dist_word_label2.numpy().astype('int')
-                # confusion made if preds == dist_word_label or dist_word_label2
-                cons_1 = (preds == dist_word_label).astype('int')
-                cons_2 = (preds == dist_word_label2).astype('int')
-                cons = np.bitwise_or(cons_1, cons_2) # get union of confusions
-                confusions.append(cons)
+                confs = (preds == dist_word_label).astype('int')
+                confusions.append(confs)
 
         # concat test results 
         accuracies = np.concatenate(accuracies)
@@ -335,10 +309,9 @@ def run_eval(args):
         output_dict['stim_ix_list'] = stim_ix_list
         confusions = np.concatenate(confusions)
         output_dict['confusions'] = confusions
-        output_dict['textures'] = texture_list
 
         print(log_name)    
-        print(f"Test {distract_loc[0]} azimuth distractor at {threshold_snr} SNR in {room_str}")
+        print(f"Test {distract_loc[0]} azimuth {distract_loc[1]} elevation distractor at 0 SNR in {room_str}")
         print(f"Accuracy: {accuracies.mean()}")
         print(f"Confusions: {confusions.mean()}")
 
@@ -414,37 +387,13 @@ def cli_main():
         action=argparse.BooleanOptionalAction,
         help="If true, will overwrite existing results",
     )
-    # create overwrite flag to handle overwrite of existing results
-    parser.add_argument(
-        "--run_1_distractor",
-        action=argparse.BooleanOptionalAction,
-        help="If true, will run just 1 distractor",
-    )
-    parser.add_argument(
-        "--modulated_ssn_distractors",
-        action=argparse.BooleanOptionalAction,
-        help="If true, will use festen and plomp style modulated ssn maskers as distractors"
-    )
-    parser.add_argument(
-        "--sim_human_array_exmpt",
-        action=argparse.BooleanOptionalAction,
-        help="If true, will use dataset to support conditions simulating human speaker array experiment."
-    )
+
     parser.add_argument(
         "--run_all_stim",
         action=argparse.BooleanOptionalAction,
         help="If true, will run all stimuli in the dataset."
     )
-    parser.add_argument(
-        "--pink_noise_distractor",
-        action=argparse.BooleanOptionalAction,
-        help="If true, will use noise distractors instead of speech distractors."
-    )
-    parser.add_argument(
-        "--texture_distractor",
-        action=argparse.BooleanOptionalAction,
-        help="If true, will use textures as distractors instead of speech distractors."
-    )
+
 
     args = parser.parse_args()
 

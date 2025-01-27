@@ -29,8 +29,8 @@ rm -rf /tmp/torchinductor_imgriff
 
 python3 eval_sim_array_threshold_experiment_v02.py --config config/binaural_attn/word_task_v10_main_feature_gain_config.yaml \
                  --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679.ckpt \
-                 --test_manifest binaural_test_manifests/human_array_exmpt_sim_v02_only_human_locs_w_noise_mit46_1004_room_v02.pkl \
+                 --test_manifest binaural_test_manifests/sim_human_threshold_experiment_v02.pkl \
                  --location_idx $SLURM_ARRAY_TASK_ID \
-                 --gpus 1 --n_jobs 4 --exp_dir binaural_eval/simulate_2024_human_threshold_experiment_v02_cue_noise_mit46_1004 \
+                 --gpus 1 --n_jobs 4 --exp_dir binaural_eval/simulate_2024_human_threshold_experiment_v02_pink_noise_cue_noise_mit46_1004 \
                  --cue_type voice_and_location --no-overwrite --n_per_job 1 --sim_human_array_exmpt --run_all_stim 
                  
