@@ -7,7 +7,7 @@
 #SBATCH --time=00:20:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=58,204-206,212,255,315-317,333-345 #0-359 
+#SBATCH --array=0-59    ###58,204-206,212,255,315-317,333-345 #0-359 
 
 #SBATCH -x dgx001,dgx002
 
