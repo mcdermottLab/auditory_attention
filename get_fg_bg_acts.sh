@@ -48,20 +48,20 @@ python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_half_co_loc
                  --silence_w_uncued  \
                  --job_id $SLURM_ARRAY_TASK_ID
 
-python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_early_only_v09.yaml \
-                 --ckpt_path attn_cue_models/word_task_early_only_v09/checkpoints/epoch=3-step=39662.ckpt \
-                 --model_dir binaural_model_attn_stage_reps \
-                 --n_jobs 0 \
-                 --n_activations 100 \
-                 --silence_w_uncued  \
-                 --job_id $SLURM_ARRAY_TASK_ID
+# python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_early_only_v09.yaml \
+#                  --ckpt_path attn_cue_models/word_task_early_only_v09/checkpoints/epoch=3-step=39662.ckpt \
+#                  --model_dir binaural_model_attn_stage_reps \
+#                  --n_jobs 0 \
+#                  --n_activations 100 \
+#                  --silence_w_uncued  \
+#                  --job_id $SLURM_ARRAY_TASK_ID
 
-python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_late_only_v09.yaml \
-                 --ckpt_path attn_cue_models/word_task_late_only_v09/checkpoints/epoch=2-step=37108.ckpt \
-                 --model_dir binaural_model_attn_stage_reps \
-                 --n_jobs 0 \
-                 --n_activations 100 \
-                 --silence_w_uncued  \
-                 --job_id $SLURM_ARRAY_TASK_ID
+# python3 get_fg_bg_acts_v3.py --config config/binaural_attn/word_task_late_only_v09.yaml \
+#                  --ckpt_path attn_cue_models/word_task_late_only_v09/checkpoints/epoch=2-step=37108.ckpt \
+#                  --model_dir binaural_model_attn_stage_reps \
+#                  --n_jobs 0 \
+#                  --n_activations 100 \
+#                  --silence_w_uncued  \
+#                  --job_id $SLURM_ARRAY_TASK_ID
 
 

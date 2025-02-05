@@ -212,16 +212,22 @@ def get_activations(args):
     else:
         timg_avg_extn = ''
 
-    outname = Path(f'binaural_unit_activation_analysis/{model_name}/{model_name}_model_activations_{snr}dB{timg_avg_extn}.h5')
+    if args.diotic:
+        outname = Path(f'binaural_unit_activation_analysis/{model_name}/{model_name}_model_activations_{snr}dB{timg_avg_extn}_diotic.h5')
+    else:
+        outname = Path(f'binaural_unit_activation_analysis/{model_name}/{model_name}_model_activations_{snr}dB{timg_avg_extn}.h5')
+
     layer_shape_dict_name = Path(f'binaural_unit_activation_analysis/{model_name}/{model_name}_layer_shape_dict{timg_avg_extn}.pkl')
     outname.parent.mkdir(parents=True, exist_ok=True)
     print(f"Preparing to write activations to {outname}")
     # outname = 'test_act_outs.h5'
     n_activations = args.n_activations
-    n_rows_to_save = int(n_activations * len(loc_pairs)) # n sounds x n locs 
     layer_shape_dict = {}
     with h5py.File(outname, 'w') as f:
         with torch.no_grad():
+            if args.diotic:
+                loc_pairs = [(0, 0)]
+            n_rows_to_save = int(n_activations * len(loc_pairs)) # n sounds x n locs 
             for loc_x, (azim, elev) in enumerate(tqdm(loc_pairs, desc="Location ")):
                 target_brir = get_brir(azim=azim, elev=elev, h5_fn=h5_fn, IR_df=only14_manifest, out_sr=sr)
                 target_brir = at.Spatialize(target_brir, model_sr=sr, start_crop_in_s=None, end_crop_in_s=None).cuda()
@@ -233,11 +239,20 @@ def get_activations(args):
                     # get signals 
                     cue, target, same_sex_dist, diff_sex_dist, nat_scene_dist, word_int, target_f0, same_dist_f0, diff_dist_f0 = batch
                     # spatialize 
-                    cue = target_brir(cue.cuda())
-                    target = target_brir(target.cuda())
-                    same_sex_dist = target_brir(same_sex_dist.cuda())
-                    diff_sex_dist = target_brir(diff_sex_dist.cuda())
-                    nat_scene_dist = target_brir(nat_scene_dist.cuda())
+                    if args.diotic:
+                        batch_size = cue.shape[0]
+                        # copy channels 
+                        cue = cue.repeat(2, 1).unsqueeze(0).cuda()
+                        target = target.repeat(2, 1).unsqueeze(0).cuda()
+                        same_sex_dist = same_sex_dist.repeat(2, 1).unsqueeze(0).cuda()
+                        diff_sex_dist = diff_sex_dist.repeat(2, 1).unsqueeze(0).cuda()
+                        nat_scene_dist = nat_scene_dist.repeat(2, 1).unsqueeze(0).cuda()
+                    else:
+                        cue = target_brir(cue.cuda())
+                        target = target_brir(target.cuda())
+                        same_sex_dist = target_brir(same_sex_dist.cuda())
+                        diff_sex_dist = target_brir(diff_sex_dist.cuda())
+                        nat_scene_dist = target_brir(nat_scene_dist.cuda())
                     # norm and mix transforms 
                     cue, _ = audio_transforms(cue, None)
                     target, _ = audio_transforms(target, None)
@@ -341,7 +356,7 @@ def get_activations(args):
                                 _, acts = acts
                             save_activations(f, layer, source_str, acts, row, n_rows_to_save, time_average=args.time_average)
                             # for cpr 
-                            if 'relufc' in layer:
+                            if 'relufc' in layer or not args.time_average:
                                 acts = acts.cpu().view(-1).numpy()
                             else:
                                 acts = acts.mean(-1).cpu().view(-1).numpy()
@@ -431,6 +446,11 @@ def cli_main():
         "--time_average",
         action='store_true',
         help="Whether to time average activations",
+    )   
+    parser.add_argument(
+        "--diotic",
+        action='store_true',
+        help="Whether to run without spatialization",
     )   
     args = parser.parse_args()
 

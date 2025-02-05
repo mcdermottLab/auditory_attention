@@ -191,7 +191,7 @@ def run_eval(args):
 
         # Noise transforms
         print('Running with pink noise in background')
-        bg_noise_level_db = 50 
+        bg_noise_level_db = 30 
         rms_bg_noise_level = db_to_rms(bg_noise_level_db)
         set_bg_noise_level = at.BinauralRMSNormalizeForegroundAndBackground(rms_bg_noise_level).cuda()
 
@@ -247,7 +247,7 @@ def run_eval(args):
         ###################################
         # Main inference loop
         ###################################
-
+        print(f"Pink noise background: {args.pink_noise_bg}")
         with torch.no_grad(): 
             for batch in tqdm(dataloader):
                 cue, fg, bg, _, label, dist_word_label, dist_word_label2, stim_ixs = batch
@@ -257,7 +257,7 @@ def run_eval(args):
                 # set levels then spatialize 
                 cue, _ = set_signal_level(cue, None)
                 target, _ = set_signal_level(fg, None)
-                bg_1, bg_2 = set_signal_level(bg, None)
+                bg_1, _ = set_signal_level(bg, None)
 
                 # spatialize signals 
                 cue = tar_brir(cue.cuda())
@@ -268,14 +268,15 @@ def run_eval(args):
                 mixture = target + bg_1 
 
                 # get bg_noise stim for this batch
-                bg_noise_signal = gen_pink_noise_batch(mixture.shape[-1], mixture.shape[0])
-                # spatialize 
-                spatial_texutre = bg_noise_brir(bg_noise_signal.cuda())
-                # set bg_noise level 
-                spatial_bg_noise, _ = set_bg_noise_level(spatial_texutre, None)
-                # combine signals 
-                mixture = mixture + spatial_bg_noise
-                cue = cue + spatial_bg_noise
+                if args.pink_noise_bg:
+                    bg_noise_signal = gen_pink_noise_batch(mixture.shape[-1], mixture.shape[0])
+                    # spatialize 
+                    spatial_texutre = bg_noise_brir(bg_noise_signal.cuda())
+                    # set bg_noise level 
+                    spatial_bg_noise, _ = set_bg_noise_level(spatial_texutre, None)
+                    # combine signals 
+                    mixture = mixture + spatial_bg_noise
+                    # cue = cue + spatial_bg_noise
         
                 # get cochleagrams 
                 cue, mixture = coch_gram(cue, mixture)
@@ -393,7 +394,11 @@ def cli_main():
         action=argparse.BooleanOptionalAction,
         help="If true, will run all stimuli in the dataset."
     )
-
+    parser.add_argument(
+        "--pink_noise_bg",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will add pink noise to background."
+    )
 
     args = parser.parse_args()
 

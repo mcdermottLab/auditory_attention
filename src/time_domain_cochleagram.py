@@ -75,7 +75,7 @@ class TimeDomainCochleagram(torch.nn.Module):
             x = torch.cat([left_x, right_x], dim=self.cat_dim)
         else:
             x = self.compute_rep(x)
-        if self.center_crop:
+        if self.center_crop and x.shape[-1] > self.n_out_frames:
             x_dur = x.shape[-1]
             diff = (x_dur - self.n_out_frames) // 2
             frame_start = diff 

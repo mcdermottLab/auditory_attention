@@ -18,7 +18,7 @@ rm -r /tmp/torchinductor_imgriff
 
 
 python3 eval_swc_popham_2024.py --config config/binaural_attn/word_task_v10_main_feature_gain_config.yaml \
-                 --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679.ckpt \
+                 --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 \
                  --stim_path /om/user/imgriff/datasets/human_swc_popham_exmpt_2024/model_eval_h5s/ \

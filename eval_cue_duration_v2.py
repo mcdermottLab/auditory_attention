@@ -11,40 +11,19 @@ import numpy as np
 import pandas as pd
 from tqdm.auto import tqdm
 from pytorch_lightning import seed_everything
-from src.spatial_attn_architecture import CueDurationCNN2DExtractor, CueDurationCNNNew 
-from corpus.swc_mono_test import SWCMonoTestSet
+from src.spatial_attn_architecture import CueDurationCNNNew 
+from corpus.swc_mono_test import SWCMonoTestSetH5Dataset
 import src.audio_transforms as at
 import src.custom_modules as cm
 
 
 seed_everything(1)
 
-torch.set_float32_matmul_precision('high')
+torch.set_float32_matmul_precision('medium')
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
 # torch module to center crop the cochleagram to a given duration 
-class CenterCropCoch(torch.nn.Module):
-    def __init__(self, crop_duration, sig_duration, sr, pad_dur=False):
-        super().__init__()
-        self.n_crop_frames = int(crop_duration * sr)
-        sig_frames = int(sig_duration * sr)
-        self.crop_context = sig_frames - self.n_crop_frames
-        self.crop_start = self.crop_context // 2
-        self.crop_end = self.crop_start + self.n_crop_frames
-        self.pad_to_dur = False
-        if pad_dur > crop_duration:
-            print("Padding to duration")
-            self.pad_to_dur = True 
-            self.pad_context = int(pad_dur * sr) - self.n_crop_frames
-
-    def forward(self, x):
-        # crop x to n_crop_frames and zero pad back to original length
-        cropped = x[..., self.crop_start:self.crop_end]
-        if self.pad_to_dur:
-            cropped = torch.nn.functional.pad(cropped, (0, self.pad_context), "constant", 0)
-        return cropped 
-
 
 class CenterCropCuePad(torch.nn.Module):
     """
@@ -64,6 +43,11 @@ class CenterCropCuePad(torch.nn.Module):
             print("Padding to duration")
             self.pad_to_dur = True 
             self.pad_context = (int(pad_dur * signal_sr) - self.crop_length) // 2 
+        print(f"Pad context: {self.pad_context}")
+        print(f"Pad to dur: {self.pad_to_dur}")
+        print(f"Start crop center: {self.start_crop_center}")
+        print(f"Signal size: {self.signal_size}")
+        print(f"Crop length: {self.crop_length}")
 
     def forward(self, cue_wav):
         """
@@ -113,37 +97,12 @@ def run_eval(args):
     sr = config['audio']['rep_kwargs']['sr']
     coch_sr = config['audio']['rep_kwargs']['env_sr']
     audio_config = config['audio']
-    IIR_COCH = not audio_config['rep_kwargs']['rep_on_gpu']
 
-    if IIR_COCH:
-        audio_transforms = at.AudioCompose([
-                at.AudioToTensor(),
-                # at.CombineWithRandomDBSNR(low_snr=snr, high_snr=snr), 
-                at.RMSNormalizeForegroundAndBackground(rms_level=0.1),  # 0.1 is the default for the swc-based models 
-                at.UnsqueezeAudio(dim=0),
-                at.AudioToAudioRepresentation(**audio_config),
-            ])
-    if 'mono' not in args.config:
-        print(f"Using diotic input")
-        audio_transforms = at.AudioCompose([
-                    at.AudioToTensor(),
-                    # at.CombineWithRandomDBSNR(low_snr=snr, high_snr=snr), 
-                    at.RMSNormalizeForegroundAndBackground(rms_level=0.02),  # 0.02 is the default for CV-based models 
-                    at.UnsqueezeAudio(dim=0),
-                    at.DuplicateChannel()
-            ])  
-    else:
-        audio_transforms = at.AudioCompose([
-                    at.AudioToTensor(),
-                    # at.CombineWithRandomDBSNR(low_snr=snr, high_snr=snr), 
-                    at.RMSNormalizeForegroundAndBackground(rms_level=0.02),  # 0.02 is the default for CV-based models 
-                    at.UnsqueezeAudio(dim=0),
-            ])  
     # set up test params 
     with open(args.test_manifest_path, 'rb') as file:
         test_manifest = pickle.load(file)
 
-    dataset_cond_ix, cue_dur = test_manifest[args.array_id]
+    distractor_cond, cue_dur = test_manifest[args.array_id]
 
     n_cue_frames = int(cue_dur * coch_sr)
     config['model']['n_cue_frames'] = n_cue_frames
@@ -153,20 +112,11 @@ def run_eval(args):
     config['cue_duration_test'] = True
 
     pad_dur = 0.5
-    orig_audio_dur = 2
+    orig_audio_dur = 2.5
     cue_crop_op = CenterCropCuePad(orig_audio_dur, cue_dur, signal_sr, pad_dur=pad_dur).cuda() 
 
-    # Load model
-    ln_affine = config['model'].get('ln_affine', True)
-    if "v0" in args.config or 'v1' in args.config:
-        model_version = int(re.search("v\d+", model_name).group(0).strip('v'))
-    else:
-        model_version = 6
-    if 'no_affine' in args.config or not ln_affine or model_version > 7 or 'v10' in args.config:
-        model = CueDurationCNNNew(**config['model'])
-    else:
-        model = CueDurationCNN2DExtractor(**config['model'])
-    print(model)
+    model = CueDurationCNNNew(**config['model'])
+
 
     # reformat state dict to match model 
     checkpoint = torch.load(checkpoint_path)
@@ -191,49 +141,59 @@ def run_eval(args):
     model = model.eval().cuda()
 
     # load and freeze model
+
+    diotic_transforms = at.AudioCompose([
+                    at.AudioToTensor(),
+                    at.CombineWithRandomDBSNR(low_snr=0, high_snr=0), 
+                    at.RMSNormalizeForegroundAndBackground(rms_level=0.02),  # 0.02 is the default for CV-based models 
+                    at.DuplicateChannel(),
+
+            ])
+    diotic_transforms = diotic_transforms.cuda()
+
+
     coch_gram = cm.AttnAudioInputRepresentation(**config['audio']).cuda()
 
-    dataset = SWCMonoTestSet(stim_path=args.stim_path,
-                            cond_ix=dataset_cond_ix,
-                            model_sr=sr,
-                            label_type=label_type)
+    dataset = SWCMonoTestSetH5Dataset(h5_path="/om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5",
+                                            eval_distractor_cond=distractor_cond,
+                                            model_sr=44100,
+                                            label_type='CV')
     
-    condition, snr = dataset.stim_cond_map[dataset_cond_ix]
-    print(f"Evaluating {model_name} on {condition} at {snr}db SNR with {cue_dur} cue duration.")
+    print(f"Evaluating {model_name} on {distractor_cond} at 0db SNR with {cue_dur} cue duration.")
 
-    def collate_fn(batch):
+
+    def single_signal_collate_fn(batch):
         #apply transforsms to batch
-        cues = torch.stack([audio_transforms(cue, None)[0] for cue, _, _ in batch])
-        mixtures = torch.stack([audio_transforms(mix, None)[0] for _, mix,  _ in batch])
-        labels = torch.tensor([label for _, _, label in batch]).type(torch.LongTensor)
-        return cues, mixtures, labels
+        cues = torch.stack([diotic_transforms(cue, None)[0] for cue, fg, bg, label, confusion in batch])
+        mixtures = torch.stack([diotic_transforms(fg, bg)[0] for cue, fg, bg, label, confusion in batch]).type(torch.FloatTensor)
+        labels = torch.tensor([label for cue, fg, bg, label, confusion in batch]).type(torch.LongTensor)
+        confusion = torch.tensor([confusion for cue, fg, bg, label, confusion in batch]).type(torch.LongTensor)
+        return cues, mixtures, labels, confusion
 
     dataloader = torch.utils.data.DataLoader(dataset,
                                              batch_size=16,
                                              shuffle=False,
-                                             collate_fn=collate_fn,
+                                             collate_fn=single_signal_collate_fn,
                                              num_workers=args.n_jobs)
     
 
     out_dir = args.exp_dir / model_name 
     # make dir if it doesn't exist
     out_dir.mkdir(parents=True, exist_ok=True)
-    with open(out_dir / f"{model_name}_{condition}_{snr}dB_SNR_{int(cue_dur * 1000)}ms_eval_results.csv", 'w') as file:
+    with open(out_dir / f"{model_name}_{distractor_cond}_0dB_SNR_{int(cue_dur * 1000)}ms_eval_results.csv", 'w') as file:
         csv_out = csv.writer(file, delimiter=",")
         # write column header to csv
         print("writing csv header")
         csv_out.writerow(['pred_word_int', 'true_word_int', 'accuracy'])
         
         # run eval 
-        for i, batch in enumerate(tqdm(dataloader, desc=f"evaluating {model_name} on {condition} at {snr}dB SNR")):
-            cue, mixture, word = batch
+        for i, batch in enumerate(tqdm(dataloader, desc=f"evaluating {model_name} on {distractor_cond} at 0dB SNR")):
+            cue, mixture, word, _ = batch
             # to device 
             cue = cue.cuda()
             # crop cue duration
             cue = cue_crop_op(cue)
-
             mixture = mixture.cuda()
-
             cue, mixture = coch_gram(cue, mixture)
 
             logits = model(cue, mixture, None)

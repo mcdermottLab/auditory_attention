@@ -37,7 +37,10 @@ class SimpleAttentionalGain(nn.Module):
         ## Process cue 
         # time average - same as nn op, but is compat with compile 
         if self.n_cue_frames:
-            cue = cue[...,  : self.n_cue_frames]
+            n_total_frames =  cue.size(-1)
+            start = int((n_total_frames-self.n_cue_frames)/2)
+            end = start + self.n_cue_frames
+            cue = cue[...,  start : end]
         cue = cue.mean(axis=-1,keepdim=True)
         # cue = self.time_average(cue)
         # apply threshold shift
@@ -1074,7 +1077,7 @@ class CueDurationCNNNew(BinauralAuditoryAttentionCNN):
                     attn = self.model_dict[f'attn{idx}'](cue, attn, cue_mask_ixs) + attn
                 else:
                     attn = self.model_dict[f'attn{idx}'](cue, attn, cue_mask_ixs)
-                    
+                
             # print(f"conv_block_{idx} post gain max and min: {attn.max().item(), attn.min().item()}")
             if self.norm_first:
                 cue = nn.functional.layer_norm(cue, cue.shape[1:], 
@@ -1130,7 +1133,6 @@ class CueDurationCNN2DExtractor(CNN2DExtractor):
         self.output_height = self.frequency_dim
         self.output_len = 20000 # softcode eventually
         self.n_cue_frames = n_cue_frames
-        print(n_cue_frames)
         if n_cue_frames < 5000:
             self.ln_cue_frames = 5000
         else:
@@ -1325,6 +1327,7 @@ class CueDurationCNN(BinauralAuditoryAttentionCNN):
                         attn = self.model_dict[f'attn{idx}'](cue, attn, cue_mask_ixs) + attn
                     else:
                         attn = self.model_dict[f'attn{idx}'](cue, attn, cue_mask_ixs)
+                        
                         
                 # print(f"conv_block_{idx} post gain max and min: {attn.max().item(), attn.min().item()}")
                 if self.norm_first:

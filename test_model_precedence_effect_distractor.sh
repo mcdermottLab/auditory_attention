@@ -25,7 +25,7 @@ which python3
 #                  --cue_type voice_and_location --overwrite --n_per_job 1
 
 python3 eval_precedence.py --config config/binaural_attn/word_task_v10_main_feature_gain_config.yaml \
-                 --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679.ckpt \
+                 --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt  \
                  --test_manifest binaural_test_manifests/freymen_1999_test_conds.pkl \
                  --model_name word_task_v10_main_feature_gain_config --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test \

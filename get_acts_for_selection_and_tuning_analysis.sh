@@ -5,9 +5,8 @@
 #SBATCH --mem=8Gb                           
 #SBATCH --cpus-per-task=1
 #SBATCH --time=4:00:00
-#SBATCH --partition=mcdermott
-##SBATCH --array=1 # 0-8 for full
-#SBATCH --gres=gpu:a100:1 #--constraint=16GB
+#SBATCH --partition=normal
+#SBATCH --gres=gpu:1 --constraint=20GB
 ##SBATCH -x dgx001,dgx002,node043,node091,node093
 
 module load openmind8/anaconda/3-2022.10
@@ -17,9 +16,11 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 which python3
 python3 get_acts_for_tuning_and_selection_analysis.py --config config/binaural_attn/word_task_v10_main_feature_gain_config.yaml \
-                --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679.ckpt \
+                --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt \
                 --n_activations 800 \
-                --n_jobs 0 --time_average
+                --n_jobs 0 \
+                --diotic
+                # --time_average \
 
 # python3 get_unit_activations_for_tuning_analysis.py --config config/binaural_attn/word_task_v09_cue_loc_task.yaml \
 #                 --ckpt_path attn_cue_models/word_task_v09_cue_loc_task/checkpoints/epoch=0-step=6000-best_word_task-v1.ckpt \
