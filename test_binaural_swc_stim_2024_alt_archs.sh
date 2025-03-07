@@ -4,11 +4,11 @@
 #SBATCH --error=outLogs/binaural_swc_test_2024_v10_arch_search_%A_%a.err
 #SBATCH --mem=12Gb
 #SBATCH --cpus-per-task=4
-#SBATCH --time=0:10:00
+#SBATCH --time=0:15:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0-548 # 0-548 for 9 archs on each test
-#SBATCH -x dgx001,dgx002,node093
+#SBATCH --array=144,145,160,161,170-172,203,310-311,323,324,329,483,501,502,517,519,524,525,529,538,539,541,544,154,179,533,545 # 0-548 for 9 archs on each test
+#SBATCH -x dgx001,dgx002,node104
 
 module load openmind8/anaconda/3-2022.10
 export HDF5_USE_FILE_LOCKING=FALSE
@@ -19,7 +19,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 rm -r /tmp/torchinductor_imgriff
 
 
-python3 eval_swc_mono_stim.py --config_list_path swc_test_manifests/arch_search_configs_v10_all_conds_w_best_ckpts.pkl \
+python3 eval_swc_mono_stim.py --config_list_path swc_test_manifests/arch_search_configs_v10_all_conds_w_latest_ckpts.pkl \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \

@@ -111,7 +111,7 @@ def run_eval(args):
     # load model config 
     config = yaml.load(open(args.config, 'r'), Loader=yaml.FullLoader)
     config['num_workers'] = args.n_jobs
-    config['hparas']['batch_size'] = 48 # config['data']['loader']['batch_size'] // args.gpus
+    config['hparas']['batch_size'] = 32 # config['data']['loader']['batch_size'] // args.gpus
     # get model input sr for brir resampling
     model_in_sr = config['audio']['rep_kwargs']['sr']
 

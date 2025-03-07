@@ -1,5 +1,5 @@
 import pathlib
-from argparse import ArgumentParser
+from argparse import ArgumentParser, BooleanOptionalAction
 import yaml
 import pickle
 import csv
@@ -206,7 +206,16 @@ def run_eval(args):
     out_dir.mkdir(parents=True, exist_ok=True)
     # track running average of accuracy and confusions 
     acc_sum = 0
-    with open(out_dir / f"{model_name}_{condition}_{snr}dB_SNR_eval_results.csv", 'w') as file:
+    out_name = out_dir / f"{model_name}_{condition}_{snr}dB_SNR_eval_results.csv" 
+
+    if out_name.exists() and not args.overwrite:
+        if any([arch_ix in model_name for arch_ix in ['9', '12', '6', '8']]):
+            pass 
+        else:
+            print(f"File {out_name} already exists. Exiting.")
+            return 
+    
+    with open(out_name, 'w') as file:
         csv_out = csv.writer(file, delimiter=",")
         # write column header to csv
         print("writing csv header")
@@ -304,6 +313,11 @@ def cli_main():
         "--spotlight_expmnt",
         action='store_true',
         help="If set, load spotlight experiment stimuli",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action=BooleanOptionalAction,
+        help="If true, will overwrite existing results",
     )
     args = parser.parse_args()
 

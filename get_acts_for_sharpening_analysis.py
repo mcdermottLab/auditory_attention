@@ -1,5 +1,4 @@
-import sys
-import os
+import sys 
 import yaml
 import h5py 
 import torch
@@ -11,7 +10,6 @@ import itertools
 import src.audio_transforms as at
 from src.spatial_attn_lightning import BinauralAttentionModule 
 from corpus.swc_mono_test import SWCMonoTestSetH5DatasetForUnitTuning
-import src.audio_transforms as at
 import pandas as pd 
 from tqdm.auto import tqdm
 import pickle
@@ -32,6 +30,11 @@ snr_dict = {2: -8,
 }
 
 
+## For first pass, alternate whether target or distractor is stationary. 
+azims = [0, 10, 350, 45, 315, 90, 270, 180] # azim over 180 is left side 
+elevs = [10, -20, 20, 40]
+loc_pairs = [(azim, 0) for azim in azims]
+loc_pairs += [(0, elev) for elev in elevs]
 
 def get_brir(azim=None, elev=None, coords=None, h5_fn=None, IR_df=None, out_sr=44_100):
     if coords is not None:
@@ -91,24 +94,18 @@ def get_activations(args):
     np.random.seed(0)
   
     # Get config for model
-    checkpoint_path = args.ckpt_path
     
     if args.config != "":
         config_path = args.config
     else:
         with open(args.config_list, 'rb') as f:
             model_config = pickle.load(f)
-        config_output = model_config[args.job_id] # is absolute path to model config
-        if isinstance(config_output, dict):
-            print(f"Loading config from {config_output['config_path']}")
-            config_path, checkpoint_path = config_output['config_path'], config_output['ckpt_path']
-            config_path = Path(config_path)
-        else:
-            config_path = Path(config_output)
-            
+        config_path = model_config[args.job_id]
+        config_path = config_path.split("/Auditory-Attention/")[-1]
+
     print(config_path)
     config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
-    model_name = Path(config_path).stem
+    model_name = Path(args.config).stem
 
     # Set audio transforms  
     snr = snr_dict[args.job_id]
@@ -128,25 +125,15 @@ def get_activations(args):
     new_room_manifest = pd.read_pickle(test_IR_manifest_path)
     only14_manifest = new_room_manifest[(new_room_manifest['index_room'] == room_ix)  & (new_room_manifest['src_dist'] == 1.4)]
 
-    # handle checkpoint path - if not provided, get latest 
-    if checkpoint_path == "":
-        ckpt_dir = Path('attn_cue_models/') / model_name / 'checkpoints'
-        checkpoint_path = sorted(ckpt_dir.glob("*.ckpt"), key=os.path.getctime)[-1]
-
-    print(f"Loading model from {checkpoint_path}")
-    ### Set getting acts to true to skip model compile 
-    # config['getting_acts'] = True
-    rand_weight_str = ""
-    if not args.random_weights:
-        model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).eval().cuda()
-    else:
-        model = BinauralAttentionModule(config=config).eval().cuda()
-        rand_weight_str = "_rand_weights"
+    # get latest checkpoint 
+    checkpoint_path = args.ckpt_path
+    model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).eval().cuda()
     coch_gram = model.coch_gram.cuda()
     label_type = 'CV'
     sr = config['audio']['rep_kwargs']['sr']
           
     # get dataset
+    condition = "one_distractor" # TODO: add logic to run with non-speech distractors 
     dataset = SWCMonoTestSetH5DatasetForUnitTuning(h5_path=args.stim_path,
                                     model_sr=sr,
                                )
@@ -225,9 +212,9 @@ def get_activations(args):
         timg_avg_extn = ''
 
     if args.diotic:
-        outname = Path(f'binaural_unit_activation_analysis/{model_name}{rand_weight_str}/{model_name}{rand_weight_str}_model_activations_{snr}dB{timg_avg_extn}_diotic.h5')
+        outname = Path(f'binaural_unit_activation_analysis/{model_name}/{model_name}_model_activations_{snr}dB{timg_avg_extn}_diotic.h5')
     else:
-        outname = Path(f'binaural_unit_activation_analysis/{model_name}{rand_weight_str}/{model_name}{rand_weight_str}_model_activations_{snr}dB{timg_avg_extn}.h5')
+        outname = Path(f'binaural_unit_activation_analysis/{model_name}/{model_name}_model_activations_{snr}dB{timg_avg_extn}.h5')
 
     layer_shape_dict_name = Path(f'binaural_unit_activation_analysis/{model_name}/{model_name}_layer_shape_dict{timg_avg_extn}.pkl')
     outname.parent.mkdir(parents=True, exist_ok=True)
@@ -235,13 +222,6 @@ def get_activations(args):
     # outname = 'test_act_outs.h5'
     n_activations = args.n_activations
     layer_shape_dict = {}
-
-    ## For first pass, alternate whether target or distractor is stationary. 
-    azims = [0, 10, 350, 45, 315, 90, 270, 180] # azim over 180 is left side 
-    elevs = [10, -20, 20, 40]
-    loc_pairs = [(azim, 0) for azim in azims]
-    loc_pairs += [(0, elev) for elev in elevs]
-
     with h5py.File(outname, 'w') as f:
         with torch.no_grad():
             if args.diotic:
@@ -465,16 +445,11 @@ def cli_main():
         "--time_average",
         action='store_true',
         help="Whether to time average activations",
-    )  
+    )   
     parser.add_argument(
         "--diotic",
         action='store_true',
         help="Whether to run without spatialization",
-    )   
-    parser.add_argument(
-        "--random_weights",
-        action='store_true',
-        help="Whether to run using random weights",
     )   
     args = parser.parse_args()
 
