@@ -209,11 +209,11 @@ def run_eval(args):
     out_name = out_dir / f"{model_name}_{condition}_{snr}dB_SNR_eval_results.csv" 
 
     if out_name.exists() and not args.overwrite:
-        if any([arch_ix in model_name for arch_ix in ['9', '12', '6', '8']]):
-            pass 
-        else:
-            print(f"File {out_name} already exists. Exiting.")
-            return 
+        # if any([arch_ix in model_name for arch_ix in ['9', '12', '6', '8']]):
+        #     pass 
+        # else:
+        print(f"File {out_name} already exists. Exiting.")
+        return 
     
     with open(out_name, 'w') as file:
         csv_out = csv.writer(file, delimiter=",")

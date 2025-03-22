@@ -5,9 +5,9 @@
 #SBATCH --mem=12Gb
 #SBATCH --cpus-per-task=4
 #SBATCH --time=0:10:00
-#SBATCH --partition=use-everything
+#SBATCH --partition=normal
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=26,27,35,52,61,64,67,72,92,94,104,106 # 0-107
+#SBATCH --array=0-107 # 0-107
 #SBATCH -x dgx001,dgx002,node104
 
 module load openmind8/anaconda/3-2022.10

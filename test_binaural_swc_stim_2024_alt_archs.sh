@@ -7,7 +7,7 @@
 #SBATCH --time=0:15:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=144,145,160,161,170-172,203,310-311,323,324,329,483,501,502,517,519,524,525,529,538,539,541,544,154,179,533,545 # 0-548 for 9 archs on each test
+#SBATCH --array=183,193,423,424 # 0-548 for 9 archs on each test
 #SBATCH -x dgx001,dgx002,node104
 
 module load openmind8/anaconda/3-2022.10
@@ -24,4 +24,4 @@ python3 eval_swc_mono_stim.py --config_list_path swc_test_manifests/arch_search_
                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
                  --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
-                 --full_h5_stim_set
+                 --full_h5_stim_set --overwrite

@@ -110,3 +110,15 @@ model_name_dict = {
 				   "word_task_v09_cue_loc_task": "Dual task model ",
 				   "word_task_v10_main_feature_gain_config": "Feature-gain v10 "
                   }
+
+############################################
+# Other util functions by Ian Griffith
+############################################
+
+def bootstrap_sem(data, n_bootstraps=10000):
+    bootstrapped_means = np.zeros(n_bootstraps)
+    n = len(data)
+    for i in range(n_bootstraps):
+        bootstrapped_sample = np.random.choice(data, size=n, replace=True)
+        bootstrapped_means[i] = bootstrapped_sample.mean()
+    return bootstrapped_means.std()
