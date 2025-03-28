@@ -111,12 +111,16 @@ def get_activations(args):
     model_name = Path(config_path).stem
 
     # Set audio transforms  
-    snr = snr_dict[args.job_id]
+    # snr = snr_dict[args.job_id]
+
+    snr = 0 
     audio_transforms = at.AudioCompose([
                     at.AudioToTensor(),
-                    at.BinauralCombineWithRandomDBSNR(low_snr=snr,    # is 0 dB
-                                                    high_snr=snr), # is 0 dB 
-                    at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+                    at.BinauralCombineWithRandomDBSNR(low_snr=snr,    
+                                                    high_snr=snr,       
+                                                    v2_demean=True), 
+                    at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02,
+                                                                   v2_demean=True), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
             ])
     audio_transforms = audio_transforms.cuda()
     
@@ -224,10 +228,22 @@ def get_activations(args):
     else:
         timg_avg_extn = ''
 
-    if args.diotic:
-        outname = Path(f'binaural_unit_activation_analysis/{model_name}{rand_weight_str}/{model_name}{rand_weight_str}_model_activations_{snr}dB{timg_avg_extn}_diotic.h5')
+    if args.center_loc_only:
+        center_loc_str = '_center_loc_only'
     else:
-        outname = Path(f'binaural_unit_activation_analysis/{model_name}{rand_weight_str}/{model_name}{rand_weight_str}_model_activations_{snr}dB{timg_avg_extn}.h5')
+        center_loc_str = ''
+
+    if 'main' in model_name:
+        model_name = model_name + "_latest_ckpt"
+
+    if args.cue_single_source:
+        cue_single_source_str = '_cue_single_source'
+    else:
+        cue_single_source_str = ''
+    if args.diotic:
+        outname = Path(f'binaural_unit_activation_analysis/{model_name}{rand_weight_str}/{model_name}{rand_weight_str}_model_activations_{snr}dB{timg_avg_extn}_diotic{cue_single_source_str}.h5')
+    else:
+        outname = Path(f'binaural_unit_activation_analysis/{model_name}{rand_weight_str}/{model_name}{rand_weight_str}_model_activations_{snr}dB{timg_avg_extn}{center_loc_str}{cue_single_source_str}.h5')
 
     layer_shape_dict_name = Path(f'binaural_unit_activation_analysis/{model_name}/{model_name}_layer_shape_dict{timg_avg_extn}.pkl')
     outname.parent.mkdir(parents=True, exist_ok=True)
@@ -242,9 +258,13 @@ def get_activations(args):
     loc_pairs = [(azim, 0) for azim in azims]
     loc_pairs += [(0, elev) for elev in elevs]
 
+    if outname.exists() and not args.overwrite:
+        print(f"{outname} already exists. Exiting.")
+        sys.exit()
+
     with h5py.File(outname, 'w') as f:
         with torch.no_grad():
-            if args.diotic:
+            if args.diotic or args.center_loc_only:
                 loc_pairs = [(0, 0)]
             n_rows_to_save = int(n_activations * len(loc_pairs)) # n sounds x n locs 
             for loc_x, (azim, elev) in enumerate(tqdm(loc_pairs, desc="Location ")):
@@ -283,7 +303,8 @@ def get_activations(args):
                         # only need to do this once 
                         silence_cue = torch.zeros_like(cue, device='cuda')
                         silence_cue, _ = coch_gram(silence_cue, None)
-                        
+
+            
                     # get mixture signals 
                     mixture_same, _ = audio_transforms(target, same_sex_dist)
                     mixture_diff, _ = audio_transforms(target, diff_sex_dist)
@@ -295,12 +316,17 @@ def get_activations(args):
                     mixture_same, mixture_diff = coch_gram(mixture_same, mixture_diff)
                     nat_scene_dist, mixture_nat_scene = coch_gram(nat_scene_dist, mixture_nat_scene)
 
-                    if not 'control' in config_path:
+                    if args.cue_single_source:
+                        single_source_cue = cue 
+                    else:
+                        single_source_cue = silence_cue
+                        
+                    if not ('control' in config_path.stem or 'late_only' in config_path.stem):
                         # get cochleagram gains - is attn0
                         coch_gains = gain_functions['attn0'](cue)
                 
                     if row == 0:
-                        if not 'control' in config_path:
+                        if not ('control' in config_path.stem or 'late_only' in config_path.stem):
                             f.create_dataset('attncoch_gains', shape=[n_rows_to_save, coch_gains.view(-1).shape[0]], dtype=np.float32)
                         f.create_dataset('target_f0', shape=[n_rows_to_save], dtype=np.float32)
                         f.create_dataset('same_dist_f0', shape=[n_rows_to_save], dtype=np.float32)
@@ -311,7 +337,7 @@ def get_activations(args):
                         f.create_dataset('tested_elevs', data=elevs)
                         
                     # save cochleagram outputs and labels 
-                    if not 'control' in config_path:
+                    if not ('control' in config_path.stem or 'late_only' in config_path.stem):
                         f['attncoch_gains'][row] = coch_gains.view(-1).cpu().numpy()
                     f['target_f0'][row] = target_f0
                     f['same_dist_f0'][row] = same_dist_f0
@@ -350,26 +376,26 @@ def get_activations(args):
                         gain_shape_dict = {}
                         model(cue, mixture, None)  # None is cue_mask_ixs which is not used for activations
                         for layer, acts in activations.items():
-                            if 'relufc' in layer or 'attn' in layer or 'control' in config_path:
+                            if 'relufc' in layer or 'attn' in layer or 'control' in config_path.stem:
                                 save_activations(f, layer, f"mixture_{dis_str}", acts, row, n_rows_to_save, time_average=args.time_average)
                             else:
                                 cue_acts, mixture_acts = acts
-                                if 'dist_str' == 'same':
                                     # cue activations will be same for all mixtures 
-                                    save_activations(f, layer, f"cue", cue_acts, row, n_rows_to_save, time_average=args.time_average) 
+                                save_activations(f, layer, f"cue_{dis_str}", cue_acts, row, n_rows_to_save, time_average=args.time_average) 
                                 save_activations(f, layer, f"mixture_{dis_str}", mixture_acts, row, n_rows_to_save, time_average=args.time_average)
                                 # get gains - these happen before conv block, taking cue from previous pool layer
                                 if 'pool' in layer and dis_str == 'same': # only need todo this once 
                                     gain_fn_name = pool_to_gain_map[layer]
-                                    gain_fn = gain_functions[gain_fn_name]
-                                    gains = gain_fn(cue_acts)
-                                    gain_shape_dict[f"{layer}_gains"] = gains.shape
-                                    save_activations(f, gain_fn_name, 'gains', gains, row, n_rows_to_save)
+                                    if gain_fn_name in gain_functions:
+                                        gain_fn = gain_functions[gain_fn_name]
+                                        gains = gain_fn(cue_acts)
+                                        gain_shape_dict[f"{layer}_gains"] = gains.shape
+                                        save_activations(f, gain_fn_name, 'gains', gains, row, n_rows_to_save)
                     
                     ## Process single source signals and get corrs 
                     for source_str, source in zip(['target', 'same_sex_dist', 'diff_sex_dist', 'nat_scene_dist'], [target, same_sex_dist, diff_sex_dist, nat_scene_dist]):
                         activations = {}
-                        model(silence_cue, source, None)
+                        model(single_source_cue, source, None)
                         for layer, acts in activations.items():
                             if len(acts) == 2:
                                 _, acts = acts
@@ -450,11 +476,13 @@ def cli_main():
         help="Path to dict of config files",
         )
     parser.add_argument("--room_manifest_path", 
-                        default="/om2/user/imgriff/spatial_audio_pipeline/assets/brir/mit_bldg46room1004_min_reverb",
-                        type=str, help="Path to room manifest")
+                        default="/om2/user/msaddler/spatial_audio_pipeline/assets/brir/eval",
+                        type=str,
+                        help="Path to room manifest")
     parser.add_argument("--room_ix",
                         default=0,
-                        type=int, help="Room index to use") 
+                        type=int,
+                        help="Room index to use") 
     parser.add_argument(
         "--stim_path",
         default=Path("/om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5"),
@@ -472,10 +500,25 @@ def cli_main():
         help="Whether to run without spatialization",
     )   
     parser.add_argument(
+        "--center_loc_only",
+        action='store_true',
+        help="Whether to run only at center location.",
+    )
+    parser.add_argument(
         "--random_weights",
         action='store_true',
         help="Whether to run using random weights",
-    )   
+    ) 
+    parser.add_argument(
+        "--cue_single_source",
+        action='store_true',
+        help="Whether to use the cue signal or silence when getting activations for single sources. True uses cue, False uses silence. Default is False.",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action='store_true',
+        help="Whether to overwrite existing activations file.",
+    )
     args = parser.parse_args()
 
     get_activations(args)

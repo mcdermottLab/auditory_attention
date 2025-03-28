@@ -19,7 +19,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 rm -r /tmp/torchinductor_imgriff
 
 python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_v10_main_feature_gain_config.yaml \
-                 --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt  \
+                 --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=3-step=48037.ckpt \ #epoch=1-step=24679-v1.ckpt  \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
