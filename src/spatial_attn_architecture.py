@@ -844,6 +844,49 @@ class BinauralControlCNN(nn.Module):
             return self.classification(x)
 
 
+class BackBoneCNN(BinauralControlCNN):
+    def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
+                  fc_size=512, num_classes={"num_words":800, "num_locs":504}, frequency_dim=40,
+                  starting_output_len = 20000, norm_first=True, ln_affine=True, v08=False, **kwargs):
+        super(BackBoneCNN, self).__init__(input_sr=input_sr,
+                                          out_channels=out_channels,
+                                          kernel=kernel,
+                                          stride=stride,
+                                          padding=padding,
+                                          pool_stride=pool_stride,
+                                          pool_size=pool_size,
+                                          pool_padding=pool_padding,
+                                          attn=attn,
+                                          dropout=dropout,
+                                          fc_size=fc_size,
+                                          num_classes=num_classes,
+                                          frequency_dim=frequency_dim,
+                                          starting_output_len = starting_output_len,
+                                          norm_first=norm_first,
+                                          ln_affine=ln_affine,
+                                          v08=v08,
+                                          ) 
+        
+    # override forward to remove cue
+    def forward(self, cue=None, mixture=None, cue_mask_ixs=None, *args, **kwargs):
+        # forward will take cue as argument for compat with rest of pipeline, but won't use it. 
+        x = mixture
+        x = self.model_dict["norm_coch_rep"](x)
+        for idx in range(self.n_layers):
+            x = self.model_dict[f'conv_block_{idx}'](x)
+            # print(f"conv_block_{idx}, {x.max(), x.min()}")
+            if self.pool_stride[idx] != -1:
+                x = self.model_dict[f'hann_pool_{idx}'](x)
+        x = x.view(x.size(0), self.output_size) # B x FC size
+        x = self.fullyconnected(x)        
+        x = self.relufc(x)
+        x = self.dropout(x)        
+        if self.dual_task:
+            word_x = self.classificationWord(x)
+            loc_x = self.classificationLoc(x)
+            return word_x, loc_x
+        else:
+            return self.classification(x)
 
 class CNN2DExtractor(nn.Module):
     ''' CNN wrapper, includes relu and layer-norm if applied'''

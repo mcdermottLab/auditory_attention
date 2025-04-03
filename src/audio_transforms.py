@@ -660,7 +660,7 @@ class BinauralRMSNormalizeForegroundAndBackground(torch.nn.Module):
     Returns:
         foreground_wav, background_wav
     """
-    def __init__(self, rms_level=0.1, v2_demean=False):
+    def __init__(self, rms_level=0.1, v2_demean=True):
         super(BinauralRMSNormalizeForegroundAndBackground, self).__init__()
         self.rms_level=rms_level
         self.v2_demean=v2_demean
