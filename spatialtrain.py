@@ -106,6 +106,7 @@ def run_train(args):
         benchmark=True,
         num_nodes=args.num_nodes,
         devices=args.gpus,
+        limit_val_batches=0.1, # only use 10% of validation set per epoch 
         accelerator="gpu", 
         # resume_from_checkpoint = ckpt_path,  
         val_check_interval=config['hparas']['valid_step'],
