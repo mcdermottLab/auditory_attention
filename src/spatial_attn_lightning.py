@@ -10,15 +10,9 @@ from pytorch_lightning import LightningModule
 import src.audio_transforms as at
 import src.audio_attention_transforms as aat
 import src.custom_modules as cm
-from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, BinauralControlCNN, BinauralAuditoryAttentionCNNV2, BaselineCNNV2
+from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, BinauralControlCNN, BinauralAuditoryAttentionCNNV2, BaselineCNNV2, BackBoneCNN
 from corpus.binaural_attention_h5 import BinauralAttentionDataset
-
-## TO DO:  Import new dataset class
-
-
-# def get_memory_usage():
-#     mem = psutil.virtual_memory()
-#     return mem.used / 1024 ** 3
+from corpus.binaural_word_rec_h5 import BinauralWordRecDataset
 
 
 class AttnBiasConstraint(object):
@@ -58,7 +52,9 @@ class BinauralAttentionModule(LightningModule):
         self.run_timit = self.corpora_name == 'TIMIT'
 
         # set dataset as attribute
+        self.word_rec_model = False
         self.dataset = BinauralAttentionDataset 
+        self.train_val_collate_fn = self._collate_fn
         if 'v05' in self.corpora_config['root']:
             # signals are pre-combined and normalized - normalize again for certainty 
             self.audio_transforms = at.AudioCompose([
@@ -92,6 +88,7 @@ class BinauralAttentionModule(LightningModule):
         new_module = self.model_config.get('v08', False)
         v2_module = self.model_config.get('v2_module', False)
         control_arch = self.model_config.get('control_arch', False)
+        self.use_backbone_arch = self.model_config.get('backbone_arch', False)
         if control_arch:
             if v2_module:
                 print("Using BaselineCNNV2")
@@ -99,7 +96,12 @@ class BinauralAttentionModule(LightningModule):
             else:
                 print("Using BinauralControlCNN")
                 self.model = BinauralControlCNN(**self.model_config)
-            
+        elif self.use_backbone_arch:
+            print("Using BackBoneCNN")
+            self.model = BackBoneCNN(**self.model_config)
+            self.dataset = BinauralWordRecDataset
+            self.train_val_collate_fn = self.word_rec_collate_fn
+            self.word_rec_model = True
         elif v2_module:
             print("Using BinauralAuditoryAttentionCNNV2")
             self.model = BinauralAuditoryAttentionCNNV2(**self.model_config)
@@ -114,6 +116,7 @@ class BinauralAttentionModule(LightningModule):
             self.model = torch.compile(self.model, mode="default")
 
         ## get local rank
+        print(f"Using dataset {self.dataset.__name__}")
         print(self.model)
 
         # Add input rep to model or audio transforms
@@ -344,6 +347,17 @@ class BinauralAttentionModule(LightningModule):
         labels = torch.from_numpy(samples[3]).type(torch.LongTensor)
         return cue_features, cue_mask_ixs, scene_features, labels
 
+    def word_rec_collate_fn(self, samples: List):
+        scenes = []
+        labels = []
+        for (_, target, distractor, label) in samples:
+            scene_features, _ = self.audio_transforms(target, None)
+            scenes.append(scene_features)
+            labels.append(label)
+        scene_features = torch.stack(scenes, dim=0)  # stack along batch dimension
+        labels = torch.LongTensor(labels)  # stack along batch dimension
+        return None, None, scene_features, labels
+
     def test_collate_fn(self, samples: List):
         cue_features = self._extract_features(samples, sample_ix=0)
         cue_mask_ixs = self.get_cue_mask_ixs(cue_features)
@@ -352,26 +366,30 @@ class BinauralAttentionModule(LightningModule):
         return cue_features, cue_mask_ixs, scene_features, labels
 
     def train_dataloader(self):
-        self.train_dataset = self.dataset(**self.corpora_config, batch_size=self.hparas_config['batch_size'], mode='train')
+        ds_batch_size = 1 if self.use_backbone_arch else self.hparas_config['batch_size'] 
+        dl_batch_size = self.hparas_config['batch_size'] if self.use_backbone_arch else 1
+        self.train_dataset = self.dataset(**self.corpora_config, batch_size=ds_batch_size, mode='train')
         print(f"len training set = {len( self.train_dataset )}")
         dataloader = torch.utils.data.DataLoader(
             self.train_dataset,
-            batch_size=1,
+            batch_size=dl_batch_size,
             num_workers=self.config['num_workers'], 
-            collate_fn=self._collate_fn,
+            collate_fn=self.train_val_collate_fn,
             pin_memory=True,
             # persistent_workers=True,
-            shuffle=False,
+            shuffle=True if self.use_backbone_arch else False
         )
         return dataloader
 
     def val_dataloader(self):
-        dataset = self.dataset(**self.corpora_config, batch_size=self.hparas_config['batch_size'], mode='val')
+        ds_batch_size = 1 if self.use_backbone_arch else self.hparas_config['batch_size'] 
+        dl_batch_size = self.hparas_config['batch_size'] if self.use_backbone_arch else 1
+        dataset = self.dataset(**self.corpora_config, batch_size=ds_batch_size, mode='val')
         dataloader = torch.utils.data.DataLoader(
             dataset,
-            batch_size=1,
+            batch_size=dl_batch_size,
             num_workers=self.config['num_workers'],
-            collate_fn=self._collate_fn,
+            collate_fn=self.train_val_collate_fn,
             shuffle=False
         )
         return dataloader
