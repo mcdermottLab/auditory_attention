@@ -245,6 +245,9 @@ def get_activations(args):
     else:
         outname = Path(f'binaural_unit_activation_analysis/{model_name}{rand_weight_str}/{model_name}{rand_weight_str}_model_activations_{snr}dB{timg_avg_extn}{center_loc_str}{cue_single_source_str}.h5')
 
+    out_dir = Path("/om/scratch/Thu/imgriff")
+    outname = out_dir / outname 
+
     layer_shape_dict_name = Path(f'binaural_unit_activation_analysis/{model_name}/{model_name}_layer_shape_dict{timg_avg_extn}.pkl')
     outname.parent.mkdir(parents=True, exist_ok=True)
     print(f"Preparing to write activations to {outname}")
@@ -316,10 +319,10 @@ def get_activations(args):
                     mixture_same, mixture_diff = coch_gram(mixture_same, mixture_diff)
                     nat_scene_dist, mixture_nat_scene = coch_gram(nat_scene_dist, mixture_nat_scene)
 
-                    if args.cue_single_source:
-                        single_source_cue = cue 
-                    else:
-                        single_source_cue = silence_cue
+                    # if args.cue_single_source:
+                    #     single_source_cue = cue 
+                    # else:
+                    #     single_source_cue = silence_cue
                         
                     if not ('control' in config_path.stem or 'late_only' in config_path.stem):
                         # get cochleagram gains - is attn0
@@ -394,8 +397,9 @@ def get_activations(args):
                     
                     ## Process single source signals and get corrs 
                     for source_str, source in zip(['target', 'same_sex_dist', 'diff_sex_dist', 'nat_scene_dist'], [target, same_sex_dist, diff_sex_dist, nat_scene_dist]):
+                        # run without cue 
                         activations = {}
-                        model(single_source_cue, source, None)
+                        model(silence_cue, source, None)
                         for layer, acts in activations.items():
                             if len(acts) == 2:
                                 _, acts = acts
@@ -420,7 +424,34 @@ def get_activations(args):
                             elif source_str == 'nat_scene_dist':
                                 corr = pearsonr(acts, f[f"{layer}_mixture_nat_scene"][row])
                                 save_metric(f, layer, f"{source_str}_mixture_nat_scene_corr", corr, row, n_rows_to_save, is_corr=True)
-
+                        
+                        # run with cue 
+                        activations = {}
+                        model(cue, source, None)
+                        for layer, acts in activations.items():
+                            if len(acts) == 2:
+                                _, acts = acts
+                            save_activations(f, layer, f"cued_{source_str}", acts, row, n_rows_to_save, time_average=args.time_average)
+                            # for cpr 
+                            if 'relufc' in layer or not args.time_average:
+                                acts = acts.cpu().view(-1).numpy()
+                            else:
+                                acts = acts.mean(-1).cpu().view(-1).numpy()
+                            # get corrs between target and each source
+                            if source_str == 'target':
+                                for mixture_str in ["mixture_same", "mixture_diff", "mixture_nat_scene"]:
+                                    mixture_acts = f[f"{layer}_{mixture_str}"][row]
+                                    corr = pearsonr(acts, mixture_acts)
+                                    save_metric(f, layer, f"cued_{source_str}_{mixture_str}_corr", corr, row, n_rows_to_save, is_corr=True)
+                            elif source_str == 'same_sex_dist':
+                                corr = pearsonr(acts, f[f"{layer}_mixture_same"][row])
+                                save_metric(f, layer, f"cued_{source_str}_mixture_same_corr", corr, row, n_rows_to_save, is_corr=True)
+                            elif source_str == 'diff_sex_dist':
+                                corr = pearsonr(acts, f[f"{layer}_mixture_diff"][row])
+                                save_metric(f, layer, f"cued_{source_str}_mixture_diff_corr", corr, row, n_rows_to_save, is_corr=True)
+                            elif source_str == 'nat_scene_dist':
+                                corr = pearsonr(acts, f[f"{layer}_mixture_nat_scene"][row])
+                                save_metric(f, layer, f"cued_{source_str}_mixture_nat_scene_corr", corr, row, n_rows_to_save, is_corr=True)
 
                     if row == 0:
                         layer_shape_dict = {layer: activations[layer].shape for layer in activations.keys()}

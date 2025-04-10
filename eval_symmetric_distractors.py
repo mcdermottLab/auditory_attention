@@ -85,8 +85,10 @@ def run_eval(args):
     audio_transforms_0_db = at.AudioCompose([
                         at.AudioToTensor(),
                         at.BinauralCombineWithRandomDBSNR(low_snr=0,    # is 0 dB
-                                                        high_snr=0), # is 0 dB 
-                        at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+                                                          high_snr=0,
+                                                          v2_demean=True), # is 0 dB 
+                        at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02,
+                                                                       v2_demean=True), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
                 ])
 
     audio_transforms_0_db = audio_transforms_0_db.cuda()
@@ -126,6 +128,8 @@ def run_eval(args):
         target_loc = test_dict[idx]['target_loc']
         distract_loc = test_dict[idx]['distract_loc']
         threshold_snr = test_dict[idx]['snr']
+        with_noise = test_dict[idx].get('with_noise', False)
+        with_textures = test_dict[idx].get('with_textures', False)
         print(test_dict[idx])
 
         symmetric_distractor = args.run_1_distractor or test_dict[idx].get('symmetric_distractor', False)
@@ -157,18 +161,20 @@ def run_eval(args):
         audio_transforms_test_db = at.AudioCompose([
                         at.AudioToTensor(),
                         at.BinauralCombineWithRandomDBSNR(low_snr=threshold_snr,    
-                                                        high_snr=threshold_snr), 
-                        at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+                                                          high_snr=threshold_snr,
+                                                          v2_demean=True), 
+                        at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02,
+                                                                       v2_demean=True)
                 ])
         audio_transforms_test_db = audio_transforms_test_db.cuda()
 
         # Add modifications to log name based on flags for test conditions 
         sym_str = "" if symmetric_distractor else "_1_distractor"
-        if args.texture_distractor:
+        if args.texture_distractor or with_textures:
             dist_str = "texture_distractor"
         elif args.modulated_ssn_distractors:
             dist_str = "modulated_ssn_distractor"
-        elif args.noise_distractor:
+        elif args.noise_distractor or with_noise:
             dist_str = "whitenoise_distractor"
         else:
             dist_str = "speech_distractor"
@@ -211,12 +217,12 @@ def run_eval(args):
         pred_list = []
         true_word_int = []
         stim_ix_list = []
-        if args.texture_distractor:
+        if args.texture_distractor or with_textures:
             texture_list = []
 
         with torch.no_grad(): 
             for batch in tqdm(dataloader):
-                if args.texture_distractor:
+                if args.texture_distractor or with_textures:
                     cue, fg, bg, bg_2, label, texture, stim_ixs = batch
                     dist_word_label, dist_word_label2 = None, None 
                 else:
@@ -252,7 +258,7 @@ def run_eval(args):
                 accuracies.append(accuracy)
                 pred_list.append(preds)
                 true_word_int.append(true_word)
-                if args.texture_distractor:
+                if args.texture_distractor or with_textures:
                     texture_list.append(texture)
                 else:
                     dist_word_label = dist_word_label.numpy().astype('int')
@@ -270,7 +276,7 @@ def run_eval(args):
         output_dict['preds'] = preds
         output_dict['true_word_int'] = true_word_int
         output_dict['stim_ix_list'] = stim_ix_list
-        if args.texture_distractor:
+        if args.texture_distractor or with_textures:
             texture_list = np.concatenate(texture_list)
             output_dict['textures'] = texture_list
         else:
