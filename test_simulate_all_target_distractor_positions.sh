@@ -6,8 +6,8 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --time=6:00:00
 #SBATCH --partition=use-everything
-#SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=1-1814 #0-1814 for 35 locations per job array ix 
+#SBATCH --gres=gpu:a100:1 --constraint=20GB
+#SBATCH --array=0-1814 #0-1814 for 35 locations per job array ix 
 #SBATCH -x dgx001,dgx002
 
 module load openmind8/anaconda/3-2022.10
