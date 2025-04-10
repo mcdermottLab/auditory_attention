@@ -110,6 +110,7 @@ def run_train(args):
         # resume_from_checkpoint = ckpt_path,  
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=config['hparas']['gradient_clip_val'],
+        gradient_clip_algorithm="value",
         profiler=None,
         callbacks=callbacks)
 

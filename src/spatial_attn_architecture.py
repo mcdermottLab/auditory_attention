@@ -865,7 +865,7 @@ class BackBoneCNN(BinauralControlCNN):
                                           norm_first=norm_first,
                                           ln_affine=ln_affine,
                                           v08=v08,
-                                          ) 
+                                          **kwargs) 
         
     # override forward to remove cue
     def forward(self, cue=None, mixture=None, cue_mask_ixs=None, *args, **kwargs):
