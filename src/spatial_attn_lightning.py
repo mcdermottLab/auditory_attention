@@ -10,7 +10,8 @@ from pytorch_lightning import LightningModule
 import src.audio_transforms as at
 import src.audio_attention_transforms as aat
 import src.custom_modules as cm
-from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, BinauralControlCNN, BinauralAuditoryAttentionCNNV2, BaselineCNNV2, BackBoneCNN, BackBoneWithECDFGains
+from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, BinauralControlCNN, BinauralAuditoryAttentionCNNV2, BaselineCNNV2, BackBoneCNN
+from src.spatial_attn_architecture import BackBoneWithECDFGains, BackBoneLearnedGains
 from corpus.binaural_attention_h5 import BinauralAttentionDataset
 from corpus.binaural_word_rec_h5 import BinauralWordRecDataset
 
@@ -100,7 +101,13 @@ class BinauralAttentionModule(LightningModule):
         control_arch = self.model_config.get('control_arch', False)
         self.use_backbone_arch = self.model_config.get('backbone_arch', False)
         self.backbone_with_ecdf_gains = self.model_config.get('backbone_with_ecdf_gains', False)
+        self.backbone_with_learned_gains = self.model_config.get('backbone_with_learned_gains', False)
         
+        self.batch_in_dataloader = (self.use_backbone_arch and not (self.backbone_with_ecdf_gains or self.backbone_with_learned_gains))
+        print(f"Batch in dataloader = {self.batch_in_dataloader}")
+        self.dataset_batch_size = 1 if self.batch_in_dataloader else self.hparas_config['batch_size']
+        self.dataloader_batch_size = self.hparas_config['batch_size'] if self.batch_in_dataloader else 1        
+
         if control_arch:
             if v2_module:
                 print("Using BaselineCNNV2")
@@ -112,6 +119,10 @@ class BinauralAttentionModule(LightningModule):
             print("Using BackBoneWithECDFGains")
             # Only used for evaluation at this point 
             self.model = BackBoneWithECDFGains(**self.model_config)
+        elif self.backbone_with_learned_gains:
+            print("Using BackBoneWithLearnedGains")
+            # Only used for evaluation at this point 
+            self.model = BackBoneLearnedGains(self.model_config)
         elif self.use_backbone_arch:
             print("Using BackBoneCNN")
             self.model = BackBoneCNN(**self.model_config)
@@ -179,7 +190,7 @@ class BinauralAttentionModule(LightningModule):
             cue_features, cue_mask_ixs, loc_task_ixs, scene_features, labels = batch
         else:
             cue_features, cue_mask_ixs, scene_features, labels = batch
-
+        
         cue_features, scene_features = self.coch_gram(cue_features, scene_features)
 
         # self() is self.forward()
@@ -399,13 +410,11 @@ class BinauralAttentionModule(LightningModule):
         return cue_features, cue_mask_ixs, scene_features, labels
 
     def train_dataloader(self):
-        ds_batch_size = 1 if self.use_backbone_arch else self.hparas_config['batch_size'] 
-        dl_batch_size = self.hparas_config['batch_size'] if self.use_backbone_arch else 1
-        self.train_dataset = self.dataset(**self.corpora_config, batch_size=ds_batch_size, mode='train')
+        self.train_dataset = self.dataset(**self.corpora_config, batch_size=self.dataset_batch_size, mode='train')
         print(f"len training set = {len( self.train_dataset )}")
         dataloader = torch.utils.data.DataLoader(
             self.train_dataset,
-            batch_size=dl_batch_size,
+            batch_size=self.dataloader_batch_size ,
             num_workers=self.config['num_workers'], 
             collate_fn=self.train_val_collate_fn,
             pin_memory=True,
@@ -415,12 +424,10 @@ class BinauralAttentionModule(LightningModule):
         return dataloader
 
     def val_dataloader(self):
-        ds_batch_size = 1 if self.use_backbone_arch else self.hparas_config['batch_size'] 
-        dl_batch_size = self.hparas_config['batch_size'] if self.use_backbone_arch else 1
-        dataset = self.dataset(**self.corpora_config, batch_size=ds_batch_size, mode='val')
+        dataset = self.dataset(**self.corpora_config, batch_size=self.dataset_batch_size, mode='val')
         dataloader = torch.utils.data.DataLoader(
             dataset,
-            batch_size=dl_batch_size,
+            batch_size=self.dataloader_batch_size ,
             num_workers=self.config['num_workers'],
             collate_fn=self.train_val_collate_fn,
             shuffle=False
