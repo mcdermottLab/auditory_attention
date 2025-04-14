@@ -10,7 +10,7 @@ from pytorch_lightning import LightningModule
 import src.audio_transforms as at
 import src.audio_attention_transforms as aat
 import src.custom_modules as cm
-from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, BinauralControlCNN, BinauralAuditoryAttentionCNNV2, BaselineCNNV2, BackBoneCNN
+from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, BinauralControlCNN, BinauralAuditoryAttentionCNNV2, BaselineCNNV2, BackBoneCNN, BackBoneWithECDFGains
 from corpus.binaural_attention_h5 import BinauralAttentionDataset
 from corpus.binaural_word_rec_h5 import BinauralWordRecDataset
 
@@ -99,6 +99,8 @@ class BinauralAttentionModule(LightningModule):
         v2_module = self.model_config.get('v2_module', False)
         control_arch = self.model_config.get('control_arch', False)
         self.use_backbone_arch = self.model_config.get('backbone_arch', False)
+        self.backbone_with_ecdf_gains = self.model_config.get('backbone_with_ecdf_gains', False)
+        
         if control_arch:
             if v2_module:
                 print("Using BaselineCNNV2")
@@ -106,6 +108,10 @@ class BinauralAttentionModule(LightningModule):
             else:
                 print("Using BinauralControlCNN")
                 self.model = BinauralControlCNN(**self.model_config)
+        elif self.backbone_with_ecdf_gains:
+            print("Using BackBoneWithECDFGains")
+            # Only used for evaluation at this point 
+            self.model = BackBoneWithECDFGains(**self.model_config)
         elif self.use_backbone_arch:
             print("Using BackBoneCNN")
             self.model = BackBoneCNN(**self.model_config)

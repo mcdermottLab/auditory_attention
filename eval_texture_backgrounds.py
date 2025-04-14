@@ -79,7 +79,7 @@ def run_eval(args):
     # load and freeze model
     model = module.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).eval().cuda()
     coch_gram = None
-    if 'v0' in args.config:
+    if 'v0' in args.config or 'v1' in args.config:
         coch_gram = model.coch_gram.cuda()
 
 

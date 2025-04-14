@@ -2,11 +2,11 @@
 #SBATCH --job-name=get_corrs_skip_dead_units
 #SBATCH --output=outLogs/get_corrs_skip_dead_units_%A_%a.out
 #SBATCH --error=outLogs/get_corrs_skip_dead_units_%A_%a.err
-#SBATCH --mem=200Gb                           
+#SBATCH --mem=500Gb                           
 #SBATCH --cpus-per-task=2
-#SBATCH --time=4:00:00
+#SBATCH --time=8:00:00
 #SBATCH --partition=mcdermott
-#SBATCH --array 0-13 #0-13
+#SBATCH --array 0-14 #0-13
 module load openmind8/anaconda/3-2022.10
 export HDF5_USE_FILE_LOCKING=FALSE
 

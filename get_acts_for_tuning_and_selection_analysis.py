@@ -10,6 +10,7 @@ from argparse import ArgumentParser
 import itertools 
 import src.audio_transforms as at
 from src.spatial_attn_lightning import BinauralAttentionModule 
+from src.spatial_attn_architecture import ECDFGains
 from corpus.swc_mono_test import SWCMonoTestSetH5DatasetForUnitTuning
 import src.audio_transforms as at
 import pandas as pd 
@@ -94,7 +95,7 @@ def get_activations(args):
     checkpoint_path = args.ckpt_path
     
     if args.config != "":
-        config_path = args.config
+        config_path = Path(args.config)
     else:
         with open(args.config_list, 'rb') as f:
             model_config = pickle.load(f)
@@ -108,7 +109,7 @@ def get_activations(args):
             
     print(config_path)
     config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
-    model_name = Path(config_path).stem
+    model_name = config_path.stem
 
     # Set audio transforms  
     # snr = snr_dict[args.job_id]
@@ -137,12 +138,20 @@ def get_activations(args):
         ckpt_dir = Path('attn_cue_models/') / model_name / 'checkpoints'
         checkpoint_path = sorted(ckpt_dir.glob("*.ckpt"), key=os.path.getctime)[-1]
 
-    print(f"Loading model from {checkpoint_path}")
+    strict_ckpt = True 
+    if 'backbone' in model_name:
+        config['model']['backbone_with_ecdf_gains'] = True
+        strict_ckpt = False
+        model_name = f"{model_name}_with_ecdf_gains"
+
+    print(f"Loading {model_name} from {checkpoint_path}")
     ### Set getting acts to true to skip model compile 
     # config['getting_acts'] = True
     rand_weight_str = ""
     if not args.random_weights:
-        model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).eval().cuda()
+        model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path,
+                                                             config=config,
+                                                             strict=strict_ckpt).eval().cuda()
     else:
         model = BinauralAttentionModule(config=config).eval().cuda()
         rand_weight_str = "_rand_weights"
@@ -189,6 +198,8 @@ def get_activations(args):
         if 'conv' in name:
             module[0].register_forward_hook(get_activation(f"{name}_ln")) # [0] is layer norm 
             module[2].register_forward_hook(get_activation(f"{name}_relu")) # [2] is relu 
+        if 'ecdf' in model_name and 'attn' in name:
+            continue
         else:
             module.register_forward_hook(get_activation(name)) 
 
@@ -196,6 +207,7 @@ def get_activations(args):
     # Get gain functions
     ##################### 
     ## Init gain modules per layer. 
+    
     if hasattr(model.model, '_orig_mod'):
         gain_modules = {name:module for name,module in model.model._orig_mod.model_dict.items() if 'attn' in name}
     else:
@@ -203,7 +215,10 @@ def get_activations(args):
    
     gain_functions = {} 
     for name, module in gain_modules.items():
-        gain_functions[name] = AttentionalGains(module.slope, module.bias, module.threshold)
+        if 'backbone' in model_name and 'ecdf' in model_name:
+            gain_functions[name] = module
+        else:
+            gain_functions[name] = AttentionalGains(module.slope, module.bias, module.threshold)
 
     ##################################################################
     # Set dict mapping layer names to their corresponding gain modules
@@ -249,6 +264,7 @@ def get_activations(args):
     outname = out_dir / outname 
 
     layer_shape_dict_name = Path(f'binaural_unit_activation_analysis/{model_name}/{model_name}_layer_shape_dict{timg_avg_extn}.pkl')
+    layer_shape_dict_name.parent.mkdir(parents=True, exist_ok=True)
     outname.parent.mkdir(parents=True, exist_ok=True)
     print(f"Preparing to write activations to {outname}")
     # outname = 'test_act_outs.h5'

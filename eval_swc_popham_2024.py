@@ -1,8 +1,9 @@
 import pathlib
-from argparse import ArgumentParser
+from argparse import ArgumentParser, BooleanOptionalAction
 import yaml
 import pickle
 import csv
+import os
 import torch 
 import soxr
 import h5py
@@ -42,6 +43,11 @@ def run_eval(args):
 
     model_name = config_path.stem
     config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
+    model_name = config_path.stem
+
+    if 'backbone' in model_name:
+        if args.backbone_with_ecdf_gains:
+            config['model']['backbone_with_ecdf_gains'] = True
 
     # handle checkpoint path - if not provided, get latest 
     if checkpoint_path == "":
@@ -80,7 +86,9 @@ def run_eval(args):
                 ])
 
     # load and freeze model
-    model = module.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).eval().cuda()
+    model = module.load_from_checkpoint(checkpoint_path=checkpoint_path,
+                                        config=config,
+                                        strict=False if args.backbone_with_ecdf_gains else True).eval().cuda()
 
     coch_gram = model.coch_gram.cuda()
     
@@ -194,6 +202,11 @@ def cli_main():
         type=int,
         help="Slurm array task ID",
     )  
+    parser.add_argument(
+        "--backbone_with_ecdf_gains",
+        action=BooleanOptionalAction,
+        help="Use ecdf gains with backbone architecture",
+    )
     args = parser.parse_args()
 
     run_eval(args)

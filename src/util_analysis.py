@@ -106,6 +106,8 @@ def get_model_name(stem):
         str_name = 'Feature-gain main'
     elif "50Hz" in stem:
         str_name = '50Hz cutoff'
+    elif 'backbone' in stem:
+        str_name = "Computed-gain model"
     if 'rand' in stem:
         str_name = str_name + ' random weights'
     if str_name is None:

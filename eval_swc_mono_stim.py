@@ -43,6 +43,10 @@ def run_eval(args):
     config_str_name = str(config_path)
     model_name = config_path.stem
 
+    if 'backbone' in model_name:
+        if args.backbone_with_ecdf_gains:
+            config['model']['backbone_with_ecdf_gains'] = True
+
     # handle checkpoint path - if not provided, get latest 
     if checkpoint_path == "":
         ckpt_dir = pathlib.Path('attn_cue_models/') / model_name / 'checkpoints'
@@ -114,7 +118,9 @@ def run_eval(args):
             ])  
 
     # load and freeze model
-    model = module.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config).eval().cuda()
+    model = module.load_from_checkpoint(checkpoint_path=checkpoint_path,
+                                        config=config,
+                                        strict=False if args.backbone_with_ecdf_gains else True).eval().cuda()
     use_coch = True if ('v0' in config_str_name or 'word_task' in config_str_name) else False 
     coch_gram = None
     if use_coch:
@@ -318,6 +324,11 @@ def cli_main():
         "--overwrite",
         action=BooleanOptionalAction,
         help="If true, will overwrite existing results",
+    )
+    parser.add_argument(
+        "--backbone_with_ecdf_gains",
+        action=BooleanOptionalAction,
+        help="Use ecdf gains with backbone architecture",
     )
     args = parser.parse_args()
 

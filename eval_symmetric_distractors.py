@@ -100,25 +100,7 @@ def run_eval(args):
     if args.modulated_ssn_distractors:
         print("Using modulated ssn distractors")
     
-    if args.sim_human_array_exmpt:
-        dataset = SWCHumanExperimentStimDataset(path='/om/user/imgriff/datasets/human_word_rec_SWC_2024/full_cue_target_distractor_df_w_meta.pdpkl',
-                                                run_all_stim=args.run_all_stim,
-                                                sr=model_in_sr)
-    elif args.texture_distractor:
-        print("Using textures as distractors")
-        dataset = SpeechAndTextureTestSet(file_path='/om/user/imgriff/datasets/speech_in_synthetic_textures/separated_sources/stim.hdf5',
-                                          separated_signals=True,
-                                          symmetric_distractor=True)
-    else:
-        dataset = SpeakerRoomDataset(manifest_path='/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl',
-                                    excerpt_path='/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl',
-                                    cue_type=cue_type,
-                                    sr=model_in_sr,
-                                    symmetric_distractor_test=True,
-                                    modulated_ssn_distractors=args.modulated_ssn_distractors,
-                                    return_stim_ixs=True) 
-        
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
+
     
     # use anechoic BRIRs for testing
     new_room_manifest = None 
@@ -135,7 +117,26 @@ def run_eval(args):
         symmetric_distractor = args.run_1_distractor or test_dict[idx].get('symmetric_distractor', False)
         sym_dist_str = 'symmetric distractors' if symmetric_distractor else 'single distractor'
         print(f"Running evaluation with {sym_dist_str}")
-
+        if args.sim_human_array_exmpt:
+            dataset = SWCHumanExperimentStimDataset(path='/om/user/imgriff/datasets/human_word_rec_SWC_2024/full_cue_target_distractor_df_w_meta.pdpkl',
+                                                    run_all_stim=args.run_all_stim,
+                                                    sr=model_in_sr)
+        elif args.texture_distractor:
+            print("Using textures as distractors")
+            dataset = SpeechAndTextureTestSet(file_path='/om/user/imgriff/datasets/speech_in_synthetic_textures/separated_sources/stim.hdf5',
+                                            separated_signals=True,
+                                            symmetric_distractor=True)
+        else:
+            dataset = SpeakerRoomDataset(manifest_path='/om2/user/rphess/Auditory-Attention/final_binaural_manifest.pkl',
+                                        excerpt_path='/om2/user/msaddler/spatial_audio_pipeline/assets/swc/manifest_all_words.pdpkl',
+                                        cue_type=cue_type,
+                                        sr=model_in_sr,
+                                        symmetric_distractor_test=True,
+                                        modulated_ssn_distractors=args.modulated_ssn_distractors,
+                                        return_stim_ixs=True) 
+            
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
+        
         if test_dict[idx].get('test_room_meta', False):
             test_manifest_path = test_dict[idx]['test_room_meta']['room_manifest']
             test_room_idx = test_dict[idx]['test_room_meta']['index_room']

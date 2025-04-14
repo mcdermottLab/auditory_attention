@@ -21,36 +21,21 @@ vec_pearsonr = np.vectorize(pearsonr,
 vec_spearmanr = np.vectorize(spearmanr,
                 signature='(n),(n)->(),()')
 
-def per_row_cosine_similarity(matrix_a, matrix_b):
-    """
-    Calculates the per-row cosine similarity between two matrices.
-
-    Args:
-        matrix_a (numpy.ndarray): The first matrix.
-        matrix_b (numpy.ndarray): The second matrix.
-
-    Returns:
-        numpy.ndarray: An array containing the cosine similarity for each row.
-    """
-    if matrix_a.shape[0] != matrix_b.shape[0]:
-        raise ValueError("Matrices must have the same number of rows")
+def rowwise_cosine_similarity(A, B):
+    # Compute dot products for each pair of rows
+    dot_products = np.sum(A * B, axis=1)
     
-    similarity_scores = np.array([cosine_similarity(matrix_a[i].reshape(1, -1), matrix_b[i].reshape(1, -1))[0, 0] for i in range(matrix_a.shape[0])])
-    return similarity_scores
+    # Compute norms
+    norm_A = np.linalg.norm(A, axis=1)
+    norm_B = np.linalg.norm(B, axis=1)
+    
+    # Avoid division by zero
+    denominator = norm_A * norm_B
+    denominator[denominator == 0] = 1e-10  # small epsilon to prevent division by zero
 
-
-def get_model_name(stem):
-    if 'late_only' in stem:
-        return 'Late-only'
-    elif 'early_only' in stem:
-        return 'Early-only'
-    elif 'control' in stem:
-        return 'Baseline CNN'
-    elif 'arch' in stem:
-        arch_n = stem.split('_')[-1]
-        return f'Feature-gain alt v{arch_n}'
-    elif "main" in stem:
-        return 'Feature-gain main'
+    # Compute cosine similarity row-wise
+    cosine_sim = dot_products / denominator
+    return cosine_sim
 
 
 # for path in paths:
@@ -69,7 +54,8 @@ model_condition_dict = {0: 'word_task_v10_main_feature_gain_config_latest_ckpt',
                         10: 'word_task_v10_4MGB_ln_first_arch_8',
                         11: 'word_task_v10_4MGB_ln_first_arch_9',
                         12: 'word_task_v10_control_no_attn',
-                        13: 'word_task_v10_main_feature_gain_config_latest_ckpt_rand_weights'}
+                        13: 'word_task_v10_main_feature_gain_config_latest_ckpt_rand_weights',
+                        14: 'word_task_v10_backbone_word_config_with_ecdf_gains'}
 
 
 h5_dir = Path(f"/om/scratch/Thu/imgriff/binaural_unit_activation_analysis")
@@ -86,6 +72,17 @@ if args.time_avg:
 else:
     h5_path = h5_dir / f"{model}/{model}_model_activations_0dB_diotic.h5"
 
+
+if args.time_avg:
+    out_name = result_dir / f"{model}/{model}_corrs_skip_dead_units_time_avg.pdpkl"
+else:
+    out_name = result_dir / f"{model}/{model}_corrs_skip_dead_units_full_rep.pdpkl"
+out_name.parent.mkdir(parents=True, exist_ok=True)
+
+if out_name.exists():
+    print(f"Already computed {out_name}")
+    exit()
+    
 print("Reading ", h5_path)
 with h5py.File(h5_path, 'r') as acts:
     all_act_keys = list(acts.keys())
@@ -146,8 +143,8 @@ with h5py.File(h5_path, 'r') as acts:
             # bg_rho, _ = vec_spearmanr(bg_acts, mix_acts)
 
             # get cosine similarity
-            fg_cos = per_row_cosine_similarity(fg_acts, mix_acts)
-            bg_cos = per_row_cosine_similarity(bg_acts, mix_acts)
+            fg_cos = rowwise_cosine_similarity(fg_acts, mix_acts)
+            bg_cos = rowwise_cosine_similarity(bg_acts, mix_acts)
 
             data_dict = {}
             # add raw/full corr
@@ -169,7 +166,7 @@ with h5py.File(h5_path, 'r') as acts:
             data_dict['layer'] = [layer] * N_examples
             data_dict['distractor_condition'] = [dist_cond] * N_examples
             df = pd.DataFrame(data_dict)
-            df['model_name'] = get_model_name(h5_path.parent.name)
+            df['model_name'] = util_analysis.get_model_name(h5_path.parent.name)
             dfs.append(df)
 
 act_results  = pd.concat(dfs, ignore_index=True)

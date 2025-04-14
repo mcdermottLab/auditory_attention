@@ -116,6 +116,11 @@ def run_eval(args):
 
     dual_task_arch =  config['model'].get("cue_loc_task", False)
 
+
+    if 'backbone' in model_name:
+        if args.backbone_with_ecdf_gains:
+            config['model']['backbone_with_ecdf_gains'] = True
+
     idx = args.location_idx
     test_dict = pickle.load(open(args.test_manifest, 'rb'))
     n_per_job = args.n_per_job
@@ -126,7 +131,9 @@ def run_eval(args):
     if not os.path.exists(experiment_dir):
         os.makedirs(experiment_dir, exist_ok=True)
 
-    model = attn_tracking_lightning.BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path, config=config, strict=True).cuda()
+    model = attn_tracking_lightning.BinauralAttentionModule.load_from_checkpoint(checkpoint_path=checkpoint_path,
+                                                                                 config=config,
+                                                                                 strict=False if args.backbone_with_ecdf_gains else True).cuda()
 
     # to inference mode 
     model = model.eval()
@@ -446,7 +453,11 @@ def cli_main():
         action=argparse.BooleanOptionalAction,
         help="If true, will use textures as distractors instead of speech distractors."
     )
-
+    parser.add_argument(
+        "--backbone_with_ecdf_gains",
+        action=argparse.BooleanOptionalAction,
+        help="Use ecdf gains with backbone architecture",
+    )
     args = parser.parse_args()
 
     run_eval(args)

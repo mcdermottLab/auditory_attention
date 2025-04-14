@@ -4,7 +4,7 @@
 #SBATCH --error=outLogs/sim_all_target_dist_positions_%A_%a.err
 #SBATCH --mem=8Gb
 #SBATCH --cpus-per-task=2
-#SBATCH --time=6:00:00
+#SBATCH --time=3:00:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:a100:1 --constraint=20GB
 #SBATCH --array=0-1814 #0-1814 for 35 locations per job array ix 

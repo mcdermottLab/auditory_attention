@@ -1,13 +1,13 @@
 #!/bin/bash -l 
 #SBATCH --job-name=eval_binaural_textures
-#SBATCH --output=outLogs/binaural_texture_test_stim_%A_%a.out
-#SBATCH --error=outLogs/binaural_texture_test_stim_%A_%a.err
+#SBATCH --output=outLogs/mono_texture_test_stim_%A_%a.out
+#SBATCH --error=outLogs/mono_texture_test_stim_%A_%a.err
 #SBATCH --mem=12Gb
 #SBATCH --cpus-per-task=4
 #SBATCH --time=3:00:00
-#SBATCH --partition=normal
+#SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0-2 # 0-2
+#SBATCH --array=0 # 0-2
 #SBATCH -x dgx001,dgx002
 
 module load openmind8/anaconda/3-2022.10
