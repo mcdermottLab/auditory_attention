@@ -43,9 +43,13 @@ def run_eval(args):
     config_str_name = str(config_path)
     model_name = config_path.stem
 
+    backbone_str_modifier = ''
     if 'backbone' in model_name:
         if args.backbone_with_ecdf_gains:
             config['model']['backbone_with_ecdf_gains'] = True
+            backbone_str_modifier = '_ecdf_gains'
+        else:
+            backbone_str_modifier = '_no_gains'
 
     # handle checkpoint path - if not provided, get latest 
     if checkpoint_path == "":
@@ -207,7 +211,11 @@ def run_eval(args):
                                              num_workers=args.n_jobs)
 
     # set up output file 
-    out_dir = args.exp_dir / model_name 
+    if 'backbone' in model_name:
+        out_dir = args.exp_dir / f"{model_name}{backbone_str_modifier}"
+    else:
+        out_dir = args.exp_dir / model_name 
+    print(f"Output directory: {out_dir}")
     # make dir if it doesn't exist
     out_dir.mkdir(parents=True, exist_ok=True)
     # track running average of accuracy and confusions 

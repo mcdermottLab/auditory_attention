@@ -2,6 +2,10 @@ import scipy
 import numpy as np 
 from scipy.optimize import curve_fit
 from numpy.polynomial import Polynomial
+from typing import Optional, Union, Tuple, List, Dict
+from scipy import stats
+import pandas as pd
+
 import re
 
 ################################################
@@ -107,7 +111,10 @@ def get_model_name(stem):
     elif "50Hz" in stem:
         str_name = '50Hz cutoff'
     elif 'backbone' in stem:
-        str_name = "Computed-gain model"
+        if 'no_gain' in stem:
+            str_name = 'Backbone no gains'
+        else:
+            str_name = "Computed-gain model"
     if 'rand' in stem:
         str_name = str_name + ' random weights'
     if str_name is None:
@@ -150,8 +157,40 @@ def bootstrap_sem(data, n_bootstraps=10000):
         bootstrapped_means[i] = bootstrapped_sample.mean()
     return bootstrapped_means.std()
 
-# def simple_permutation_test(meausre1, measure2, n_boots=10_000):
-#     """
-#     Runs simple permutation test, randomizing assingment between 
-#     measure1 and measure2
-#     """
+# split half reliability
+def split_half_reliability(data: pd.DataFrame,
+                           groupby_condition: Optional[Union[str, List[str]]] = None,
+                           measure_string: Optional[str] = "accuracy",
+                           n_splits: Optional[int] = 1000,
+                           tqdm: Optional[bool] = False,
+                           ) -> Tuple[float, List[float]]:
+    """
+    Calculate the split-half reliability of a measure.
+    The split-half reliability is calculated by splitting the data in half
+    and calculating the correlation between the two halves.
+    Args:
+        data (pd.DataFrame): DataFrame containing the data.
+        groupby_condition (str or list of str): Column name(s) to group by.
+        measure_string (str): Column name of the measure to calculate reliability for.
+        n_splits (int): Number of splits to perform.
+        tqdm (bool): Whether to show a progress bar.
+    Returns:
+        Tuple[float, List[float]]: Split-half reliability and list of reliabilities for each split.
+    """
+
+    reliabilities = np.zeros(n_splits)
+    if tqdm:
+        from tqdm import trange
+        iterable = trange(n_splits, desc="Calculating split-half reliability")
+    else:
+        iterable = range(n_splits)
+    for i in iterable:
+        split1 = data.sample(frac=0.5)
+        split2 = data.drop(split1.index)
+        split1 = split1.groupby(groupby_condition)[measure_string].mean().values
+        split2 = split2.groupby(groupby_condition)[measure_string].mean().values
+        r, p = stats.pearsonr(split1, split2)
+        reliabilities[i] = r
+    mean_r = np.mean(reliabilities)
+    split_half_r = (2*mean_r) / (1 + mean_r)
+    return split_half_r, reliabilities

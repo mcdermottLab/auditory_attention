@@ -7,7 +7,7 @@
 #SBATCH --time=0:10:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=36,54 # -60 # 0-60 for standard test
+#SBATCH --array=0-60 # -60 # 0-60 for standard test
 #SBATCH -x dgx001,dgx002,node093
 
 module load openmind8/anaconda/3-2022.10
@@ -24,6 +24,6 @@ python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_v10_backbo
                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
                  --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
-                 --full_h5_stim_set --backbone_with_ecdf_gains --overwrite
+                 --full_h5_stim_set  --no-overwrite # --backbone_with_ecdf_gains
 
 
