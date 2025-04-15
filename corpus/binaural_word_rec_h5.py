@@ -17,7 +17,9 @@ class BinauralWordRecDataset(torch.utils.data.ConcatDataset):
     def __init__(self, root, cue_type, task, batch_size=1, mode='train',
                  run_mono=False, mono_sanity_check=False, clean_percentage=0.0, 
                  skip_negative_elev=False,
-                 mixture_percentages={'voice_and_location':.33, 'voice_only':.33, "location_only":.33}, **kwargs):
+                 mixture_percentages={'voice_and_location':.33, 'voice_only':.33, "location_only":.33},
+                 min_n_speech_distractors=4,
+                 **kwargs):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the
         specified root directory. 
@@ -45,7 +47,7 @@ class BinauralWordRecDataset(torch.utils.data.ConcatDataset):
   
 
         print(f"{len(self.all_hdf5_files)} files in {mode} concat dataset")
-        self.all_hdf5_datasets = [H5Dataset(h5_file, cue_type, task, batch_size, run_mono, skip_negative_elev, mono_sanity_check, clean_percentage, mixture_percentages) for h5_file in self.all_hdf5_files]
+        self.all_hdf5_datasets = [H5Dataset(h5_file, cue_type, task, batch_size, run_mono, skip_negative_elev, mono_sanity_check, clean_percentage, mixture_percentages, min_n_speech_distractors) for h5_file in self.all_hdf5_files]
         super().__init__(self.all_hdf5_datasets)
 
     def class_map(self):
@@ -59,6 +61,7 @@ class BinauralWordRecDataset(torch.utils.data.ConcatDataset):
 class H5Dataset(torch.utils.data.Dataset):
     def __init__(self, path, scene_type, task, batch_size, run_mono, skip_negative_elev=False, mono_sanity_check=False,
                       clean_percentage=0.0, mixture_percentages={'voice_and_location':.50, 'voice_only':.50},
+                      min_n_speech_distractors=4,
                       **kwargs):
         """
         Builds a pytorch hdf5 dataset for of binaural word recognition dataset
@@ -89,12 +92,13 @@ class H5Dataset(torch.utils.data.Dataset):
         self.scene_type = scene_type
         self.clean_percentage = clean_percentage
         self.mono_sanity_check = mono_sanity_check
+        self.min_n_speech_distractors = min_n_speech_distractors
         if scene_type == "mixed":
             self.voice_and_loc_size = int(batch_size * mixture_percentages['voice_and_location'])
             self.voice_only_percent_size = int(batch_size * mixture_percentages['voice_only'])
 
         with h5py.File(self.file_path, 'r', swmr=True) as file:
-            self.safe_ixs = np.where(file['n_speech_distractors'][:] == 0)[0]
+            self.safe_ixs = np.where(file['min_n_speech_distractors'][:] >= self.min_n_speech_distractors)[0]
             self.dataset_len = len(self.safe_ixs) // self.batch_size
 
     def __getitem__(self, index):

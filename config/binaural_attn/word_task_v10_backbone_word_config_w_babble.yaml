@@ -8,6 +8,7 @@ corpus:
     voice_and_location: 0.5
   gender_balanced_4M: True
   cue_free_percentage: 0.1    # prop of cue-free examples
+  min_n_speech_distractors: 4    
   v06: True                # USE v06 dataclass 
 
 audio:                                  # Attributes of audio feature
