@@ -19,11 +19,11 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 rm -r /tmp/torchinductor_imgriff
 
 python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_v10_backbone_word_config.yaml \
-                 --ckpt_path attn_cue_models/word_task_v10_backbone_word_config/checkpoints/epoch=1-step=3113.ckpt \
+                 --ckpt_path attn_cue_models/word_task_v10_backbone_word_config/checkpoints/epoch=3-step=6227.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
                  --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
-                 --full_h5_stim_set  --no-overwrite # --backbone_with_ecdf_gains
+                 --full_h5_stim_set  --no-overwrite --backbone_with_ecdf_gains
 
 

@@ -1062,6 +1062,44 @@ class BackBoneWithECDFGains(nn.Module):
         return self.classification(out)
 
 
+class BackBoneLearnedGains(nn.Module):
+    def __init__(self, backbone_config, **kwargs):
+        super(BackBoneLearnedGains, self).__init__()
+        self.backbone_config = backbone_config
+        # init and freeze backbone 
+        self.backbone = BackBoneCNN(**backbone_config).eval()
+        # freeze backbone 
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+        self.model_dict = self.backbone.model_dict
+        self.n_layers = len(backbone_config['out_channels'])
+        for layer in range(self.n_layers):
+            # gains placed before each convolutional layer
+            self.model_dict[f'attn{layer}'] = SimpleAttentionalGain(None, None) 
+        # add gain between last convolution and fully connected layer 
+        self.model_dict['attnfc'] = SimpleAttentionalGain(None, None)
+
+    def forward(self, cue, mixture, cue_mask_ixs=None):
+        cue = self.model_dict['norm_coch_rep'](cue)
+        attn = self.model_dict['norm_coch_rep'](mixture)
+        for layer in range(self.n_layers):
+            # apply gains
+            attn = self.model_dict[f'attn{layer}'](cue, attn, cue_mask_ixs)
+            # get reps from next layer
+            cue = self.model_dict[f'conv_block_{layer}'](cue)
+            cue = self.model_dict[f'hann_pool_{layer}'](cue)
+
+            attn = self.model_dict[f'conv_block_{layer}'](attn)
+            attn = self.model_dict[f'hann_pool_{layer}'](attn)
+        # apply gains before fc layer
+        out = self.model_dict['attnfc'](cue, attn, cue_mask_ixs)
+        out = out.view(out.size(0), self.backbone.output_size)
+        out = self.backbone.fullyconnected(out)        
+        out = self.backbone.relufc(out)
+        out = self.backbone.dropout(out) 
+        return self.backbone.classification(out)
+
+
 class CNN2DExtractor(nn.Module):
     ''' CNN wrapper, includes relu and layer-norm if applied'''
 

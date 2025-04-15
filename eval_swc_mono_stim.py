@@ -49,6 +49,7 @@ def run_eval(args):
             config['model']['backbone_with_ecdf_gains'] = True
             backbone_str_modifier = '_ecdf_gains'
         else:
+            config['model']['backbone_with_ecdf_gains'] = False
             backbone_str_modifier = '_no_gains'
 
     # handle checkpoint path - if not provided, get latest 

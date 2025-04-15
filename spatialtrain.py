@@ -56,7 +56,20 @@ def run_train(args):
     ckpt_path = None 
     if args.resume_training and len(ckpt_paths) != 0:
         ckpt_path = ckpt_paths[-1]
-        model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
+        if model_name == 'backbone_learned_gains':
+            model = BinauralAttentionModule(config)
+            ckpt_path = args.init_ckpt_path
+            state_dict = torch.load(ckpt_path)['state_dict']
+            # update state dict so saved weights are loaded correctly
+            new_state_dict = {}
+            for key, param in state_dict.items():
+                new_key = key.replace('_orig_mod.', '_orig_mod.backbone.')
+                new_state_dict[key] = param
+                new_state_dict[new_key] = param
+            # init weights to model
+            model.load_state_dict(new_state_dict, strict=False)
+        else:
+            model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
         print('Resuming training from checkpoint: ', ckpt_path)
     else:
         model = BinauralAttentionModule(config)
@@ -110,7 +123,7 @@ def run_train(args):
         # resume_from_checkpoint = ckpt_path,  
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=config['hparas']['gradient_clip_val'],
-        gradient_clip_algorithm="value",
+        gradient_clip_algorithm=config['hparas'].get('gradient_clip_algorithm', 'value'),
         profiler=None,
         callbacks=callbacks)
 
@@ -163,6 +176,12 @@ def cli_main():
     default=0,
     type=int,
     help="Number of CPUs for dataloader. (Default: 0)",
+    )
+    parser.add_argument(
+        "--init_ckpt_path",
+        default='',
+        type=str,
+        help="Path to initial checkpoint for model.",
     )
     parser.add_argument('--random_seed', default=0, type=int, help='Random seed for dataset.')
     parser.add_argument('--resume_training', default=False, help='Resume training from checkpoint.')

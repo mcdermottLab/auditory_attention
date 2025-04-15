@@ -39,7 +39,7 @@ audio:                                  # Attributes of audio feature
     power: 0.3
 
 val_metric: 'val_acc'
-model_name: 'backbone_no_cue'
+model_name: 'backbone_learned_gains'
 
 noise_kwargs: # parameters for background signal levels 
   low_snr: -10
@@ -51,8 +51,9 @@ hparas:                                   # Experiment hyper-parameters
   optimizer: 'AdamW'
   lr: 0.0001                            # Initial learning rate of 0.0001 -> drop if manually testing late-training effects of smaller lr
   eps: 0.0000001                         # 1e-7
-  gradient_clip_val: 100 
-  batch_size: 768                       # 576 for 8 288 for 4Gets divided by num gpus
+  gradient_clip_val: 1 
+  gradient_clip_algorithm: 'norm'
+  batch_size: 80                       # 576 for 8 288 for 4Gets divided by num gpus
   mask_cues: False                    
 
 model:                                    # Model architecture
@@ -73,7 +74,8 @@ model:                                    # Model architecture
   dropout: 0.5
   v08: True 
   attn_constraints: 
-    any: False 
+    any: True 
   norm_first: True
   ln_affine: True
   backbone_arch: True
+  backbone_with_learned_gains: True
