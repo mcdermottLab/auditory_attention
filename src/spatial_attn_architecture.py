@@ -198,7 +198,48 @@ class ECDFGains(torch.nn.Module):
         if mixture_tensor is None:
             return gains
         # apply gains
-        attn = mixture_tensor #* gains
+        attn = mixture_tensor * gains
+        return attn
+    
+class ECDFFeatureGains(torch.nn.Module):
+    '''
+    Modified from pytorch discussion
+    https://discuss.pytorch.org/t/cumulative-distribution-function-of-a-tensor-cdf/64613/2 
+
+    Compute attentional gains using Emperical CDF of unit activity over features. 
+    The emperical CDF is computed by first sorting the time-averaged unit activations
+    along the feature dimension, and then computing the CDF of the sorted values.
+    To get a scalar gain value, the CDF is then evaluated at the unit's
+    average activity. 
+    '''
+    def __init__(self, feature_bins, side='right', **kwargs):
+        super(ECDFFeatureGains, self).__init__()
+
+        if side.lower() not in ['right', 'left']:
+            msg = "side can take the values 'right' or 'left'"
+            raise ValueError(msg)
+        self.side = side
+        self.feature_bins = feature_bins
+        # INIT cumulative probabilities
+        # these will be x-axis points used to interpolate the cdf
+        cdf_probs = torch.linspace(1./feature_bins, 1, feature_bins, dtype=torch.float)
+        self.register_buffer('cdf_probs', cdf_probs)
+
+    def forward(self, cue_tensor, mixture_tensor=None):
+        b, c, f, t = cue_tensor.size()
+        # get average activity over time per unit
+        feature_means = cue_tensor.mean(dim=-1, keepdim=True).flatten(start_dim=1)
+        # sort features of the cue tensor by time
+        feat_dist = feature_means.sort(dim=-1).values.contiguous()
+        # evaluate cdf at each mean - get ixs for interpolation
+        gain_ixs = torch.searchsorted(feat_dist, feature_means, right=True) - 1 
+        gains = self.cdf_probs[gain_ixs]
+        # reshape 
+        gains = gains.view(b, c, f, 1)
+        if mixture_tensor is None:
+            return gains
+        # apply gains
+        attn = mixture_tensor * gains
         return attn
     
 
@@ -933,7 +974,7 @@ class BackBoneCNN(BinauralControlCNN):
 class BackBoneWithECDFGains(nn.Module):
     def __init__(self, input_sr, out_channels, kernel, stride, padding, pool_stride, pool_size, pool_padding, attn, dropout,
                   fc_size=512, num_classes={"num_words":800, "num_locs":504}, frequency_dim=40,
-                  starting_output_len = 20000, norm_first=True, ln_affine=True, v08=False, **kwargs):
+                  starting_output_len = 20000, norm_first=True, ln_affine=True, v08=False, gain_type='ECDFGains', **kwargs):
         super(BackBoneWithECDFGains, self).__init__()
         # Setup
         print(f"{num_classes=}")
@@ -979,6 +1020,12 @@ class BackBoneWithECDFGains(nn.Module):
         self.output_height = frequency_dim
         self.output_len = starting_output_len # softcode eventually
 
+        # set gain function 
+        if gain_type == 'ECDFGains':
+            print(f"Using ECDFGains")
+        elif gain_type == 'ECDFFeatureGains':
+            print(f"Using ECDFFeatureGains")
+        self.gain_type = gain_type
         # build architecture
         coch_affine = self.ln_affine
         self.model_dict["norm_coch_rep"]= nn.LayerNorm([self.input_channels, self.frequency_dim, self.output_len], elementwise_affine=coch_affine)
@@ -991,8 +1038,10 @@ class BackBoneWithECDFGains(nn.Module):
             # norm -> conv gets prior output shapes, conv -> norm gets new output shapes)
             # compute output shapes using conv formula [(Height + 2Pad - dilation * (kernel - 1) -1) /  Stride] + 1
             # ignoring dilation since it's not used in this model (dilation = 1)
-
-            self.model_dict[f'attn{idx}'] = ECDFGains(self.output_len)
+            if self.gain_type == 'ECDFGains':
+                self.model_dict[f'attn{idx}'] = ECDFGains(self.output_len)
+            elif self.gain_type == 'ECDFFeatureGains':
+                self.model_dict[f'attn{idx}'] = ECDFFeatureGains(int(nIn * self.output_height))
 
             if self.padding[idx] == 'same':
                 output_height = self.output_height

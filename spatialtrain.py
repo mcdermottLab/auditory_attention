@@ -54,9 +54,8 @@ def run_train(args):
     ckpt_paths = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)
 
     ckpt_path = None 
-    if args.resume_training and len(ckpt_paths) != 0:
-        ckpt_path = ckpt_paths[-1]
-        if model_name == 'backbone_learned_gains':
+    if args.resume_training:
+        if 'learned_gains' in config_path.stem:
             model = BinauralAttentionModule(config)
             ckpt_path = args.init_ckpt_path
             state_dict = torch.load(ckpt_path)['state_dict']
@@ -68,7 +67,8 @@ def run_train(args):
                 new_state_dict[new_key] = param
             # init weights to model
             model.load_state_dict(new_state_dict, strict=False)
-        else:
+        elif len(ckpt_paths) != 0:
+            ckpt_path = ckpt_paths[-1]
             model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
         print('Resuming training from checkpoint: ', ckpt_path)
     else:
