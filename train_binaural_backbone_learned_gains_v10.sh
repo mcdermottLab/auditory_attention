@@ -6,7 +6,7 @@
 #SBATCH -N 1
 
 
-#SBATCH --time=8:00:00
+#SBATCH --time=1-00:00:00
 #SBATCH --cpus-per-task=16
 #SBATCH --partition=mcdermott   # multi-gpu
 #SBATCH --gres=gpu:a100:1
@@ -25,8 +25,16 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 which python3
 
-python3 spatialtrain.py --config config/binaural_attn/word_task_v10_backbone_learned_gains.yaml \
+# python3 spatialtrain.py --config config/binaural_attn/word_task_v10_backbone_learned_gains.yaml \
+#                  --gpus 1 --n_jobs 16 --resume_training True \
+#                  --exp_dir attn_cue_models \
+#                  --init_ckpt_path attn_cue_models/word_task_v10_backbone_word_config/checkpoints/epoch=3-step=6227.ckpt \
+#                  --ckpt_path attn_cue_models/word_task_v10_backbone_learned_gains/checkpoints/epoch=0-step=8000.ckpt
+
+
+python3 spatialtrain.py --config config/binaural_attn/word_task_v10_backbone_w_babble_learned_gains.yaml \
                  --gpus 1 --n_jobs 16 --resume_training True \
                  --exp_dir attn_cue_models \
-                 --init_ckpt_path attn_cue_models/word_task_v10_backbone_word_config/checkpoints/epoch=3-step=6227.ckpt
+                 --init_ckpt_path attn_cue_models/word_task_v10_backbone_word_config_w_babble/checkpoints/epoch=3-step=6329.ckpt \
+                #  --ckpt_path attn_cue_models/word_task_v10_backbone_learned_gains/checkpoints/epoch=0-step=8000.ckpt
 

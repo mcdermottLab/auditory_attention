@@ -43,14 +43,23 @@ def run_eval(args):
     config_str_name = str(config_path)
     model_name = config_path.stem
 
+    strict_ckpt = True
     backbone_str_modifier = ''
-    if 'backbone' in model_name:
+    if 'backbone' in model_name and 'learned' not in model_name:
         if args.backbone_with_ecdf_gains:
             config['model']['backbone_with_ecdf_gains'] = True
             backbone_str_modifier = '_ecdf_gains'
+            strict_ckpt = False
+
+        elif args.backbone_with_ecdf_feature_gains:
+            config['model']['backbone_with_ecdf_gains'] = True
+            config['model']['gain_type'] = 'ECDFFeatureGains'
+            backbone_str_modifier = '_ecdf_feature_gains'
+            strict_ckpt = False
         else:
             config['model']['backbone_with_ecdf_gains'] = False
             backbone_str_modifier = '_no_gains'
+
 
     # handle checkpoint path - if not provided, get latest 
     if checkpoint_path == "":
@@ -125,7 +134,7 @@ def run_eval(args):
     # load and freeze model
     model = module.load_from_checkpoint(checkpoint_path=checkpoint_path,
                                         config=config,
-                                        strict=False if args.backbone_with_ecdf_gains else True).eval().cuda()
+                                        strict=strict_ckpt).eval().cuda()
     use_coch = True if ('v0' in config_str_name or 'word_task' in config_str_name) else False 
     coch_gram = None
     if use_coch:
@@ -214,14 +223,15 @@ def run_eval(args):
     # set up output file 
     if 'backbone' in model_name:
         out_dir = args.exp_dir / f"{model_name}{backbone_str_modifier}"
+        out_name = out_dir / f"{model_name}{backbone_str_modifier}_{condition}_{snr}dB_SNR_eval_results.csv" 
     else:
         out_dir = args.exp_dir / model_name 
+        out_name = out_dir / f"{model_name}_{condition}_{snr}dB_SNR_eval_results.csv" 
     print(f"Output directory: {out_dir}")
     # make dir if it doesn't exist
     out_dir.mkdir(parents=True, exist_ok=True)
     # track running average of accuracy and confusions 
     acc_sum = 0
-    out_name = out_dir / f"{model_name}_{condition}_{snr}dB_SNR_eval_results.csv" 
 
     if out_name.exists() and not args.overwrite:
         # if any([arch_ix in model_name for arch_ix in ['9', '12', '6', '8']]):
@@ -336,6 +346,11 @@ def cli_main():
     )
     parser.add_argument(
         "--backbone_with_ecdf_gains",
+        action=BooleanOptionalAction,
+        help="Use ecdf gains with backbone architecture",
+    )
+    parser.add_argument(
+        "--backbone_with_ecdf_feature_gains",
         action=BooleanOptionalAction,
         help="Use ecdf gains with backbone architecture",
     )

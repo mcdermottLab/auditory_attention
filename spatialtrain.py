@@ -55,7 +55,10 @@ def run_train(args):
 
     ckpt_path = None 
     if args.resume_training:
-        if 'learned_gains' in config_path.stem:
+        if args.ckpt_path != '':
+            ckpt_path = args.ckpt_path
+            model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=args.ckpt_path, config=config)
+        elif 'learned_gains' in config_path.stem and args.ckpt_path == '':
             model = BinauralAttentionModule(config)
             ckpt_path = args.init_ckpt_path
             state_dict = torch.load(ckpt_path)['state_dict']

@@ -121,7 +121,7 @@ def run_eval(args):
             dataset = SWCHumanExperimentStimDataset(path='/om/user/imgriff/datasets/human_word_rec_SWC_2024/full_cue_target_distractor_df_w_meta.pdpkl',
                                                     run_all_stim=args.run_all_stim,
                                                     sr=model_in_sr)
-        elif args.texture_distractor:
+        elif args.texture_distractor or with_textures:
             print("Using textures as distractors")
             dataset = SpeechAndTextureTestSet(file_path='/om/user/imgriff/datasets/speech_in_synthetic_textures/separated_sources/stim.hdf5',
                                             separated_signals=True,

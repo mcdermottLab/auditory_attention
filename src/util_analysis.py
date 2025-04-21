@@ -111,10 +111,19 @@ def get_model_name(stem):
     elif "50Hz" in stem:
         str_name = '50Hz cutoff'
     elif 'backbone' in stem:
-        if 'no_gain' in stem:
-            str_name = 'Backbone no gains'
+        if 'babble' in stem:
+            str_name = 'Backbone babble'
         else:
-            str_name = "Computed-gain model"
+            str_name = 'Backbone'
+        if 'no_gain' in stem:
+            str_name = f'{str_name} no gains'
+        elif 'learned' in stem:
+            str_name = f'{str_name} learned gains'
+        elif 'ecdf' in stem and 'feature' not in stem:
+            str_name = f"{str_name} computed gains"
+        elif 'ecdf' in stem and 'feature' in stem:
+            str_name = f'{str_name} computed feature gains'
+
     if 'rand' in stem:
         str_name = str_name + ' random weights'
     if str_name is None:
