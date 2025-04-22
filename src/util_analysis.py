@@ -154,6 +154,20 @@ model_name_dict = {
                    "word_task_v10_main_feature_gain_config": "Feature-gain v10 "
                   }
 
+# set order of models for human-model similarity plots 
+model_name_order = [
+                    'Feature-gain Model',
+                    'Baseline CNN',
+                    'Early-only',
+                    'Late-only',
+                ]
+model_name_order_w_50Hz = model_name_order + ["50Hz cutoff"]
+
+# set colors for human model similarity
+
+
+
+
 ############################################
 # Other util functions by Ian Griffith
 ############################################
