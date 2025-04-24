@@ -164,8 +164,58 @@ model_name_order = [
 model_name_order_w_50Hz = model_name_order + ["50Hz cutoff"]
 
 # set colors for human model similarity
+model_color_dict = {
+
+    'Feature-gain Model': '#0FB5AE',
+    'Baseline CNN': '#808080',
+    'Early-only': '#4046CA',
+    'Late-only': '#F68511',
+    '50Hz cutoff': '#DE3D82',
+}
+
+experiment_color_dict = {
+
+    'Diotic':"tab:pink",
+    'Harmonicity':"green",
+    'Threshold':"tab:blue",
+    'Spotlight':"#9467bd"
+}
 
 
+def annot_stat(star, x1, x2, y, h, col='k', ax=None, lw=1.5):
+    ax = plt.gca() if ax is None else ax
+    ax.plot([x1, x1, x2, x2], [y, y+h, y+h, y], lw=lw, c=col)
+    ax.text((x1+x2)*.5, y+h, star, ha='center', va='bottom', color=col)
+
+
+def draw_stats_bar(ax, x1, x2, y, h, text, th=0.025, lw=1.5, col='k', fontsize=10, text_gap=0.02):
+    # Calculate the position of the text
+    text_x = (x1 + x2) * 0.5
+    text_y = y + th
+    
+    # Calculate the gap around the text
+    gap_half_width = text_gap * len(text) # * (x2 - x1) * 0.5
+    
+    # Draw the left part of the bar
+    ax.plot([x1, x1, text_x - gap_half_width], [y, y + h, y + h], lw=lw, c=col)
+    
+    # Draw the right part of the bar
+    ax.plot([text_x + gap_half_width, x2, x2], [y + h, y + h, y], lw=lw, c=col)
+    
+    # Draw the text in the middle of the bar
+    ax.text(text_x, y-0.002, text, ha='center', va='center', color=col, fontsize=fontsize)
+    
+
+def get_star(p_val):
+    if p_val < 0.05:
+        text = "*"
+    if p_val < 0.01:
+        text = "**"
+    if p_val < 0.001:
+        text = "***"
+    if p_val < 0.0001:
+        text = "****"
+    return text
 
 
 ############################################
