@@ -112,7 +112,10 @@ def get_model_name(stem):
         str_name = '50Hz cutoff'
     elif 'backbone' in stem:
         if 'babble' in stem:
-            str_name = 'Backbone babble'
+            if 'coloc' in stem:
+                str_name = 'Backbone babble all co-located'
+            else:
+                str_name = 'Backbone babble'
         else:
             str_name = 'Backbone'
         if 'no_gain' in stem:
