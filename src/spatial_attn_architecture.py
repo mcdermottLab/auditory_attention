@@ -1,16 +1,23 @@
 import torch
+import os 
+import re 
+import sys
+import json 
 import numpy as np
 import torch.nn as nn
 from collections import OrderedDict
 from src.layers import conv2d_same
 from src.layers import padding as pad_utils
 from src.custom_modules import HannPooling2d
-
+sys.path.append('phaselocknet_torch')
+from phaselocknet_torch import phaselocknet_model
+from phaselocknet_torch import util
 
 class SimpleAttentionalGain(nn.Module):
-    def __init__(self, frequency_dim, cnn_channels, global_avg_cue=False, n_cue_frames=None, additive=False, **kwargs):
+    def __init__(self, frequency_dim, cnn_channels, global_avg_cue=False, n_cue_frames=None, additive=False, time_dim=-1, **kwargs):
         super(SimpleAttentionalGain, self).__init__()
         self.frequency_dim = frequency_dim
+        self.time_dim = time_dim
         if global_avg_cue:
             self.ouptut_shape = (1,1)
             # self.time_average = nn.AdaptiveAvgPool2d((1, 1)) # outsize is N, C, 1, 1
@@ -37,11 +44,11 @@ class SimpleAttentionalGain(nn.Module):
         ## Process cue 
         # time average - same as nn op, but is compat with compile 
         if self.n_cue_frames:
-            n_total_frames =  cue.size(-1)
+            n_total_frames =  cue.size(dim=self.time_dim)
             start = int((n_total_frames-self.n_cue_frames)/2)
             end = start + self.n_cue_frames
             cue = cue[...,  start : end]
-        cue = cue.mean(axis=-1,keepdim=True)
+        cue = cue.mean(axis=self.time_dim,keepdim=True)
         # cue = self.time_average(cue)
         # apply threshold shift
         cue = cue - self.threshold
@@ -1148,6 +1155,49 @@ class BackBoneLearnedGains(nn.Module):
         out = self.backbone.dropout(out) 
         return self.backbone.classification(out)
 
+class SaddlerBackBoneLearnedGains(nn.Module):
+    def __init__(self, dir_model, **kwargs):
+        super().__init__()
+        with open(os.path.join(dir_model, "config.json"), "r") as f:
+            config_model = json.load(f)
+        with open(os.path.join(dir_model, "arch.json"), "r") as f:
+            architecture = json.load(f)
+        self.backbone = phaselocknet_model.Model(
+            config_model=config_model,
+            architecture=architecture,
+            input_shape=[2, 125_000, 2],  # <-- [batch, timesteps @ 50 kHz sampling rate, channels==2] for sound_localization
+            config_random_slice={"size": [50, 20000], "buffer": [0, 500]},
+        )
+        util.load_model_checkpoint(
+            model=self.backbone.perceptual_model,
+            dir_model=dir_model,
+            fn_ckpt="ckpt_BEST.pt",
+            weights_only=True,
+        )
+        self.backbone = self.backbone.eval()
+        # freeze backbone 
+        for param in self.backbone.parameters():
+            param.requires_grad = False
+        self.gains = nn.ModuleDict()
+        self.n_layers = len([l for l in architecture if 'pool' in l['args']['name']])
+        for layer in range(self.n_layers):
+            # gains placed before each convolutional layer
+            self.gains[f'attn{layer}'] = SimpleAttentionalGain(None, None, time_dim=-2) 
+
+    def forward(self, cue, mixture, cue_mask_ixs=None):
+        cue = self.backbone.peripheral_model(cue)
+        attn = self.backbone.peripheral_model(mixture)
+
+        for name, layer in self.backbone.perceptual_model.body.named_children():
+            cue = layer(cue)
+            attn = layer(attn)
+            if 'pool' in name:
+                block_n = re.match(r"block(\d+)_pool", name).group(1)
+                attn = self.gains[f"attn{block_n}"](cue, attn, cue_mask_ixs)
+        # is classification head
+        logits = {name: head(attn) for name, head in self.backbone.perceptual_model.head.named_children()}
+        logits = logits['label_word_int']
+        return logits
 
 class CNN2DExtractor(nn.Module):
     ''' CNN wrapper, includes relu and layer-norm if applied'''

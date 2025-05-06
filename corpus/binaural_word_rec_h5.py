@@ -94,7 +94,6 @@ class H5Dataset(torch.utils.data.Dataset):
             self.voice_only_percent_size = int(batch_size * mixture_percentages['voice_only'])
 
         with h5py.File(self.file_path, 'r', swmr=True) as file:
-            self.safe_ixs = np.where(file['n_speech_distractors'][:] == 0)[0]
             self.dataset_len = len(self.safe_ixs) // self.batch_size
 
     def __getitem__(self, index):
@@ -111,7 +110,6 @@ class H5Dataset(torch.utils.data.Dataset):
         if self.dataset is None:
             self.dataset = h5py.File(self.file_path, 'r', swmr=True)
 
-        index = self.safe_ixs[index]
         target = self.dataset['target'][index].transpose((1, 0))
 
         if self.scene_type == 'mixed':

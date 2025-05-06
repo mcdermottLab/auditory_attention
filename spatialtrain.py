@@ -8,7 +8,7 @@ import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from src.spatial_attn_lightning import BinauralAttentionModule #probably need to change this to the new name
-
+from src.saddler_w_gains_lightning import SaddlerBackBoneModule
 # get nodename 
 import socket
 
@@ -53,13 +53,18 @@ def run_train(args):
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     ckpt_paths = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)
 
+    if "saddler" in config_path.stem:
+        module = SaddlerBackBoneModule
+    else:
+        module = BinauralAttentionModule
+
     ckpt_path = None 
     if args.resume_training:
         if args.ckpt_path != '':
             ckpt_path = args.ckpt_path
-            model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=args.ckpt_path, config=config)
+            model = module.load_from_checkpoint(checkpoint_path=args.ckpt_path, config=config)
         elif 'learned_gains' in config_path.stem and args.ckpt_path == '':
-            model = BinauralAttentionModule(config)
+            model = module(config)
             ckpt_path = args.init_ckpt_path
             state_dict = torch.load(ckpt_path)['state_dict']
             # update state dict so saved weights are loaded correctly
@@ -72,10 +77,10 @@ def run_train(args):
             model.load_state_dict(new_state_dict, strict=False)
         elif len(ckpt_paths) != 0:
             ckpt_path = ckpt_paths[-1]
-            model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
+            model = module.load_from_checkpoint(checkpoint_path=ckpt_path, config=config)
         print('Resuming training from checkpoint: ', ckpt_path)
     else:
-        model = BinauralAttentionModule(config)
+        model = module(config)
 
     callbacks = []
 
