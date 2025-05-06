@@ -123,6 +123,7 @@ def run_train(args):
         num_nodes=args.num_nodes,
         devices=args.gpus,
         accelerator="gpu", 
+        limit_val_batches=config['hparas'].get('limit_val_batches', 1.0),
         # resume_from_checkpoint = ckpt_path,  
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=config['hparas']['gradient_clip_val'],

@@ -27,7 +27,7 @@ class BinauralWordRecDataset(torch.utils.data.ConcatDataset):
         print(root)
 
         if mode == 'train':
-            self.all_hdf5_files = list(Path(root).glob(f"train_gender_balanced/{self.hdf5_glob}"))
+            self.all_hdf5_files = list(Path(root).glob(f"train_gender_balanced_speech_as_babble/{self.hdf5_glob}"))
             # screen dead files 
             self.all_hdf5_files = [fname for fname in self.all_hdf5_files  if os.path.getsize(fname) > 0]
         elif mode == 'val':
