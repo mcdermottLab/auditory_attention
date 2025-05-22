@@ -20,7 +20,7 @@ rm -r /tmp/torchinductor_imgriff
 
 
 python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_v10_backbone_word_babble_and_noise.yaml \
-                 --ckpt_path attn_cue_models/word_task_v10_backbone_word_babble_and_noise/checkpoints/epoch=18-step=10773-v1.ckpt \
+                 --ckpt_path attn_cue_models/word_task_v10_backbone_word_babble_and_noise/checkpoints/epoch=0-step=1742.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
@@ -28,7 +28,7 @@ python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_v10_backbo
                  --full_h5_stim_set --no-overwrite --backbone_with_ecdf_gains
 
 python3 eval_swc_mono_stim.py --config config/binaural_attn/word_task_v10_backbone_word_babble_and_noise.yaml \
-                 --ckpt_path attn_cue_models/word_task_v10_backbone_word_babble_and_noise/checkpoints/epoch=18-step=10773-v1.ckpt \
+                 --ckpt_path attn_cue_models/word_task_v10_backbone_word_babble_and_noise/checkpoints/epoch=0-step=1742.ckpt \
                  --array_id $SLURM_ARRAY_TASK_ID \
                  --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
                  --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \

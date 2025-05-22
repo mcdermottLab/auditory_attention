@@ -133,6 +133,7 @@ def run_train(args):
         val_check_interval=config['hparas']['valid_step'],
         gradient_clip_val=config['hparas']['gradient_clip_val'],
         gradient_clip_algorithm=config['hparas'].get('gradient_clip_algorithm', 'value'),
+        accumulate_grad_batches=config['hparas'].get('accumulate_grad_batches', 1), # default to 1 unless otherwise specified
         profiler=None,
         callbacks=callbacks)
 

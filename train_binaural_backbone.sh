@@ -4,9 +4,9 @@
 #SBATCH --error=outLogs/train_word_task_v10_backbone_word_babble_and_noise_%j.err 
 #SBATCH --mem=500Gb
 #SBATCH --cpus-per-task=64
-#SBATCH --partition=multi-gpu
-#SBATCH --time=12:00:00
-#SBATCH --gres=gpu:a100:8
+#SBATCH --partition=mcdermott
+#SBATCH --time=2-00:00:00
+#SBATCH --gres=gpu:a100-mcdermott:4
 
 #source /etc/profile.d/modules.sh
 #module use /cm/shared/modulefiles
@@ -23,7 +23,7 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 which python3
 
 srun -K --cpu-bind=cores python3 spatialtrain.py --config config/binaural_attn/word_task_v10_backbone_word_babble_and_noise.yaml \
-                 --gpus 8 --n_jobs 8 \
+                 --gpus 4 --n_jobs 16 \
                  --exp_dir attn_cue_models \
                  --resume_training True \
 

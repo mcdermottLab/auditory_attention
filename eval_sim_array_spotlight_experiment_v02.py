@@ -20,12 +20,12 @@ from tqdm.auto import tqdm
 from datetime import datetime
 import sys
 
-
 torch.set_float32_matmul_precision('medium') # use same as training
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
+    
 
 def db_to_rms(db):
     return np.power(10,(db/20)) * 20e-6
@@ -139,10 +139,10 @@ def run_eval(args):
     model = model.eval()
     coch_gram = model.coch_gram.cuda()
 
-    
     dataset = SWCHumanExperimentStimDataset(path='/om/user/imgriff/datasets/human_word_rec_SWC_2024/full_cue_target_distractor_df_w_meta.pdpkl',
                                             run_all_stim=args.run_all_stim,
-                                            sr=model_in_sr)
+                                            sr=model_in_sr,
+                                            ssn_distractor=args.ssn_distractor)
     # elif args.bg_noise_distractor:
     # print("Using bg_noises as background noise")
     # bg_noise_dataset = SpeechAndTextureTestSet(file_path='/om/user/imgriff/datasets/speech_in_synthetic_bg_noises/separated_sources/stim.hdf5',
@@ -254,9 +254,11 @@ def run_eval(args):
         # Main inference loop
         ###################################
         print(f"Pink noise background: {args.pink_noise_bg}")
+        print(f"Spectrally matched noise distractor: {args.ssn_distractor}")
         with torch.no_grad(): 
             for batch in tqdm(dataloader):
                 cue, fg, bg, _, label, dist_word_label, dist_word_label2, stim_ixs = batch
+
                 # log ix of stimuli for meta tracking
                 stim_ix_list.append(stim_ixs)
 
@@ -404,6 +406,11 @@ def cli_main():
         "--pink_noise_bg",
         action=argparse.BooleanOptionalAction,
         help="If true, will add pink noise to background."
+    )
+    parser.add_argument(
+        "--ssn_distractor",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will use spectrally matched noise as distractor."
     )
     parser.add_argument(
         "--backbone_with_ecdf_gains",

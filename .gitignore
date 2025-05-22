@@ -145,6 +145,7 @@ confidenceScorers
 pre_train_word_loc
 Denmark_2024
 api_util/
+phaselocknet_torch
 
 # swap file
 *.swp

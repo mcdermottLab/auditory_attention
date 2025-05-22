@@ -7,7 +7,7 @@
 #SBATCH --time=0:30:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:1 --constraint=20GB
-#SBATCH --array=0-60 # -60 # 0-60 for standard test
+#SBATCH --array=1-60 #-60 # -60 # 0-60 for standard test
 #SBATCH -x dgx001,dgx002,node093
 
 module load openmind8/anaconda/3-2022.10
@@ -19,12 +19,19 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 rm -r /tmp/torchinductor_imgriff
 
 
-python3 eval_saddler_arch_swc.py \
-        --array_id $SLURM_ARRAY_TASK_ID \
-        --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
-        --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
-        --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
-        --full_h5_stim_set --no-overwrite 
+# python3 eval_saddler_arch_swc.py \
+#         --array_id $SLURM_ARRAY_TASK_ID \
+#         --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
+#         --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
+#         --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
+#         --full_h5_stim_set --no-overwrite 
 
 
+python3 eval_swc_mono_stim.py  --config config/binaural_attn/word_task_v10_saddler_backbone_learned_gains.yaml \
+                --ckpt_path attn_cue_models/word_task_v10_saddler_backbone_learned_gains/checkpoints/epoch=0-step=12000.ckpt \
+                --array_id $SLURM_ARRAY_TASK_ID \
+                --n_jobs 4 --exp_dir swc_2024_eval_full_stim/ \
+                --stim_path /om/user/imgriff/datasets/human_word_rec_SWC_2024/model_eval_stim.h5 \
+                --stim_cond_map binaural_test_manifests/swc_all_cond_h5_job_manifest.pkl \
+                --full_h5_stim_set
 

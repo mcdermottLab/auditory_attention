@@ -114,8 +114,10 @@ def get_model_name(stem):
         if 'babble' in stem:
             if 'coloc' in stem:
                 str_name = 'Backbone babble all co-located'
+            elif 'word_babble_and_noise' in stem:
+                str_name = 'Backbone babble + noise'
             else:
-                str_name = 'Backbone babble'
+                str_name = 'Backbone babble old'
         else:
             str_name = 'Backbone'
         if 'no_gain' in stem:

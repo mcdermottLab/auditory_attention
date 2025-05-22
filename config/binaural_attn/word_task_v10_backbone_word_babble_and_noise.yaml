@@ -53,8 +53,9 @@ hparas:                                   # Experiment hyper-parameters
   lr: 0.0001                            # Initial learning rate of 0.0001 -> drop if manually testing late-training effects of smaller lr
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 100 
-  batch_size: 1536                       # 576 for 8 288 for 4Gets divided by num gpus
-  mask_cues: False                    
+  batch_size: 768                       # 576 for 8 288 for 4Gets divided by num gpus
+  mask_cues: False            
+  accumulate_grad_batches: 2         
 
 model:                                    # Model architecture
   input_sr: 10000

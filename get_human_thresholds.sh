@@ -5,7 +5,7 @@
 #SBATCH --mem=8Gb
 #SBATCH --cpus-per-task=2
 #SBATCH --time=2:00:00
-#SBATCH --partition=use-everything
+#SBATCH --partition=mcdermott
 
 
 module load openmind8/anaconda/3-2022.10

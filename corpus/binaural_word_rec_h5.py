@@ -94,7 +94,7 @@ class H5Dataset(torch.utils.data.Dataset):
             self.voice_only_percent_size = int(batch_size * mixture_percentages['voice_only'])
 
         with h5py.File(self.file_path, 'r', swmr=True) as file:
-            self.dataset_len = len(self.safe_ixs) // self.batch_size
+            self.dataset_len = len(file['target']) // self.batch_size
 
     def __getitem__(self, index):
         """

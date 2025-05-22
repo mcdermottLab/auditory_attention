@@ -11,6 +11,8 @@ from tqdm.auto import tqdm
 from pytorch_lightning import seed_everything
 from src.attn_tracking_lightning import AttentionalTrackingModule
 from src.spatial_attn_lightning import BinauralAttentionModule 
+from src.saddler_w_gains_lightning import SaddlerBackBoneModule
+
 from corpus.swc_mono_test import SWCMonoTestSet, SWCMonoTestSet2024, SWCMonoTestSetH5Dataset
 import src.audio_transforms as at
 
@@ -41,6 +43,7 @@ def run_eval(args):
 
     config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
     config_str_name = str(config_path)
+    print(config_str_name)
     model_name = config_path.stem
 
     strict_ckpt = True
@@ -69,7 +72,10 @@ def run_eval(args):
     print(f"Loading model from {checkpoint_path}")
     
     # load model 
-    if 'binaural_attn' in config_str_name or 'word_task' in config_str_name:
+    if 'saddler' in config_str_name:
+        module = SaddlerBackBoneModule
+        label_type = 'CV'
+    elif 'binaural_attn' in config_str_name or 'word_task' in config_str_name:
         module = BinauralAttentionModule
         label_type = 'CV'
 
@@ -130,12 +136,22 @@ def run_eval(args):
                     at.RMSNormalizeForegroundAndBackground(rms_level=0.02),  # 0.02 is the default for CV-based models 
                     at.UnsqueezeAudio(dim=0),
             ])  
+    
+    if module == SaddlerBackBoneModule:
+        audio_transforms = at.AudioCompose([
+                            at.AudioToTensor(),
+                            at.Resample(orig_freq=44_100, new_freq=50_000),
+                            at.CombineWithRandomDBSNR(low_snr=snr, high_snr=snr), 
+                            at.RMSNormalizeForegroundAndBackground(rms_level=0.02),  # 0.02 is the default for CV-based models 
+                            at.UnsqueezeAudio(dim=0),
+                            at.DuplicateChannel()# 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+        ])
 
     # load and freeze model
     model = module.load_from_checkpoint(checkpoint_path=checkpoint_path,
                                         config=config,
                                         strict=strict_ckpt).eval().cuda()
-    use_coch = True if ('v0' in config_str_name or 'word_task' in config_str_name) else False 
+    use_coch = True if ('v0' in config_str_name or 'word_task' in config_str_name) and 'saddler' not in config_str_name else False 
     coch_gram = None
     if use_coch:
         coch_gram = model.coch_gram.cuda()
@@ -213,6 +229,24 @@ def run_eval(args):
             mixtures = torch.stack([audio_transforms(mix, None)[0] for _, mix,  _ in batch])
             labels = torch.tensor([label for _, _, label in batch]).type(torch.LongTensor)
             return cues, mixtures, labels
+    if module == SaddlerBackBoneModule:
+        def collate_fn(batch):
+            cues = []
+            mixtures = []
+            labels = []
+            for cue, target, distractor, tgt_label, dist_label in batch:
+                cue, _ = audio_transforms(cue, None)
+                mixture, _ = audio_transforms(target, distractor)
+                mixture = mixture.T.reshape(1,-1, 2)
+                cue = cue.T.reshape(1,-1, 2)
+                cues.append(cue)
+                mixtures.append(mixture)
+                labels.append(tgt_label)
+            cues = torch.cat(cues, dim=0)
+            mixtures = torch.cat(mixtures, dim=0)
+            labels = torch.tensor(labels)
+            return cues, mixtures, labels
+
     print(dataset)
     dataloader = torch.utils.data.DataLoader(dataset,
                                              batch_size=8,
@@ -263,7 +297,7 @@ def run_eval(args):
             if coch_gram: # if cochleagram is not part of model arch. 
                 cue, mixture = coch_gram(cue, mixture)
 
-            if module == BinauralAttentionModule:
+            if module == BinauralAttentionModule or module == SaddlerBackBoneModule:
                 logits = model(cue, mixture, None)
             else:
                 logits = model(cue, mixture)

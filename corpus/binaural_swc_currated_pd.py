@@ -4,6 +4,10 @@ import numpy as np
 import pandas as pd 
 from torch.utils.data import Dataset
 import librosa 
+import sys 
+sys.path.append('/om2/user/imgriff/datasets/spatial_audio_pipeline/spatial_audio_util/')
+import util_audio 
+
 
 def sample_df(df, group, cond1, cond2, n):
 	df_1 = df[df[f'{group}'] == cond1]
@@ -73,7 +77,7 @@ def pad_or_trim_to_len(x, n, mode='both', kwargs_pad={}):
 
 
 class SWCHumanExperimentStimDataset(Dataset):
-    def __init__(self, path, run_all_stim=False, total_dur=3.0, sr=44_100, **kwargs):
+    def __init__(self, path, run_all_stim=False, total_dur=3.0, sr=44_100, ssn_distractor=False, **kwargs):
         # write docstring for class
         """
         A dataset class for the SWC human experiment stimuli.
@@ -87,6 +91,7 @@ class SWCHumanExperimentStimDataset(Dataset):
         self.total_dur = total_dur
         self.dataset = pd.read_pickle(self.path)
         self.sr = sr 
+        self.ssn_distractor = ssn_distractor
 
         if not run_all_stim:
             # run gender balanced subset of using each word only once 
@@ -165,6 +170,12 @@ class SWCHumanExperimentStimDataset(Dataset):
         target_word_int = self.class_map[word]
         dist_word_int_1 = self.class_map[dist_word_1]
         dist_word_int_2 = self.class_map[dist_word_2]
+
+        if self.ssn_distractor:
+            # get distractor: spectrally matched noise
+            distractor_1_wav = util_audio.spectrally_matched_noise(target_wav, self.sr).astype('float32')
+            return cue_wav, target_wav, distractor_1_wav, _, target_word_int, dist_word_int_1, _, meta_ix
+
 
         return cue_wav, target_wav, distractor_1_wav, distractor_2_wav, target_word_int, dist_word_int_1, dist_word_int_2, meta_ix
     
