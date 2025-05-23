@@ -100,6 +100,9 @@ def run_eval(args):
     if args.modulated_ssn_distractors:
         print("Using modulated ssn distractors")
     
+    if args.ssn_distractors:
+        print("Using ssn distractors")
+    
 
     
     # use anechoic BRIRs for testing
@@ -120,6 +123,7 @@ def run_eval(args):
         if args.sim_human_array_exmpt:
             dataset = SWCHumanExperimentStimDataset(path='/om/user/imgriff/datasets/human_word_rec_SWC_2024/full_cue_target_distractor_df_w_meta.pdpkl',
                                                     run_all_stim=args.run_all_stim,
+                                                    ssn_distractor=args.ssn_distractors,
                                                     sr=model_in_sr)
         elif args.texture_distractor or with_textures:
             print("Using textures as distractors")
@@ -133,6 +137,7 @@ def run_eval(args):
                                         sr=model_in_sr,
                                         symmetric_distractor_test=True,
                                         modulated_ssn_distractors=args.modulated_ssn_distractors,
+                                        ssn_distractors=args.ssn_distractors,
                                         return_stim_ixs=True) 
             
         dataloader = torch.utils.data.DataLoader(dataset, batch_size=config['hparas']['batch_size'], shuffle=False, num_workers=config['num_workers'])
@@ -173,6 +178,8 @@ def run_eval(args):
         sym_str = "" if symmetric_distractor else "_1_distractor"
         if args.texture_distractor or with_textures:
             dist_str = "texture_distractor"
+        elif args.ssn_distractors:
+            dist_str = "ssn_distractor"
         elif args.modulated_ssn_distractors:
             dist_str = "modulated_ssn_distractor"
         elif args.noise_distractor or with_noise:
@@ -367,6 +374,11 @@ def cli_main():
         "--run_1_distractor",
         action=argparse.BooleanOptionalAction,
         help="If true, will run just 1 distractor",
+    )
+    parser.add_argument(
+        "--ssn_distractors",
+        action=argparse.BooleanOptionalAction,
+        help="If true, will use standard ssn maskers as distractors"
     )
     parser.add_argument(
         "--modulated_ssn_distractors",

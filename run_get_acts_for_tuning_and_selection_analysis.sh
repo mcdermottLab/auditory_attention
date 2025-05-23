@@ -8,7 +8,7 @@
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:a100:1 --constraint=40GB
 #SBATCH -x dgx001,dgx002,node100
-#SBATCH --array=0-12 # 0-12
+#SBATCH --array=0,4  # 0-12
 
 module load openmind8/anaconda/3-2022.10
 export HDF5_USE_FILE_LOCKING=FALSE
@@ -32,10 +32,10 @@ python3 get_acts_for_tuning_and_selection_analysis.py --config_list model_archit
                 --n_jobs 0 \
                 --diotic \
                 --job_id $SLURM_ARRAY_TASK_ID \
-                --overwrite \
                 --cue_single_source \
-                # --random_weights \
+                --random_weights \
                 # --time_average \
+                # --overwrite \
 
                 # --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt \
 
