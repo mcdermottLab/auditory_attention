@@ -227,7 +227,7 @@ def get_star(p_val):
 # Other util functions by Ian Griffith
 ############################################
 
-def bootstrap_sem(data, n_bootstraps=10000):
+def bootstrap_sem(data, n_bootstraps=1000):
     bootstrapped_means = np.zeros(n_bootstraps)
     n = len(data)
     for i in range(n_bootstraps):
