@@ -30,54 +30,9 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 #module add openmind/cuda/12.3
 
 which python3
-# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_locate_deep_fc_1024_v08.yaml \
-#                  --gpus 4 --n_jobs 4 --resume_training True \
-#                  --exp_dir attn_cue_models \
-
-# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M.yaml \
-#                  --gpus 4 --n_jobs 4 --resume_training True \
-#                  --exp_dir attn_cue_models \
-
-# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_orig.yaml \
-#                  --gpus 4 --n_jobs 4 --resume_training True \
-#                  --exp_dir attn_cue_models \
-
-# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08.yaml \
-#                  --gpus 4 --n_jobs 4 --resume_training True \
-#                  --exp_dir attn_cue_models \
-
-# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_conv_ln_relu.yaml \
-#                  --gpus 4 --n_jobs 4 \
-#                  --exp_dir attn_cue_models \
-                #  --resume_training True \
 
 
-# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_sanity.yaml \
-#                  --gpus 4 --n_jobs 4 --resume_training True \
-#                  --exp_dir attn_cue_models \
-
-# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue.yaml \
-#                  --gpus 8 --n_jobs 4 --resume_training True \
-#                  --exp_dir attn_cue_models \
-
-# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_learned_avg.yaml \
-#                  --gpus 8 --n_jobs 4 \
-#                  --exp_dir attn_cue_models \
-#                  --resume_training True \
-
-# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned.yaml \
-#                  --gpus 4 --n_jobs 4 --resume_training True \
-#                  --exp_dir attn_cue_models \
-# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v08_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
-#                  --gpus 4 --n_jobs 4 --resume_training True \
-#                  --exp_dir attn_cue_models \
-
-# python3 spatialtrain.py --config config/binaural_attn/word_task_half_co_loc_v09_gender_bal_4M_w_no_cue_learned_higher_lr_less_dropout.yaml \
-#                  --gpus 4 --n_jobs 4 --resume_training True \
-#                  --exp_dir attn_cue_models \
-
-
-python3 spatialtrain.py --config config/binaural_attn/word_task_v11_main_feature_gain_config.yaml \
+python3 spatialtrain.py --config config/binaural_attn/word_task_v10_main_feature_gain_config.yaml \
                  --gpus 4 --n_jobs 4 --resume_training True \
                  --exp_dir attn_cue_models \
 

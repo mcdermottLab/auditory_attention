@@ -10,10 +10,8 @@ from pytorch_lightning import LightningModule
 import src.audio_transforms as at
 import src.audio_attention_transforms as aat
 import src.custom_modules as cm
-from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, BinauralControlCNN, BinauralAuditoryAttentionCNNV2, BaselineCNNV2, BackBoneCNN
-from src.spatial_attn_architecture import BackBoneWithECDFGains, BackBoneLearnedGains
+from src.spatial_attn_architecture import  BinauralAuditoryAttentionCNN, BinauralControlCNN
 from corpus.binaural_attention_h5 import BinauralAttentionDataset
-from corpus.binaural_word_rec_h5 import BinauralWordRecDataset
 
 
 class AttnBiasConstraint(object):
@@ -50,29 +48,21 @@ class BinauralAttentionModule(LightningModule):
         self.multi_task = self.corpora_config['task'] == 'word_and_location'
 
         self.corpora_name = config.get('corpora_name', False)
-        self.run_timit = self.corpora_name == 'TIMIT'
 
         # set dataset as attribute
         self.word_rec_model = False
         self.dataset = BinauralAttentionDataset 
         self.train_val_collate_fn = self._collate_fn
-        if 'v05' in self.corpora_config['root']:
-            # signals are pre-combined and normalized - normalize again for certainty 
-            self.audio_transforms = at.AudioCompose([
-                at.AudioToTensor(),
-                at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
-            ])
-        else:
-            v2_demean = self.audio_config.get('v2_demean', False)
-            if v2_demean:
-                print("Using explicit dim specification for demeaning in audio transforms")
-            self.audio_transforms = at.AudioCompose([
-                at.AudioToTensor(),
-                at.BinauralCombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'],
-                                                  high_snr=config['noise_kwargs']['high_snr'],
-                                                  v2_demean=v2_demean),
-                at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02, v2_demean=v2_demean), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
-            ])
+        v2_demean = self.audio_config.get('v2_demean', False)
+        if v2_demean:
+            print("Using explicit dim specification for demeaning in audio transforms")
+        self.audio_transforms = at.AudioCompose([
+            at.AudioToTensor(),
+            at.BinauralCombineWithRandomDBSNR(low_snr=config['noise_kwargs']['low_snr'],
+                                                high_snr=config['noise_kwargs']['high_snr'],
+                                                v2_demean=v2_demean),
+            at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02, v2_demean=v2_demean), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+        ])
         
         if self.audio_config.get('upsample_audio', False):
             self.audio_transforms = at.AudioCompose([
@@ -86,18 +76,10 @@ class BinauralAttentionModule(LightningModule):
 
         self.test_step = self._test_step
 
-        if self.run_timit:
-            self.test_step = self.test_timit 
-            self.audio_transforms = at.AudioCompose([
-                at.AudioToTensor(),
-                at.UnsqueezeAudio(dim=0),
-            ])
-
         # Init Model
         # Get model architecture
         norm_first = self.model_config.get('norm_first', True)
         new_module = self.model_config.get('v08', False)
-        v2_module = self.model_config.get('v2_module', False)
         control_arch = self.model_config.get('control_arch', False)
         self.use_backbone_arch = self.model_config.get('backbone_arch', False)
         self.backbone_with_ecdf_gains = self.model_config.get('backbone_with_ecdf_gains', False)
@@ -109,34 +91,12 @@ class BinauralAttentionModule(LightningModule):
         self.dataloader_batch_size = self.hparas_config['batch_size'] if self.batch_in_dataloader else 1        
 
         if control_arch:
-            if v2_module:
-                print("Using BaselineCNNV2")
-                self.model = BaselineCNNV2(**self.model_config)
-            else:
-                print("Using BinauralControlCNN")
-                self.model = BinauralControlCNN(**self.model_config)
-        elif self.backbone_with_ecdf_gains:
-            print("Using BackBoneWithECDFGains")
-            # Only used for evaluation at this point 
-            self.model = BackBoneWithECDFGains(**self.model_config)
-        elif self.backbone_with_learned_gains:
-            print("Using BackBoneWithLearnedGains")
-            # Only used for evaluation at this point 
-            self.model = BackBoneLearnedGains(self.model_config)
-        elif self.use_backbone_arch:
-            print("Using BackBoneCNN")
-            self.model = BackBoneCNN(**self.model_config)
-            self.dataset = BinauralWordRecDataset
-            self.train_val_collate_fn = self.word_rec_collate_fn
-            self.word_rec_model = True
-        elif v2_module:
-            print("Using BinauralAuditoryAttentionCNNV2")
-            self.model = BinauralAuditoryAttentionCNNV2(**self.model_config)
-        elif (norm_first == False or new_module) and not v2_module:
+            print("Using BinauralControlCNN")
+            self.model = BinauralControlCNN(**self.model_config)
+        else:
             print("Using BinauralAuditoryAttentionCNN")
             self.model = BinauralAuditoryAttentionCNN(**self.model_config)
-        else:
-            self.model = CNN2DExtractor(**self.model_config) 
+
         # check if torch version 2 or greater - if so, compile model
         getting_acts = self.config.get('getting_acts', False)
         if not getting_acts and int(torch.__version__.split('.')[0]) >= 2 and not self.multi_task and not self.audio_config.get('upsample_audio', False):
@@ -245,7 +205,6 @@ class BinauralAttentionModule(LightningModule):
         opt = getattr(torch.optim, self.hparas_config['optimizer'])
         model_params = [{'params': self.model.parameters()}]
         self.optimizer = opt(model_params, lr=self.hparas_config['lr'], eps=self.hparas_config['eps'])       
-        ## New for v05 dataset - use lr Scheduler 
         if self.hparas_config.get('use_scheduler', False):
             print(f"Using learning rate schedule: {self.hparas_config['scheduler']['type']}")
             if self.hparas_config['scheduler']['type'] == "OneCycleLR":
@@ -289,7 +248,7 @@ class BinauralAttentionModule(LightningModule):
         return self._step(batch, batch_idx, "val")
 
     def _test_step(self, batch, batch_idx):
-        # TODO - re-write the test step to make sure we get this right
+        # Not used in model simulations - test loops outside of lightning
         bg_labels = None
         if  self.audioset_bg_test or self.n_test_talkers and not self.matched_cue_level:
             signal, fg_cue, fg_labels = batch
@@ -329,22 +288,6 @@ class BinauralAttentionModule(LightningModule):
 
         return fg_loss
 
-    def test_timit(self, batch, batch_idx):
-        cue_features, cue_mask_ixs, scene_features, labels = batch
-        cue_features, scene_features = self.coch_gram(cue_features, scene_features)
-        self.log(f"true_word_ix", labels.float(), on_step=True, on_epoch=False)
-        # self() is self.forward()  
-        fg_outputs = self(cue_features, scene_features, cue_mask_ixs) 
-        if labels == -1:
-            labels[0] = 0
-        fg_loss = self.loss_fn(fg_outputs, labels)
-        model_confidence, model_guess = fg_outputs.softmax(-1).max(-1) # returns value, index
-        self.accuracy["test"](fg_outputs, labels)
-        self.log(f"ACC/test_fg_acc", self.accuracy["test"], on_step=True, on_epoch=False)
-        self.log(f"pred_word_ix", model_guess, on_step=True, on_epoch=False)
-        self.log(f"model_confidence", model_confidence, on_step=True, on_epoch=False)
-        return fg_loss
-
     def _extract_labels(self, samples: List):
         # idx=3 is harcoded - sample in samples is list of (cue, foreground, background, label)
         return torch.tensor([sample[3] for sample in samples]).type(torch.LongTensor)
@@ -357,7 +300,6 @@ class BinauralAttentionModule(LightningModule):
             loc_task_mask = torch.argwhere(torch.sum(torch.abs(cue_flat), dim=1) != 0).squeeze()
             return mask_ixs, loc_task_mask
         return mask_ixs
-
 
     def _extract_features(self, samples: List, sample_ix: Union[int, list]):
         # hardcode none for bg noise here - scenes are pre-mixed
@@ -390,17 +332,6 @@ class BinauralAttentionModule(LightningModule):
         if self.multi_task:
             return cue_features, cue_mask_ixs, loc_task_ixs, scene_features, labels
         return cue_features, cue_mask_ixs, scene_features, labels
-
-    def word_rec_collate_fn(self, samples: List):
-        scenes = []
-        labels = []
-        for (_, target, distractor, label) in samples:
-            scene_features, _ = self.audio_transforms(target, None)
-            scenes.append(scene_features)
-            labels.append(label)
-        scene_features = torch.stack(scenes, dim=0)  # stack along batch dimension
-        labels = torch.LongTensor(labels)  # stack along batch dimension
-        return None, None, scene_features, labels
 
     def test_collate_fn(self, samples: List):
         cue_features = self._extract_features(samples, sample_ix=0)
@@ -435,16 +366,7 @@ class BinauralAttentionModule(LightningModule):
         return dataloader
 
     def test_dataloader(self): # dumy placeholder no longer - fixed
-        if self.run_timit:
-            print("Using TIMIT dataste")
-            from corpus.timit import TIMIT_Binaural_Compat_Prepaired
-            dataset = TIMIT_Binaural_Compat_Prepaired(**self.config['data']['corpus'],
-                                                      model_sr=self.audio_config['rep_kwargs']['sr'],
-                                                      mode='test')
-                                        # clean_targets = self.corpora_config.get('clean_targets', False))
-        else:
-            dataset = self.dataset(**self.corpora_config, mode='test')
-
+        dataset = self.dataset(**self.corpora_config, mode='test')
         dataloader = torch.utils.data.DataLoader(
             dataset,
             batch_size=self.hparas_config['batch_size'],
