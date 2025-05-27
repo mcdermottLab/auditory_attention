@@ -143,6 +143,9 @@ binaural_eval
 popham_mono_eval
 confidenceScorers
 pre_train_word_loc
+ARO_2025
+confidencceScores/
+final_results_dir
 Denmark_2024
 api_util/
 phaselocknet_torch
@@ -173,4 +176,6 @@ prelim_binaural_figs/diff_min_same_confusion_at_0_elev.pdf
 *.svg
 *.pdf
 *.h5
-.hparams.yaml
+*.hparams.yaml
+*.pkl
+*.png
