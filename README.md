@@ -36,6 +36,9 @@ Repository associated with publication  Ian Griffith, R. Preston Hessand Josh H.
     - `eval_sim_array_spotlight_experiment_v02.py` is used to simulate experiment 7. 
     - `get_acts_for_tuning_and_selection_analysis.py` is used to obtain model activations for the stage of selection analysis (figure 5 and supplementary figure 5). 
 
+- all `*.sh` scripts show examples of how corresponding `.py` scripts were exectued on the OpenMind compute cluster, indluding compute resource requirments.
+
+
 ## Requirements 
 
 Create a conda environment including the packages in requirements.txt to run model training, evaluation and plotting scripts. 
