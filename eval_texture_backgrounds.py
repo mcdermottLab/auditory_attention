@@ -10,7 +10,6 @@ import pathlib
 from pathlib import Path 
 from argparse import ArgumentParser
 from pytorch_lightning import seed_everything
-from src.attn_tracking_lightning import AttentionalTrackingModule
 from src.spatial_attn_lightning import BinauralAttentionModule 
 from corpus.speech_and_texture_test import SpeechAndTextureTestSet
 import src.audio_transforms as at

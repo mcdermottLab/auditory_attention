@@ -50,21 +50,21 @@ python3 eval_precedence.py --config config/arch_search/word_task_v10_4MGB_ln_fir
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test_v02 \
                  --cue_type voice_and_location --no-overwrite --n_per_job 1
 
-# rm -r /tmp/torchinductor_imgriff
-# python3 eval_precedence.py --config config/arch_search/word_task_v10_4MGB_ln_first_arch_6.yaml \
-#                  --ckpt_path attn_cue_models/word_task_v10_4MGB_ln_first_arch_6/checkpoints/epoch=3-step=42037.ckpt \
-#                  --test_manifest binaural_test_manifests/freymen_1999_test_conds.pkl \
-#                  --model_name word_task_v10_4MGB_ln_first_arch_6 --location_idx $SLURM_ARRAY_TASK_ID \
-#                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test_v02 \
-#                  --cue_type voice_and_location --no-overwrite --n_per_job 1
+rm -r /tmp/torchinductor_imgriff
+python3 eval_precedence.py --config config/arch_search/word_task_v10_4MGB_ln_first_arch_6.yaml \
+                 --ckpt_path attn_cue_models/word_task_v10_4MGB_ln_first_arch_6/checkpoints/epoch=3-step=42037.ckpt \
+                 --test_manifest binaural_test_manifests/freymen_1999_test_conds.pkl \
+                 --model_name word_task_v10_4MGB_ln_first_arch_6 --location_idx $SLURM_ARRAY_TASK_ID \
+                 --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test_v02 \
+                 --cue_type voice_and_location --no-overwrite --n_per_job 1
 
-# rm -r /tmp/torchinductor_imgriff
-# python3 eval_precedence.py --config config/arch_search/word_task_v10_4MGB_ln_first_arch_7.yaml \
-#                  --ckpt_path attn_cue_models/word_task_v10_4MGB_ln_first_arch_7/checkpoints/epoch=0-step=8000-v3.ckpt \
-#                  --test_manifest binaural_test_manifests/freymen_1999_test_conds.pkl \
-#                  --model_name word_task_v10_4MGB_ln_first_arch_7 --location_idx $SLURM_ARRAY_TASK_ID \
-#                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test_v02 \
-#                  --cue_type voice_and_location --no-overwrite --n_per_job 1
+rm -r /tmp/torchinductor_imgriff
+python3 eval_precedence.py --config config/arch_search/word_task_v10_4MGB_ln_first_arch_7.yaml \
+                 --ckpt_path attn_cue_models/word_task_v10_4MGB_ln_first_arch_7/checkpoints/epoch=0-step=8000-v3.ckpt \
+                 --test_manifest binaural_test_manifests/freymen_1999_test_conds.pkl \
+                 --model_name word_task_v10_4MGB_ln_first_arch_7 --location_idx $SLURM_ARRAY_TASK_ID \
+                 --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test_v02 \
+                 --cue_type voice_and_location --no-overwrite --n_per_job 1
 
 rm -r /tmp/torchinductor_imgriff
 python3 eval_precedence.py --config config/arch_search/word_task_v10_4MGB_ln_first_arch_8.yaml \
@@ -94,36 +94,10 @@ python3 eval_precedence.py --config config/arch_search/word_task_v10_4MGB_ln_fir
 
 rm -fr /tmp/torchinductor_imgriff
 
-# python3 eval_precedence.py --config config/arch_search/word_task_v10_4MGB_ln_first_arch_12.yaml \
-#                  --ckpt_path attn_cue_models/word_task_v10_4MGB_ln_first_arch_12/checkpoints/epoch=2-step=33358-v4.ckpt \
-#                  --test_manifest binaural_test_manifests/freymen_1999_test_conds.pkl \
-#                  --model_name word_task_v10_4MGB_ln_first_arch_12 --location_idx $SLURM_ARRAY_TASK_ID \
-#                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test_v02 \
-#                  --cue_type voice_and_location --no-overwrite --n_per_job 1
-
-# rm -fr /tmp/torchinductor_imgriff
-
-# python3 eval_precedence.py --config config/binaural_attn/word_task_early_only_v10.yaml \
-#                  --ckpt_path attn_cue_models/word_task_early_only_v10/checkpoints/epoch=7-step=92753.ckpt \
-#                  --test_manifest binaural_test_manifests/freymen_1999_test_conds.pkl \
-#                  --model_name word_task_early_only_v10 --location_idx $SLURM_ARRAY_TASK_ID \
-#                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test_v02 \
-#                  --cue_type voice_and_location --no-overwrite --n_per_job 1
-
-rm -r /tmp/torchinductor_imgriff
-
-python3 eval_precedence.py --config config/binaural_attn/word_task_late_only_v10.yaml \
-                 --ckpt_path attn_cue_models/word_task_late_only_v10/checkpoints/epoch=7-step=96753.ckpt \
+python3 eval_precedence.py --config config/arch_search/word_task_v10_4MGB_ln_first_arch_12.yaml \
+                 --ckpt_path attn_cue_models/word_task_v10_4MGB_ln_first_arch_12/checkpoints/epoch=2-step=33358-v4.ckpt \
                  --test_manifest binaural_test_manifests/freymen_1999_test_conds.pkl \
-                 --model_name word_task_late_only_v10 --location_idx $SLURM_ARRAY_TASK_ID \
+                 --model_name word_task_v10_4MGB_ln_first_arch_12 --location_idx $SLURM_ARRAY_TASK_ID \
                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test_v02 \
                  --cue_type voice_and_location --no-overwrite --n_per_job 1
-
-# rm -r /tmp/torchinductor_imgriff
-# python3 eval_precedence.py --config config/binaural_attn/word_task_v10_control_no_attn.yaml \
-#                  --ckpt_path attn_cue_models/word_task_v10_control_no_attn/checkpoints/epoch=7-step=94753.ckpt \
-#                  --test_manifest binaural_test_manifests/freymen_1999_test_conds.pkl \
-#                  --model_name word_task_v10_control_no_attn --location_idx $SLURM_ARRAY_TASK_ID \
-#                  --gpus 1 --n_jobs 2 --exp_dir binaural_eval/precedence_distractor_test_v02 \
-#                  --cue_type voice_and_location --no-overwrite --n_per_job 1
 

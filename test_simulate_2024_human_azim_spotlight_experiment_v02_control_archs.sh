@@ -18,12 +18,6 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 which python3
 rm -r /tmp/torchinductor_imgriff
 
-python3 eval_sim_array_spotlight_experiment_v02.py --config config/binaural_attn/word_task_half_co_loc_v09_50Hz_cutoff.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v09_50Hz_cutoff/checkpoints/epoch=2-step=33108.ckpt \
-                 --test_manifest binaural_test_manifests/sim_azim_spotlight_v02.pkl \
-                 --location_idx $SLURM_ARRAY_TASK_ID \
-                 --gpus 1 --n_jobs 2 --exp_dir binaural_eval/sim_azim_spotlight_v02_min_reverb_room1004_30dB_pink_noise_bg \
-                 --cue_type voice_and_location --no-overwrite --n_per_job 1 --run_all_stim --pink_noise_bg
 
 rm -r /tmp/torchinductor_imgriff
 python3 eval_sim_array_spotlight_experiment_v02.py --config config/binaural_attn/word_task_early_only_v10.yaml \

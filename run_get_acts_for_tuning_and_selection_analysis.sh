@@ -17,45 +17,13 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 which python3
 rm -r /tmp/torchinductor_imgriff
 
-# python3 get_acts_for_tuning_and_selection_analysis.py --config config/binaural_attn/word_task_v10_backbone_word_config.yaml \
-#                 --ckpt_path attn_cue_models/word_task_v10_backbone_word_config/checkpoints/epoch=1-step=3113.ckpt \
-#                 --n_activations 500 \
-#                 --n_jobs 0 \
-#                 --diotic \
-#                 --overwrite
-                # --job_id $SLURM_ARRAY_TASK_ID \
-                # --overwrite \
-                
+               
 python3 get_acts_for_tuning_and_selection_analysis.py --config_list model_architecture_activation_manifests/all_v10_architectures_alts_and_controls.pkl \
                 --n_activations 500 \
                 --n_jobs 8 \
                 --diotic \
                 --job_id $SLURM_ARRAY_TASK_ID \
                 --cue_single_source \
-                --overwrite \
-                --random_weights \
-                # --time_average \
-
-                # --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt \
-
-# python3 get_acts_for_tuning_and_selection_analysis.py --config config/binaural_attn/word_task_v10_main_feature_gain_config.yaml \
-#                 --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt \
-#                 --n_activations 500 \
-#                 --n_jobs 0 \
-#                 --diotic \
-#                 --time_average \
-#                 --overwrite \
+                # --overwrite \
                 # --random_weights \
-                # --cue_single_source \
-                # --center_loc_only \
-
-# python3 get_acts_for_tuning_and_selection_analysis.py --config config/binaural_attn/word_task_v10_main_feature_gain_config.yaml \
-#                 --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt \
-#                 --n_activations 100 \
-#                 --n_jobs 0 \
-#                 --diotic \
-#                 --time_average \
-                # --random_weights \
-
-
 

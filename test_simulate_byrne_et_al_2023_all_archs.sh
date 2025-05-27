@@ -18,12 +18,6 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 which python3
 rm -r /tmp/torchinductor_imgriff
 
-python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_half_co_loc_v09_50Hz_cutoff.yaml \
-                 --ckpt_path attn_cue_models/word_task_half_co_loc_v09_50Hz_cutoff/checkpoints/epoch=2-step=33108.ckpt \
-                 --test_manifest binaural_test_manifests/simulate_byrne_et_al_2023.pkl \
-                 --location_idx $SLURM_ARRAY_TASK_ID \
-                 --gpus 1 --n_jobs 4 --exp_dir binaural_eval/simulate_byrne_et_al_2023 \
-                 --cue_type voice_and_location --no-overwrite --n_per_job 1 --sim_human_array_exmpt --run_all_stim
 
 python3 eval_symmetric_distractors.py --config config/binaural_attn/word_task_v10_main_feature_gain_config.yaml \
                  --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt \
