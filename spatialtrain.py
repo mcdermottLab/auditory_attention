@@ -9,6 +9,7 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from src.spatial_attn_lightning import BinauralAttentionModule #probably need to change this to the new name
 from src.saddler_w_gains_lightning import SaddlerBackBoneModule
+from src.backbone_lightning import BinauralBackBoneModule
 # get nodename 
 import socket
 
@@ -53,7 +54,9 @@ def run_train(args):
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     ckpt_paths = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)
 
-    if "saddler" in config_path.stem:
+    if 'saddler_dataset' in config_path.stem:
+        module = BinauralBackBoneModule
+    elif "saddler" in config_path.stem and 'dataset' not in config_path.stem:
         module = SaddlerBackBoneModule
     else:
         module = BinauralAttentionModule
@@ -124,7 +127,7 @@ def run_train(args):
         max_epochs=config['hparas']['epochs'],
        # log_every_n_steps = 10,
         # detect_anomaly=True,
-        benchmark=True,
+        # benchmark=True,
         num_nodes=args.num_nodes,
         devices=args.gpus,
         accelerator="gpu", 
