@@ -19,13 +19,13 @@ Repository associated with publication  Ian Griffith, R. Preston Hess and Josh H
 
 - 'corpus/' contains pytorch dataset classes training and human experiment simulations.
 
-- 'demo_stimuli/' is a folder containing example audio files (as .wav files) that can be run through the model. These include both a cue and target excerpt produced by one male and one female talker. Below is an example demonstrating how to pre-process the audio to generate a two-talker mixture, and run the audio through the model.
+- 'demo_stimuli/' is a folder containing example audio files (as .wav files) that can be run through the model. These include cue and target excerpts produced by both a male and female talker. Below is an example demonstrating how to pre-process the audio to generate a two-talker mixture, and run the audio through the model.
+
+- 'final_results_to_share' contains summarized data for all model and human experiments, and is used by the scripts in `notebooks/Final_Figures/` to reproduce the respective figures. 
 
 - 'notebooks/' contains jupyter notebooks for data exploration and figure generation see inside for another readme.
     - 'notebooks/Final_Figures/' contains both `.ipynb` and `.py` files that can be used to reproduce all main and supplementary figures.
-    - run `notebooks/Final_Figures/run_all_figure_gen.py` to generate all figures and run all reported statistics. 
-
-- 'final_results_to_share' contains summarized data for all model and human experiments, and is used by the scripts in `notebooks/Final_Figures/` to reproduce the respective figures. 
+    - run `notebooks/Final_Figures/run_all_figure_gen.py` to generate all figures and run all reported statistics.     
 
 - 'src/' contains necessary code for the models and stimuli generation.
 
