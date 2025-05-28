@@ -1,12 +1,12 @@
 # Auditory Attention
 
-Repository associated with publication  Ian Griffith, R. Preston Hessand Josh H. McDermott (in press) _Optimized feature gains explain and predict successes and failures of human selective listening._
+Repository associated with publication  Ian Griffith, R. Preston Hess and Josh H. McDermott (submitted) _Optimized feature gains explain and predict successes and failures of human selective listening._
 
 ## Dependencies
 
 - Python 3.12
 - Pytorch 2.1+
-- Pytorch lightning 2.4
+- Pytorch lightning 2.1+
 - Computing power (~4 A100 GPUs) and memory space (both 100GB RAM/ 80GB GPU memory) are necessary if you'd like to train your own model.
 
 
@@ -38,7 +38,6 @@ Repository associated with publication  Ian Griffith, R. Preston Hessand Josh H.
 
 - all `*.sh` scripts show examples of how corresponding `.py` scripts were exectued on the OpenMind compute cluster, indluding compute resource requirments.
 
-
 ## Requirements 
 
 Create a conda environment including the packages in requirements.txt to run model training, evaluation and plotting scripts. 
@@ -46,17 +45,20 @@ Create a conda environment including the packages in requirements.txt to run mod
 ## Snippet for loading and running model:
 ```
 import yaml
-import src.spatial_attn_lightning as binaural_lightning 
+import pickle 
+from pathlib import Path
+from src.spatial_attn_lightning import BinauralAttentionModule 
 import src.audio_transforms as at
+import soundfile as sf 
 
 config_path = "config/binaural_attn/word_task_v10_main_feature_gain_config.yaml"
 config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
 
-# after downloading checkpoints 
-ckpt_path  = `attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt`
+# set checkpoint path
+ckpt_path  =  'attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt'
 
 # load model from checkpoint and freeze with .eval()
-model = binaural_lightning.load_from_checkpoint(checkpoint_path=ckpt_path, config=config, strict=False).eval()
+model = BinauralAttentionModule.load_from_checkpoint(checkpoint_path=ckpt_path, config=config, strict=False).eval()
 
 # send to gpu
 model = model.cuda()
@@ -64,17 +66,53 @@ model = model.cuda()
 # get cochleagram 
 coch_gram = model.coch_gram.cuda()
 
-# can load audio as desired. Audio should be 2 seconds at 44.1 kHz sampling rate.
-cue, mixture = ... 
+# define audio transforms
+SNR = 0 # signal-to-noise ratio in dB for CombineWithRandomDBSNR. Setting low and high to same value sets snr to that value
+audio_transforms = at.AudioCompose([
+                        at.AudioToTensor(),
+                        at.CombineWithRandomDBSNR(low_snr=SNR, high_snr=SNR), 
+                        at.RMSNormalizeForegroundAndBackground(rms_level=0.02),
+                        at.DuplicateChannel(),
+                        at.UnsqueezeAudio(dim=0),
+                        ])
 
-# if mono, copy signals to 2 channels 
-mono_2_stereo = at.DuplicateChannel()
-cue, mixture = mono_2_stereo(cue, mixture)
+# Load word dictionary 
+with open("./cv_800_word_label_to_int_dict.pkl", "rb") as f:
+    word_to_ix_dict = pickle.load(f) 
 
-# get cochleagrams of cue and mixture
-cue, mixture = coch_gram(cue.cuda(), mixture.cuda())
+# Map for class ix to word labels
+class_ix_to_word = {v: k for k, v in word_to_ix_dict.items()}
 
-# model forward takes cue (can be None), mixture, and mask_ix (typically will none)
-logits = model(cue, mixture, None)
-```
+# Load audio demo stimuli
+outdir = Path("demo_stimuli")
 
+female_cue, _ = sf.read(outdir / "female_cue.wav")
+male_cue, _ = sf.read(outdir / "male_cue.wav")
+
+female_target, _ = sf.read(outdir / "female_target_above.wav")
+male_target, _ = sf.read(outdir / "male_target_about.wav" )
+
+# use demo labels 
+female_target_word = 'above'
+male_target_word = 'about'
+
+# transform audio
+mixture, _ = audio_transforms(female_target, male_target) # will combine first and second signal at specified dB SNR 
+female_cue, _ = audio_transforms(female_cue, None) # can pass None if not processing distractor 
+male_cue, _ = audio_transforms(male_cue, None)
+
+# get cochleagrams 
+female_cue_cgram, male_cue_cgram = coch_gram(female_cue.cuda().float(), male_cue.cuda().float())
+mixture_cgram, _ = coch_gram(mixture.cuda().float(), None)
+
+# get model prediction when cueing male talker
+model_logits = model(male_cue_cgram, mixture_cgram)
+male_word_pred = model_logits.softmax(-1).argmax(dim=1).item()
+print(f"Male cue -> True word: {male_target_word}. Predicted word: {class_ix_to_word[male_word_pred]}")
+# should print "True word: about. Predicted word: about"
+
+# get model predictions when cueing female talker in same mixture
+model_logits = model(female_cue_cgram, mixture_cgram)
+female_word_pred = model_logits.softmax(-1).argmax(dim=1).item()
+print(f"Female cue -> True word: {female_target_word}. Predicted word: {class_ix_to_word[female_word_pred]}")
+# should print "True word: above. Predicted word: above"

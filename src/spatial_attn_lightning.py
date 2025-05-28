@@ -86,15 +86,15 @@ class BinauralAttentionModule(LightningModule):
         self.backbone_with_learned_gains = self.model_config.get('backbone_with_learned_gains', False)
         
         self.batch_in_dataloader = (self.use_backbone_arch and not (self.backbone_with_ecdf_gains or self.backbone_with_learned_gains))
-        print(f"Batch in dataloader = {self.batch_in_dataloader}")
+        # print(f"Batch in dataloader = {self.batch_in_dataloader}")
         self.dataset_batch_size = 1 if self.batch_in_dataloader else self.hparas_config['batch_size']
         self.dataloader_batch_size = self.hparas_config['batch_size'] if self.batch_in_dataloader else 1        
 
         if control_arch:
-            print("Using BinauralControlCNN")
+            # print("Using BinauralControlCNN")
             self.model = BinauralControlCNN(**self.model_config)
         else:
-            print("Using BinauralAuditoryAttentionCNN")
+            # print("Using BinauralAuditoryAttentionCNN")
             self.model = BinauralAuditoryAttentionCNN(**self.model_config)
 
         # check if torch version 2 or greater - if so, compile model
@@ -103,8 +103,8 @@ class BinauralAttentionModule(LightningModule):
             self.model = torch.compile(self.model, mode="default")
 
         ## get local rank
-        print(f"Using dataset {self.dataset.__name__}")
-        print(self.model)
+        # print(f"Using dataset {self.dataset.__name__}")
+        # print(self.model)
 
         # Add input rep to model or audio transforms
         self.rep_on_gpu = self.audio_config['rep_kwargs']['rep_on_gpu']
@@ -236,7 +236,7 @@ class BinauralAttentionModule(LightningModule):
 
         return [self.optimizer]
 
-    def forward(self, cue: torch.tensor, scene: torch.tensor, cue_mask_ixs: torch.tensor):
+    def forward(self, cue: torch.tensor, scene: torch.tensor, cue_mask_ixs: Optional[torch.tensor] = None):
         outputs = self.model(cue, scene, cue_mask_ixs)
         # Outputs here are logits
         return outputs

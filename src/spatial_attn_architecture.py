@@ -18,7 +18,6 @@ class SimpleAttentionalGain(nn.Module):
         self.bias = nn.Parameter(torch.zeros(1)) # init gain scaling to zero
         self.slope = nn.Parameter(torch.ones(1)) # init slope to one
         self.threshold = nn.Parameter(torch.zeros(1)) # init threshold to zero
-        self.n_cue_frames = n_cue_frames # duration of cue in frames - full cue if None
         self.additive = additive # if True, gain is added to mixture, else multiplied
         self.reset_parameters() 
 
@@ -57,24 +56,24 @@ class BinauralAuditoryAttentionCNN(nn.Module):
                   v08=False, additive=False, cue_loc_task=False, fc_attn=True,  per_kernel_gain=False, **kwargs):
         super(BinauralAuditoryAttentionCNN, self).__init__()
         # Setup
-        print(f"{num_classes=}")
+        # print(f"{num_classes=}")
         self.dual_task = False
         if isinstance(num_classes, dict):
             class_keys = num_classes.keys()
             if ("num_words" in class_keys) and not ("num_locs" in class_keys):
                 # only_word 
                 self.num_classes = num_classes['num_words']
-                print('Model performing word task')
+                # print('Model performing word task')
             elif ("num_locs" in class_keys) and not ("num_words" in class_keys):
                 # only_loc
                 self.num_classes = num_classes['num_locs']
-                print('Model performing location task')
+                # print('Model performing location task')
 
             elif ("num_locs" in class_keys) and ("num_words" in class_keys):
                 self.dual_task = True
                 self.num_words = num_classes['num_words']
                 self.num_locs = num_classes['num_locs']
-                print('Model performing both location and word tasks')
+                # print('Model performing both location and word tasks')
 
         self.input_sr = input_sr
         self.out_channels = out_channels
@@ -92,10 +91,10 @@ class BinauralAuditoryAttentionCNN(nn.Module):
         self.per_kernel_gain = per_kernel_gain
         self.gain_module = SimpleAttentionalGain
 
-        if norm_first:
-            print(f"Conv block order: LN -> Conv -> ReLU")
-        elif not norm_first:
-            print(f"Conv block order: Conv -> ReLU -> LN")
+        # if norm_first:
+            # print(f"Conv block order: LN -> Conv -> ReLU")
+        # elif not norm_first:
+            # print(f"Conv block order: Conv -> ReLU -> LN")
 
         self.input_channels = kwargs.get('input_channels', 2)
         self.n_cue_frames = n_cue_frames
@@ -105,7 +104,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
             print(f"Using residual attention")
         self.v08 = v08
         self.fc_attn = fc_attn
-        print(f"fc_attn: {fc_attn}")
+        # print(f"fc_attn: {fc_attn}")
 
         self.model_dict = nn.ModuleDict()
         self.output_height = frequency_dim
@@ -116,7 +115,7 @@ class BinauralAuditoryAttentionCNN(nn.Module):
             coch_affine = self.ln_affine
         else:
             coch_affine = True
-        print('coch_affine:', coch_affine)
+        # print('coch_affine:', coch_affine)
         self.model_dict["norm_coch_rep"]= nn.LayerNorm([self.input_channels, self.frequency_dim, self.output_len], elementwise_affine=coch_affine)
 
         for idx in range(self.n_layers):

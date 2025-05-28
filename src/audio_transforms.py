@@ -11,10 +11,8 @@ from chcochleagram import cochleagram
 from chcochleagram import *
 from .time_domain_cochleagram import TimeDomainCochleagram
 import torchaudio.transforms as T
-from . import util_filters
 
 # sys.path.append('/om2/user/annesyab/summer2022/CI_Model_HearingImpairment/cochlear_implant_param_infer/utils')
-import src.util_cimodel_soundcoding_master as ci_model
 
 
 def ch_demean(x, dim=0, mean_keepdim=False):
@@ -896,99 +894,7 @@ class Resample(torch.nn.Module):
         return foreground_wav, background_wav
 
 
-## Add Mark Saddler's low-cutoff IHC implementation
-
-## manually add IHCLowpassFilter from util_torch 
-class FIRFilterbank(torch.nn.Module):
-    def __init__(self, fir, dtype=torch.float32, **kwargs_conv1d):
-        """
-        FIR filterbank
-
-        Args
-        ----
-        fir (list or np.ndarray or torch.Tensor):
-            Filter coefficients. Shape (n_taps,) or (n_filters, n_taps)
-        dtype (torch.dtype):
-            Data type to cast `fir` to in case it is not a `torch.Tensor`
-        kwargs_conv1d (kwargs):
-            Keyword arguments passed on to torch.nn.functional.conv1d
-            (must not include `groups`, which is used for batching)
-        """
-        super().__init__()
-        if not isinstance(fir, (list, np.ndarray, torch.Tensor)):
-            raise TypeError(
-                "fir must be list, np.ndarray or torch.Tensor, got "
-                f"{fir.__class__.__name__}"
-            )
-        if isinstance(fir, (list, np.ndarray)):
-            fir = torch.tensor(fir, dtype=dtype)
-        if fir.ndim not in [1, 2]:
-            raise ValueError(
-                "fir must be one- or two-dimensional with shape (n_taps,) or "
-                f"(n_filters, n_taps), got shape {fir.shape}"
-            )
-        self.register_buffer("fir", fir)
-        self.kwargs_conv1d = kwargs_conv1d
-
-    def forward(self, x, batching=False):
-        """
-        Filter input signal
-
-        Args
-        ----
-        x (torch.Tensor): Input signal
-        batching (bool):
-            If `True`, the input is assumed to have shape (..., n_filters, time)
-            and each channel is filtered with its own filter
-
-        Returns
-        -------
-        y (torch.Tensor): Filtered signal
-        """
-        y = x
-        if batching:
-            util_filters._batching_check(y, self.fir)
-        else:
-            y = y.unsqueeze(-2)
-        unflatten_shape = y.shape[:-2]
-        y = torch.flatten(y, start_dim=0, end_dim=-2 - 1)
-        y = torch.nn.functional.conv1d(
-            input=torch.nn.functional.pad(y, (self.fir.shape[-1] - 1, 0)),
-            weight=self.fir.flip(-1).view(-1, 1, self.fir.shape[-1]),
-            **self.kwargs_conv1d,
-            groups=y.shape[-2] if batching else 1,
-        )
-        y = y.view(*unflatten_shape, *y.shape[-2:])
-        if self.fir.ndim == 1:
-            y = y.squeeze(-2)
-        return y
-
-
-class IHCLowpassFilter(FIRFilterbank):
-    def __init__(
-        self,
-        sr_input=20e3,
-        sr_output=10e3,
-        fir_dur=0.05,
-        cutoff=3e3,
-        order=7,
-        dtype=torch.float32,
-    ):
-        """ """
-        fir = util_filters.ihc_lowpass_filter_fir(
-            sr=sr_input,
-            fir_dur=fir_dur,
-            cutoff=cutoff,
-            order=order,
-        )
-        stride = int(sr_input / sr_output)
-        msg = f"{sr_input=} and {sr_output=} require non-integer stride"
-        assert np.isclose(stride, sr_input / sr_output), msg
-        super().__init__(fir, dtype=dtype, stride=stride)
-
-
 # Add dict of downsampling operations to be performed on audio representations
 downsampling_reps = {'SincWithKaiserWindow': chcochleagram.downsampling.SincWithKaiserWindow, 
-                     "IHCLowpassFilter": IHCLowpassFilter, 
                      'TorchTransformsResample': T.Resample}
 

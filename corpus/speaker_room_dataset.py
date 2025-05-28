@@ -43,8 +43,7 @@ class SpeakerRoomDataset(torch.utils.data.Dataset):
         """
         Loads the mapping between the word IDX and human readable word map. 
         """
-        word_2_class = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", "rb" )) 
-        word_2_class = {k.replace("'", ''):v for k,v in word_2_class.items()}
+        word_2_class = pickle.load( open("./cv_800_word_label_to_int_dict.pkl", "rb" )) 
         class_map = {v:k for k,v in word_2_class.items()}
         return class_map, word_2_class
 
