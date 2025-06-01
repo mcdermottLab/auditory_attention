@@ -31,7 +31,7 @@ audio:                                  # Attributes of audio feature
     clip_value: 5
     power: 0.3
 
-val_metric: 'val_acc'
+val_metric: 'val_word_acc'
 model_name: 'backbone_no_cue'
 
 noise_kwargs: # parameters for background signal levels 
