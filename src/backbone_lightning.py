@@ -36,7 +36,7 @@ class BinauralBackBoneModule(LightningModule):
         self.coch_gram = cm.AttnAudioInputRepresentation(**self.audio_config).to(self.device)
 
         # Losses
-        self.word_loss_fn = torch.nn.CrossEntropyLoss(ignore_index=0)
+        self.word_loss_fn = torch.nn.CrossEntropyLoss()
 
         self.train_acc = torch.nn.ModuleDict({'word':Accuracy(task="multiclass", num_classes=num_words)})
         self.valid_acc = torch.nn.ModuleDict({'word':Accuracy(task="multiclass", num_classes=num_words)})
@@ -59,39 +59,45 @@ class BinauralBackBoneModule(LightningModule):
             return None
 
 
-        sound = torch.from_numpy(batch['signal'].numpy())
-        exs, time, channels = sound.shape
-        sound = sound.view(exs, channels, 1, time).to(self.device)
+        sound = torch.from_numpy(batch['signal'].numpy()).to(self.device)
+        b, time, channels = sound.shape
+        sound = torch.permute(sound, (0, 2, 1))  # (b, channels, time)
 
         # process labels 
-        word_label = torch.from_numpy(batch['word_int'].numpy()).type(torch.LongTensor).squeeze().to(self.device)
+        word_label = torch.from_numpy(batch['label_word_int'].numpy()).type(torch.LongTensor).squeeze().to(self.device)
 
         # features to cochleagram
         sound, _ = self.coch_gram(sound, None)
         # self() is self.forward()
         word_pred = self(sound)
-
         # filter valid examples for task losses
-        w_idx = torch.argwhere(word_label > 0).squeeze()
-        # word screen
-        word_pred = word_pred.index_select(0, w_idx)
-        word_label = word_label.index_select(0, w_idx)
+        # w_idx = torch.argwhere(word_label > 0).squeeze()
+        # # word screen
+        # word_pred = word_pred.index_select(0, w_idx)
+        # word_label = word_label.index_select(0, w_idx)
 
 
         # calc losses
-        if w_idx.numel() > 0:
-            word_loss = self.word_loss_fn(word_pred, word_label)
-            self.accuracy[step_type]['word'](word_pred, word_label) # word accuracy
-            self.log(f"{step_type}_word_acc", self.accuracy[step_type]['word'], on_step=False, on_epoch=True, prog_bar=True)
-            self.log(f"{step_type}_word_loss", word_loss.detach(), on_step=True, on_epoch=False, prog_bar=True)
-
-        else:
-            word_loss = torch.tensor(0, device=self.device, dtype=torch.float32) #  
-            
-        loss = word_loss 
+        # if w_idx.numel() > 0:
+        loss = self.word_loss_fn(word_pred, word_label)
+        self.accuracy[step_type]['word'](word_pred, word_label) # word accuracy
+        self.log(f"{step_type}_word_acc", self.accuracy[step_type]['word'], on_step=False, on_epoch=True, prog_bar=True)
         self.log(f"{step_type}_loss", loss.detach(), on_step=True, on_epoch=False, prog_bar=True)
 
         return loss
+
+    def on_before_optimizer_step(self, _):
+        def _get_grad_norm(params, scale=1):
+            """Compute grad norm given a gradient scale."""
+            total_norm = 0.0
+            for p in params:
+                if p.grad is not None:
+                    param_norm = (p.grad.detach().data / scale).norm(2)
+                    total_norm += param_norm.item() ** 2
+            total_norm = total_norm**0.5
+            return total_norm
+        grad_norm = _get_grad_norm(self.model.parameters())
+        self.log("grad_norm", torch.tensor(grad_norm), prog_bar=True, on_step=True, on_epoch=False)
 
     def configure_optimizers(self):
         return [self.optimizer]

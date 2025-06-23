@@ -39,14 +39,13 @@ noise_kwargs: # parameters for background signal levels
   high_snr: 10
 
 hparas:                                   # Experiment hyper-parameters
-  valid_step: 2000
+  valid_step: 4000
   epochs: 1000
   optimizer: 'AdamW'
-  lr: 0.000001                             # 1e-6
+  lr: 0.0001                             # 1e-4
   eps: 0.0000001                         # 1e-7
-  gradient_clip_val: 100 
   batch_size: 768                       # 576 for 8 288 for 4Gets divided by num gpus
-  mask_cues: False                    
+  mask_cues: False        
 
 model:                                    # Model architecture
   input_sr: 10000

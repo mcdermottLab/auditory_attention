@@ -133,8 +133,8 @@ def run_train(args):
         accelerator="gpu", 
         limit_val_batches=config['hparas'].get('limit_val_batches', 1.0),
         # resume_from_checkpoint = ckpt_path,  
-        val_check_interval=config['hparas']['valid_step'],
-        gradient_clip_val=config['hparas']['gradient_clip_val'],
+        val_check_interval=config['hparas'].get('valid_step', 2000),
+        gradient_clip_val=config['hparas'].get('gradient_clip_val', None),
         gradient_clip_algorithm=config['hparas'].get('gradient_clip_algorithm', 'value'),
         accumulate_grad_batches=config['hparas'].get('accumulate_grad_batches', 1), # default to 1 unless otherwise specified
         profiler=None,

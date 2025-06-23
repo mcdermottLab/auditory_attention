@@ -4,9 +4,9 @@
 #SBATCH --error=outLogs/train_word_task_v10_backbone_word_config_saddler_dataset_%j.err 
 #SBATCH --mem=100Gb
 #SBATCH --cpus-per-task=64
-#SBATCH --partition=mcdermott
-#SBATCH --time=1-00:00:00
-#SBATCH --gres=gpu:a100-mcdermott:4
+#SBATCH --partition=normal
+#SBATCH --time=2-00:00:00
+#SBATCH --gres=gpu:a100:4
 
 #source /etc/profile.d/modules.sh
 #module use /cm/shared/modulefiles
