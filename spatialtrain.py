@@ -54,7 +54,7 @@ def run_train(args):
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     ckpt_paths = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)
 
-    if 'saddler_dataset' in config_path.stem:
+    if 'saddler_dataset' in config_path.stem and 'learned_gains' not in config_path.stem:
         module = BinauralBackBoneModule
     elif "saddler" in config_path.stem and 'dataset' not in config_path.stem:
         module = SaddlerBackBoneModule

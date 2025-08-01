@@ -19,7 +19,7 @@ module load openmind8/anaconda/3-2022.10
 
 export HDF5_USE_FILE_LOCKING=FALSE
 
-source activate /om2/user/imgriff/conda_envs/pytorch_2
+source activate /om/user/imgriff/conda_envs/pytorch_2_tf
 #module add openmind/cudnn/11.5-v8.3.3.40
 #module add openmind/cuda/12.3
 
@@ -32,9 +32,9 @@ which python3
 #                  --ckpt_path attn_cue_models/word_task_v10_backbone_learned_gains/checkpoints/epoch=0-step=8000.ckpt
 
 
-python3 spatialtrain.py --config config/binaural_attn/word_task_v10_backbone_w_babble_learned_gains.yaml \
+python3 spatialtrain.py --config config/binaural_attn/word_task_v10_backbone_word_config_saddler_dataset_learned_gains.yaml \
                  --gpus 1 --n_jobs 16 --resume_training True \
                  --exp_dir attn_cue_models \
-                 --init_ckpt_path attn_cue_models/word_task_v10_backbone_word_config_w_babble/checkpoints/epoch=3-step=6329.ckpt \
+                 --init_ckpt_path attn_cue_models/word_task_v10_backbone_word_config_saddler_dataset/checkpoints/epoch=0-step=12000-v4.ckpt \
                 #  --ckpt_path attn_cue_models/word_task_v10_backbone_learned_gains/checkpoints/epoch=0-step=8000.ckpt
 

@@ -111,7 +111,9 @@ def get_model_name(stem):
     elif "50Hz" in stem:
         str_name = '50Hz cutoff'
     elif 'backbone' in stem:
-        if 'babble' in stem:
+        if 'saddler_dataset' in stem:
+            str_name = 'Backbone arch Saddler dataset'
+        elif 'babble' in stem:
             if 'coloc' in stem:
                 str_name = 'Backbone babble all co-located'
             elif 'word_babble_and_noise' in stem:

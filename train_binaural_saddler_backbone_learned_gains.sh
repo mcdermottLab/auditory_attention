@@ -25,7 +25,6 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 
 which python3
 
-config/binaural_attn/word_task_v10_saddler_backbone_learned_gains.yaml
 
 python3 spatialtrain.py --config config/binaural_attn/word_task_v10_saddler_backbone_learned_gains.yaml \
                  --gpus 1 --n_jobs 16 \

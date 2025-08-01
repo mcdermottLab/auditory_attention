@@ -72,7 +72,7 @@ def run_eval(args):
     print(f"Loading model from {checkpoint_path}")
     
     # load model 
-    if 'saddler' in config_str_name:
+    if 'saddler_backbone' in config_str_name:
         module = SaddlerBackBoneModule
         label_type = 'CV'
     elif 'binaural_attn' in config_str_name or 'word_task' in config_str_name:
@@ -85,6 +85,8 @@ def run_eval(args):
         config['data']['audio']['rep_kwargs']['out_dur'] = 2
         label_type = "WSN"
     
+    if 'saddler_dataset' in config_str_name:
+        config['getting_acts'] = True
     dual_task_arch =  config['model'].get("cue_loc_task", False)
 
     # set audio transforms
@@ -151,7 +153,7 @@ def run_eval(args):
     model = module.load_from_checkpoint(checkpoint_path=checkpoint_path,
                                         config=config,
                                         strict=strict_ckpt).eval().cuda()
-    use_coch = True if ('v0' in config_str_name or 'word_task' in config_str_name) and 'saddler' not in config_str_name else False 
+    use_coch = True if ('v0' in config_str_name or 'word_task' in config_str_name) and 'saddler_backbone' not in config_str_name else False 
     coch_gram = None
     if use_coch:
         coch_gram = model.coch_gram.cuda()
@@ -306,6 +308,8 @@ def run_eval(args):
                 logits, _ = logits # unpack word and location tuple 
 
             preds = logits.softmax(dim=-1).argmax(dim=-1).cpu().detach().numpy().astype('int')
+            if 'saddler_dataset' in config_str_name:
+                preds -= 1 # saddler dataset indexes words 1-800, so we need to shift preds to match our indices in 0-799 indexing
             true_word = word.numpy().astype('int')
             accuracy = (true_word == preds).astype('int')
             acc_sum += accuracy.sum()
