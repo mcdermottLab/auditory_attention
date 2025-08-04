@@ -85,7 +85,7 @@ def run_eval(args):
         config['data']['audio']['rep_kwargs']['out_dur'] = 2
         label_type = "WSN"
     
-    if 'saddler_dataset' in config_str_name:
+    if 'saddler_dataset' in config_str_name and 'learned' not in config_str_name:
         config['getting_acts'] = True
     dual_task_arch =  config['model'].get("cue_loc_task", False)
 
