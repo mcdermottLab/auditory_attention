@@ -143,7 +143,8 @@ binaural_eval
 popham_mono_eval
 confidenceScorers
 pre_train_word_loc
-ARO_2025
+ARO_2025/
+ARO_2024/
 confidencceScores/
 final_results_dir
 Denmark_2024
