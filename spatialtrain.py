@@ -8,8 +8,8 @@ import torch
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from src.spatial_attn_lightning import BinauralAttentionModule #probably need to change this to the new name
-from src.saddler_w_gains_lightning import SaddlerBackBoneModule
-from src.backbone_lightning import BinauralBackBoneModule
+# from src.saddler_w_gains_lightning import SaddlerBackBoneModule
+# from src.backbone_lightning import BinauralBackBoneModule
 # get nodename 
 import socket
 
@@ -54,15 +54,15 @@ def run_train(args):
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     ckpt_paths = sorted(checkpoint_dir.glob("*.ckpt"), key=os.path.getctime)
 
-    if 'saddler_dataset' in config_path.stem and 'learned_gains' not in config_path.stem:
-        module = BinauralBackBoneModule
-    elif "saddler" in config_path.stem and 'dataset' not in config_path.stem:
-        module = SaddlerBackBoneModule
-    else:
-        module = BinauralAttentionModule
+    # if 'saddler_dataset' in config_path.stem and 'learned_gains' not in config_path.stem:
+    #     module = BinauralBackBoneModule
+    # elif "saddler" in config_path.stem and 'dataset' not in config_path.stem:
+    #     module = SaddlerBackBoneModule
+    # else:
+    module = BinauralAttentionModule
 
     ckpt_path = None 
-    if args.resume_training:
+    if args.resume_training and (len(ckpt_paths) > 0 or args.ckpt_path != ''):
         if args.ckpt_path != '':
             ckpt_path = args.ckpt_path
             model = module.load_from_checkpoint(checkpoint_path=args.ckpt_path, config=config)
