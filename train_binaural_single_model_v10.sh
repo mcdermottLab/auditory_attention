@@ -6,9 +6,9 @@
 #SBATCH -N 1
 
 
-#SBATCH --time=2-00:00:00
+#SBATCH --time=5-00:00:00
 #SBATCH --cpus-per-task=16
-#SBATCH --partition=normal   # multi-gpu
+#SBATCH --partition=mcdermott   # multi-gpu
 #SBATCH --gres=gpu:a100:4
 
 ##SBATCH --mem=100Gb
@@ -77,7 +77,7 @@ which python3
 #                  --exp_dir attn_cue_models \
 
 
-python3 spatialtrain.py --config config/binaural_attn/word_task_v10_main_feature_gain_config.yaml \
+python3 spatialtrain.py --config config/binaural_attn/word_task_v10_main_feature_gain_config_half_data.yaml \
                  --gpus 4 --n_jobs 4 --resume_training True \
                  --exp_dir attn_cue_models \
 

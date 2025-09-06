@@ -17,6 +17,16 @@ source activate /om2/user/imgriff/conda_envs/pytorch_2
 which python3
 rm -r /tmp/torchinductor_imgriff
 
+
+rsync_file() {
+    local file="$1"
+    local rel_path="${file#$SRC_DIR/}"  # Relative path
+    local dest_path="$DEST/$(dirname "$rel_path")"
+
+    # Create remote directory structure and rsync the file
+    echo "$file" 
+}
+
 # python3 get_acts_for_tuning_and_selection_analysis.py --config config/binaural_attn/word_task_v10_backbone_word_config.yaml \
 #                 --ckpt_path attn_cue_models/word_task_v10_backbone_word_config/checkpoints/epoch=1-step=3113.ckpt \
 #                 --n_activations 500 \
@@ -26,6 +36,8 @@ rm -r /tmp/torchinductor_imgriff
                 # --job_id $SLURM_ARRAY_TASK_ID \
                 # --overwrite \
                 
+
+                /orcd/data/jhm/001/om2/imgriff/projects/torch_2_aud_attn
 python3 get_acts_for_tuning_and_selection_analysis.py --config_list model_architecture_activation_manifests/all_v10_architectures_alts_and_controls.pkl \
                 --n_activations 500 \
                 --n_jobs 8 \
