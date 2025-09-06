@@ -9,7 +9,7 @@ import numpy as np
 import scipy.io as sio
 import torchaudio.functional as F
 import torchaudio.transforms as T
-from scipy import signal as sig
+from scipy.signal.windows import hann
 
 
 class TimeDomainCochleagram(torch.nn.Module):
@@ -40,15 +40,10 @@ class TimeDomainCochleagram(torch.nn.Module):
                                           filter_params['low_lim'])
         self.erb_coefs = torch.from_numpy(self.erb_coefs).float()
         self.center_crop = center_crop
-        print(f"{center_crop=}")
         self.n_out_frames = int(out_dur * filter_params['sr'])
         self.binaural = binaural
-        print(f"{binaural=}")
-        if self.binaural:
-            print(f"Binaural cochleagram")
         # if rep_on_gpu - we'll pre-fab an impulse response for a convolutional FIR filter:
         if rep_on_gpu:
-                print('using FIR cochleagram')
                 window_size = 10
                 impulse_dur = int(filter_params['sr'] * impulse_len)
                 ir = torch.hstack([torch.ones(1,1), torch.zeros(1,impulse_dur - 1)])
@@ -61,7 +56,6 @@ class TimeDomainCochleagram(torch.nn.Module):
                 self.cat_dim = 1
         # if on cpu, we can use an IIR filter directly 
         else:
-            print('using IIR cochleagram')
             self.compute_rep = lambda x: ERB_filter_bank(x, self.erb_coefs)
             self.cat_dim = 0
 
@@ -283,7 +277,7 @@ def backend_hann2d(x, ramp_dur_ms, samplerate=48000):
     
     # calc window
     # https://stackoverflow.com/questions/56485663/hanning-window-values-doesnt-match-in-python-and-matlab
-    win = sig.hann((2 * ramp_dur_smp) + 2)[1:-1]
+    win = hann((2 * ramp_dur_smp) + 2)[1:-1]
     
     # Middle part (steady state)
     steady_win = x[:,:stim_dur_smp-ramp_dur_smp]

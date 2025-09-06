@@ -10,7 +10,7 @@ from pytorch_lightning import LightningModule
 import src.audio_transforms as at
 import src.audio_attention_transforms as aat
 import src.custom_modules as cm
-from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, BinauralControlCNN, BinauralAuditoryAttentionCNNV2, BaselineCNNV2, BackBoneCNN
+from src.spatial_attn_architecture import CNN2DExtractor, BinauralAuditoryAttentionCNN, BinauralControlCNN, BinauralAuditoryAttentionCNNV2, BaselineCNNV2, BackBoneCNN, GainPostNormCNN
 from src.spatial_attn_architecture import BackBoneWithECDFGains, BackBoneLearnedGains
 from corpus.binaural_attention_h5 import BinauralAttentionDataset
 from corpus.binaural_word_rec_h5 import BinauralWordRecDataset
@@ -132,6 +132,8 @@ class BinauralAttentionModule(LightningModule):
         elif v2_module:
             print("Using BinauralAuditoryAttentionCNNV2")
             self.model = BinauralAuditoryAttentionCNNV2(**self.model_config)
+        elif self.model_config.get('gain_post_norm', False):
+            self.model = GainPostNormCNN(**self.model_config)
         elif (norm_first == False or new_module) and not v2_module:
             print("Using BinauralAuditoryAttentionCNN")
             self.model = BinauralAuditoryAttentionCNN(**self.model_config)
