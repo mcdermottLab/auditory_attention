@@ -101,7 +101,9 @@ class MutualInformationAnalyzer:
     
     def bootstrap_mi_confidence(self, scores1: np.ndarray, scores2: np.ndarray, 
                               n_bootstrap: int = 1000, 
-                              method: str = 'continuous') -> Tuple[float, float, float]:
+                              method: str = 'continuous',
+                              n_bins: int = 5,
+                              binning_method: str = 'uniform') -> Tuple[float, float, float]:
         """
         Compute MI with bootstrap confidence intervals.
         
@@ -109,6 +111,8 @@ class MutualInformationAnalyzer:
             scores1, scores2: Arrays of scores
             n_bootstrap: Number of bootstrap samples
             method: 'continuous', 'discrete', or 'kde'
+            n_bins: Number of bins if method is 'discrete'
+            binning_method: Binning strategy if method is 'discrete'
             
         Returns:
             Tuple of (mi_estimate, ci_lower, ci_upper)
@@ -120,7 +124,7 @@ class MutualInformationAnalyzer:
         if method == 'continuous':
             mi_func = self.compute_mi_continuous
         elif method == 'discrete':
-            mi_func = lambda x, y: self.compute_mi_discrete(x, y, n_bins=5)
+            mi_func = lambda x, y: self.compute_mi_discrete(x, y, n_bins=n_bins, binning_method=binning_method)
         elif method == 'kde':
             mi_func = self.compute_mi_kde
         else:
@@ -140,8 +144,9 @@ class MutualInformationAnalyzer:
         mi_estimate = mi_func(scores1, scores2)
         ci_lower = np.percentile(bootstrap_mis, 2.5)
         ci_upper = np.percentile(bootstrap_mis, 97.5)
-        
-        return mi_estimate, ci_lower, ci_upper
+        # Standard error is the std of bootstrap estimates
+        sem = np.std(bootstrap_mis)
+        return mi_estimate, ci_lower, ci_upper, sem
     
     def analyze_binning_sensitivity(self, scores1: np.ndarray, scores2: np.ndarray,
                                    bin_range: range = range(3, 21)) -> pd.DataFrame:
@@ -171,7 +176,9 @@ class MutualInformationAnalyzer:
     
     def permutation_test(self, scores1: np.ndarray, scores2: np.ndarray,
                         n_permutations: int = 1000,
-                        method: str = 'continuous') -> Tuple[float, float]:
+                        method: str = 'continuous', 
+                        n_bins: int = 5, 
+                        binning_method: str = 'uniform') -> Tuple[float, float]:
         """
         Test significance of MI using permutation test.
         
@@ -182,7 +189,7 @@ class MutualInformationAnalyzer:
         if method == 'continuous':
             observed_mi = self.compute_mi_continuous(scores1, scores2)
         elif method == 'discrete':
-            observed_mi = self.compute_mi_discrete(scores1, scores2)
+            observed_mi = self.compute_mi_discrete(scores1, scores2, n_bins=n_bins, binning_method=binning_method)
         else:
             observed_mi = self.compute_mi_kde(scores1, scores2)
         
@@ -274,7 +281,7 @@ def comprehensive_mi_analysis(scores1: np.ndarray, scores2: np.ndarray,
     mi_kde = analyzer.compute_mi_kde(scores1, scores2)
     
     # Bootstrap confidence intervals
-    mi_boot, ci_low, ci_high = analyzer.bootstrap_mi_confidence(scores1, scores2, method='continuous')
+    mi_boot, ci_low, ci_high, sem = analyzer.bootstrap_mi_confidence(scores1, scores2, method='continuous')
     
     # Permutation test
     mi_obs, p_value = analyzer.permutation_test(scores1, scores2, method='continuous')
