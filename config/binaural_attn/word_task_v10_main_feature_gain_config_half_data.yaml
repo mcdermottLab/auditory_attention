@@ -2,14 +2,14 @@ corpus:
   name: 'spatialized_commonvoice_audioset_scenes'
   cue_type: "mixed"
   task: "word"
-  root: '/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v10'
+  root: '/orcd/data/jhm/001/datasets/dataset_binaural_attn/v10/'
   mixture_percentages:
     voice_only: 0.5
     voice_and_location: 0.5
   gender_balanced_4M: True
   cue_free_percentage: 0.1    # prop of cue-free examples
-  v06: True                # USE v06 dataclass 
-
+  v06: True   
+  
 audio:                                  # Attributes of audio feature
   rep_type:  'cochlea_filt'
   v2_demean: True
