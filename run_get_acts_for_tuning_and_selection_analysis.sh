@@ -37,7 +37,6 @@ rsync_file() {
                 # --overwrite \
                 
 
-                /orcd/data/jhm/001/om2/imgriff/projects/torch_2_aud_attn
 python3 get_acts_for_tuning_and_selection_analysis.py --config_list model_architecture_activation_manifests/all_v10_architectures_alts_and_controls.pkl \
                 --n_activations 500 \
                 --n_jobs 8 \
