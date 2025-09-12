@@ -5,7 +5,7 @@ from numpy.polynomial import Polynomial
 from typing import Optional, Union, Tuple, List, Dict
 from scipy import stats
 import pandas as pd
-
+import seaborn as sns 
 import re
 
 ################################################
@@ -274,3 +274,41 @@ def split_half_reliability(data: pd.DataFrame,
     mean_r = np.mean(reliabilities)
     split_half_r = (2*mean_r) / (1 + mean_r)
     return split_half_r, reliabilities
+
+
+
+#################################
+# Color pallete for fig 2 and 6
+#################################
+
+def diotic_exp_color_palette():
+    # add colors for diotic experimental conditions 
+    hue_order = ['clean', '1-talker',  '2-talker',  '4-talker', 'babble'] # 'noise',  'music', 'natural scene']
+    palette={}
+    palette['clean'] = 'k'
+
+    # set speech color gradient 
+    speech_palette = sns.color_palette("RdPu_r")
+    speech_order = hue_order[1:][::-1]
+
+    for ix, group in enumerate(speech_order):
+        palette[group] = speech_palette[ix]
+
+    # add colors for noise conditions 
+    noise_order = ['noise',  'music', 'natural scene']
+    noise_palette = sns.color_palette("YlOrBr_r", n_colors=6)
+    noise_order = noise_order[::-1]
+
+    for ix, group in enumerate(noise_order):
+        palette[group] = noise_palette[ix]
+
+    # add same and different sex color palette 
+    hue_order = ['Different', 'Same']
+    sex_palette = dict(zip(hue_order, sns.color_palette(palette='colorblind', n_colors=10, as_cmap=False)))
+    palette['Same'] = sex_palette['Same']
+    palette['Different'] = 'tab:cyan'
+    palette['English'] = 'tab:pink'
+    palette['Mandarin'] = 'seagreen'
+
+    return palette
+

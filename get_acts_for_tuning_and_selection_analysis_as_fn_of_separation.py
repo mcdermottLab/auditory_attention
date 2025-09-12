@@ -272,7 +272,7 @@ def get_activations(args):
     layer_shape_dict = {}
 
     ## For first pass, alternate whether target or distractor is stationary. 
-    loc_pairs = [(0, 0), (45,0)]
+    loc_pairs = [(0, 0), (5,0), (45,0)]
 
     if outname.exists() and not args.overwrite:
         print(f"{outname} already exists. Exiting.")
@@ -291,10 +291,10 @@ def get_activations(args):
                     target_brir = at.Spatialize(target_brir, model_sr=sr, start_crop_in_s=None, end_crop_in_s=None).cuda()
                     dist_brir = get_brir(azim=azim, elev=elev, h5_fn=h5_fn, IR_df=only14_manifest, out_sr=sr)
                     dist_brir = at.Spatialize(dist_brir, model_sr=sr, start_crop_in_s=None, end_crop_in_s=None).cuda()
-                elif azim == 45:
+                else:
                     target_azim = azim
                     target_elev = elev
-                    distractor_azim = 315 # opposite side of array for 90 degree separation
+                    distractor_azim = 360 - azim # opposite side of array for 90 degree separation
                     distractor_elev = elev
 
                     target_brir = get_brir(azim=azim, elev=elev, h5_fn=h5_fn, IR_df=only14_manifest, out_sr=sr)
@@ -367,7 +367,9 @@ def get_activations(args):
                         f.create_dataset('target_loc', shape=[n_rows_to_save, 2], dtype=np.float32)
                         f.create_dataset('distractor_loc', shape=[n_rows_to_save, 2], dtype=np.float32)
 
-                        
+                    # check if row has been written to already
+                    if f['target_f0'][row] != 0 and args.resume_progress:
+                        continue
                     # save cochleagram outputs and labels 
                     if not ('control' in config_path.stem or 'late_only' in config_path.stem):
                         f['attncoch_gains'][row] = coch_gains.view(-1).cpu().numpy()
@@ -579,6 +581,11 @@ def cli_main():
         "--overwrite",
         action='store_true',
         help="Whether to overwrite existing activations file.",
+    )
+    parser.add_argument(
+        "--resume_progress",
+        action='store_true',
+        help="Whether to resume progress if activations file exists and has some rows filled in.",
     )
     args = parser.parse_args()
 

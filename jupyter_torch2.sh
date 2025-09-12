@@ -4,14 +4,15 @@
 #SBATCH --error=outLogs/notebook_%j.err
 #SBATCH --mem=50Gb 
 #SBATCH --time=3:00:00
-#SBATCH --partition=ou_bcs_high
+#SBATCH --partition=mcdermott
 #SBATCH --cpus-per-task=20
 
-module add miniforge
+source /etc/profile.d/modules.sh
+module load openmind8/anaconda/3-2022.10
 
 export HDF5_USE_FILE_LOCKING=FALSE
 
-mamba activate pytorch_2
+source activate /om2/user/imgriff/conda_envs/pytorch_2_sva
 #module add openmind/cudnn/11.5-v8.3.3.40
 #module add openmind/cuda/12.3
 

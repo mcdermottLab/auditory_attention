@@ -79,9 +79,13 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
             # filter bad files from the dataset on the fly 
             files_to_keep = []
             for file in self.all_hdf5_files:
-                with h5py.File(file, 'r', swmr=True) as f:
-                    if f['sr'][:].all():
-                        files_to_keep.append(file)
+                try:
+                    with h5py.File(file, 'r', swmr=True) as f:
+                        if f['sr'][:].all():
+                            files_to_keep.append(file)
+                except:
+                    print(f"Skipping bad file {file}")
+                    
             self.all_hdf5_files = files_to_keep 
                 
         print(f"cue type: {cue_type}")

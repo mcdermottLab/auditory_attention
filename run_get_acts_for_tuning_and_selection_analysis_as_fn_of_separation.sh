@@ -5,9 +5,9 @@
 #SBATCH --mem=20Gb                           
 #SBATCH --cpus-per-task=8
 #SBATCH --time=12:00:00
-#SBATCH --partition=mcdermott
+#SBATCH --partition=use-everything
 #SBATCH --gres=gpu:a100:1 
-#SBATCH --array=12  # 0-12
+#SBATCH --array=0-12  # 0-12
 
 module load openmind8/anaconda/3-2022.10
 export HDF5_USE_FILE_LOCKING=FALSE
@@ -35,8 +35,10 @@ python3 get_acts_for_tuning_and_selection_analysis_as_fn_of_separation.py --conf
                 --n_jobs 8 \
                 --job_id $SLURM_ARRAY_TASK_ID \
                 --cue_single_source \
+                --output_dir binaural_unit_activation_analysis \
+                --resume_progress \
                 --overwrite \
-                --output_dir binaural_unit_activation_analysis
+                --random_weights
                 # --diotic \
 
 

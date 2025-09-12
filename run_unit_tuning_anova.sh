@@ -14,8 +14,9 @@ export HDF5_USE_FILE_LOCKING=FALSE
 
 source activate /om2/user/imgriff/conda_envs/pytorch_2_sva
 
-python3 src/unit_tuning_anova.py --model_name "word_task_v10_main_feature_gain_config" \
-                --analysis_dir "binaural_unit_activations" \
+
+python3 src/unit_tuning_anova.py --model_name "word_task_v10_main_feature_gain_config_latest_ckpt" \
+                --analysis_dir "binaural_unit_activation_analysis" \
                 --layer_ix $SLURM_ARRAY_TASK_ID \
                 --n_jobs 12 \
 
