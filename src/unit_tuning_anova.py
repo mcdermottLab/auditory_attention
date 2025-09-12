@@ -50,9 +50,9 @@ def main(args):
 
     h5 = h5py.File(h5_fn, 'r')
     if 'control' in model:
-        layer_name = f'hann_pool_{args.layer_ix}_target'
+        layer_name = f'conv_block_{args.layer_ix}_relu_target'
     else:
-        layer_name = f'hann_pool_{args.layer_ix}_cue'
+        layer_name = f'conv_block_{args.layer_ix}_relu_cue'
 
     target_f0s = h5["target_f0"][:]
     target_locs = h5["target_loc"][:]
@@ -101,18 +101,18 @@ def main(args):
     act_df['word_int'] = np.repeat(h5['target_word_int'][:], n_units).astype('int')
 
 
-    formula = 'activation ~ C(f0) + C(location) + C(word_int) + C(f0):C(location) + C(f0):C(word_int) + C(location):C(word_int)'
-    prop_var_per_unit = np.zeros((n_units, 6))
-    ssq_per_unit = np.zeros((n_units, 6))
-    category_labels = ['f0', 'location', 'word', 'f0:location', 'f0:word', 'location:word']
+    formula = 'activation ~ C(f0) + C(location) + C(word_int)' #  + C(f0):C(location) + C(f0):C(word_int) + C(location):C(word_int)'
+    prop_var_per_unit = np.zeros((n_units, 3))
+    ssq_per_unit = np.zeros((n_units, 3))
+    category_labels = ['f0', 'location', 'word'] # , 'f0:location', 'f0:word', 'location:word']
 
     # Function to process each unit
     def process_unit(unit_i):
         model = ols(formula, act_df[act_df.unit_ix == unit_i]).fit()
         anova_table = sm.stats.anova_lm(model, typ=1)
         total_ss = anova_table.sum_sq.sum()
-        prop_var = anova_table['sum_sq'][:-1] / total_ss
         ssq = anova_table['sum_sq'][:-1]
+        prop_var = ssq / total_ss
         return unit_i, prop_var, ssq
 
     results = Parallel(n_jobs=args.n_jobs)(delayed(process_unit)(unit_i) for unit_i in tqdm(range(n_units), total=n_units))
