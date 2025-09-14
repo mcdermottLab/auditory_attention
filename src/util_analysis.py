@@ -276,6 +276,55 @@ def split_half_reliability(data: pd.DataFrame,
     return split_half_r, reliabilities
 
 
+# split half reliability
+def split_half_reliability_trial_level(data: pd.DataFrame,
+                           measure_string: Optional[str] = "measure",
+                           groupby_condition: Optional[Tuple[str, list]] = ["stim_name", "measure"],
+                           sortby_string: Optional[str] = "stim_name",
+                           n_splits: Optional[int] = 1000,
+                           tqdm: Optional[bool] = False,
+                           n_to_samp: int = 1,
+                           ) -> Tuple[float, List[float]]:
+    """
+    Calculate the split-half reliability of a measure.
+    The split-half reliability is calculated by splitting the data in half
+    and calculating the correlation between the two halves.
+    Args:
+        data (pd.DataFrame): DataFrame containing the data.
+        groupby_condition (str or list of str): Column name(s) to group by.
+        measure_string (str): Column name of the measure to calculate reliability for.
+        n_splits (int): Number of splits to perform.
+        tqdm (bool): Whether to show a progress bar.
+    Returns:
+        Tuple[float, List[float]]: Split-half reliability and list of reliabilities for each split.
+    """
+    condition_counts = data.condition.value_counts()
+    to_keep = condition_counts[condition_counts >= 4].index
+    data = data[data.condition.isin(to_keep)]
+    conditions = data.condition.unique()
+    n_conds = len(conditions)
+    cond_dict = {i: cond for i, cond in enumerate(conditions)}
+    reliabilities = np.zeros((n_splits, n_conds))
+    if tqdm:
+        from tqdm import trange
+        iterable = trange(n_splits, desc="Calculating split-half reliability")
+    else:
+        iterable = range(n_splits)
+    for i in iterable:
+        split1 = data.groupby(groupby_condition).sample(n=n_to_samp, random_state=i, replace=False)
+        split2 = data.drop(split1.index).groupby(groupby_condition).sample(n=n_to_samp, random_state=i, replace=False)
+        for j in range(n_conds):
+            cond = cond_dict[j]
+            split1_cond = split1[split1.condition == cond]
+            split2_cond = split2[split2.condition == cond]
+            split1_cond = split1_cond.sort_values(sortby_string)[measure_string].values
+            split2_cond = split2_cond.sort_values(sortby_string)[measure_string].values
+            r, p = stats.pearsonr(split1_cond, split2_cond)
+            reliabilities[i, j] = r
+
+    mean_r = np.nanmean(reliabilities, axis=0) # average per condition 
+    split_half_r = (2*mean_r) / (1 + mean_r)
+    return split_half_r, reliabilities, cond_dict
 
 #################################
 # Color pallete for fig 2 and 6
@@ -286,6 +335,7 @@ def diotic_exp_color_palette():
     hue_order = ['clean', '1-talker',  '2-talker',  '4-talker', 'babble'] # 'noise',  'music', 'natural scene']
     palette={}
     palette['clean'] = 'k'
+    palette['Mandarin'] = 'seagreen'
 
     # set speech color gradient 
     speech_palette = sns.color_palette("RdPu_r")

@@ -92,8 +92,8 @@ def get_activations(args):
             }
 
     ## For first pass, alternate whether target or distractor is stationary. 
-    azims = [0, 10, 350, 20, 340, 40, 320, 90, 270] # azim over 180 is left side 
-    elevs = [10, -10, 20, -20, 40]
+    azims = [0, 10, 350, 20, 340, 30, 330, 40, 320, 50, 310, 60, 300, 70, 290, 80, 280, 90, 270] # azim over 180 is left side 
+    elevs = [10, -10, 20, -20, 30, 40]
     loc_pairs = [(azim, 0) for azim in azims]
     loc_pairs += [(0, elev) for elev in elevs]
     # Get config for model

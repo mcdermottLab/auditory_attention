@@ -6,6 +6,7 @@
 #SBATCH --time=3:00:00
 #SBATCH --partition=mcdermott
 #SBATCH --cpus-per-task=20
+#SBATCH --gres=gpu:1 
 
 source /etc/profile.d/modules.sh
 module load openmind8/anaconda/3-2022.10
