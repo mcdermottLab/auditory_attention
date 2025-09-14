@@ -256,9 +256,9 @@ def get_activations(args):
     else:
         cue_single_source_str = ''
     if args.diotic:
-        outname = Path(f'binaural_unit_activation_analysis/{model_name}{rand_weight_str}/{model_name}{rand_weight_str}_model_activations_{snr}dB{timg_avg_extn}_diotic{cue_single_source_str}.h5')
+        outname = Path(f'binaural_unit_activation_analysis/{model_name}{rand_weight_str}/{model_name}{rand_weight_str}_model_activations_{snr}dB{timg_avg_extn}_diotic{cue_single_source_str}_as_fn_of_sep.h5')
     else:
-        outname = Path(f'binaural_unit_activation_analysis/{model_name}{rand_weight_str}/{model_name}{rand_weight_str}_model_activations_{snr}dB{timg_avg_extn}{center_loc_str}{cue_single_source_str}.h5')
+        outname = Path(f'binaural_unit_activation_analysis/{model_name}{rand_weight_str}/{model_name}{rand_weight_str}_model_activations_{snr}dB{timg_avg_extn}{center_loc_str}{cue_single_source_str}_as_fn_of_sep.h5')
 
     out_dir = Path("/om/scratch/Thu/imgriff")
     outname = out_dir / outname 
@@ -272,10 +272,7 @@ def get_activations(args):
     layer_shape_dict = {}
 
     ## For first pass, alternate whether target or distractor is stationary. 
-    azims = [0, 10, 350, 45, 315, 90, 270, 180] # azim over 180 is left side 
-    elevs = [10, -20, 20, 30, 40]
-    loc_pairs = [(azim, 0) for azim in azims]
-    loc_pairs += [(0, elev) for elev in elevs]
+    loc_pairs = [(0, 0), (5,0), (45,0)]
 
     if outname.exists() and not args.overwrite:
         print(f"{outname} already exists. Exiting.")
@@ -287,8 +284,24 @@ def get_activations(args):
                 loc_pairs = [(0, 0)]
             n_rows_to_save = int(n_activations * len(loc_pairs)) # n sounds x n locs 
             for loc_x, (azim, elev) in enumerate(tqdm(loc_pairs, desc="Location ")):
-                target_brir = get_brir(azim=azim, elev=elev, h5_fn=h5_fn, IR_df=only14_manifest, out_sr=sr)
-                target_brir = at.Spatialize(target_brir, model_sr=sr, start_crop_in_s=None, end_crop_in_s=None).cuda()
+                if azim == 0:
+                    target_azim = distractor_azim = azim
+                    target_elev = distractor_elev = elev
+                    target_brir = get_brir(azim=azim, elev=elev, h5_fn=h5_fn, IR_df=only14_manifest, out_sr=sr)
+                    target_brir = at.Spatialize(target_brir, model_sr=sr, start_crop_in_s=None, end_crop_in_s=None).cuda()
+                    dist_brir = get_brir(azim=azim, elev=elev, h5_fn=h5_fn, IR_df=only14_manifest, out_sr=sr)
+                    dist_brir = at.Spatialize(dist_brir, model_sr=sr, start_crop_in_s=None, end_crop_in_s=None).cuda()
+                else:
+                    target_azim = azim
+                    target_elev = elev
+                    distractor_azim = 360 - azim # opposite side of array for 90 degree separation
+                    distractor_elev = elev
+
+                    target_brir = get_brir(azim=azim, elev=elev, h5_fn=h5_fn, IR_df=only14_manifest, out_sr=sr)
+                    target_brir = at.Spatialize(target_brir, model_sr=sr, start_crop_in_s=None, end_crop_in_s=None).cuda()
+                    # put distractor on opposite side of array for 90 degree separation 
+                    dist_brir = get_brir(azim=distractor_azim, elev=distractor_elev, h5_fn=h5_fn, IR_df=only14_manifest, out_sr=sr)
+                    dist_brir = at.Spatialize(dist_brir, model_sr=sr, start_crop_in_s=None, end_crop_in_s=None).cuda()
             
                 for ix, batch in tqdm(enumerate(dataloader),  total = n_activations, desc=f'Processing activations for location {azim}az {elev}elev', leave=False):
    
@@ -308,9 +321,9 @@ def get_activations(args):
                     else:
                         cue = target_brir(cue.cuda())
                         target = target_brir(target.cuda())
-                        same_sex_dist = target_brir(same_sex_dist.cuda())
-                        diff_sex_dist = target_brir(diff_sex_dist.cuda())
-                        nat_scene_dist = target_brir(nat_scene_dist.cuda())
+                        same_sex_dist = dist_brir(same_sex_dist.cuda())
+                        diff_sex_dist = dist_brir(diff_sex_dist.cuda())
+                        nat_scene_dist = dist_brir(nat_scene_dist.cuda())
                     # norm and mix transforms 
                     cue, _ = audio_transforms(cue, None)
                     target, _ = audio_transforms(target, None)
@@ -352,9 +365,11 @@ def get_activations(args):
                         f.create_dataset('diff_dist_f0', shape=[n_rows_to_save], dtype=np.float32)
                         f.create_dataset('target_word_int', shape=[n_rows_to_save], dtype=np.float32)
                         f.create_dataset('target_loc', shape=[n_rows_to_save, 2], dtype=np.float32)
-                        f.create_dataset('tested_azims', data=azims)
-                        f.create_dataset('tested_elevs', data=elevs)
-                        
+                        f.create_dataset('distractor_loc', shape=[n_rows_to_save, 2], dtype=np.float32)
+
+                    # check if row has been written to already
+                    if f['target_f0'][row] != 0 and args.resume_progress:
+                        continue
                     # save cochleagram outputs and labels 
                     if not ('control' in config_path.stem or 'late_only' in config_path.stem):
                         f['attncoch_gains'][row] = coch_gains.view(-1).cpu().numpy()
@@ -362,7 +377,8 @@ def get_activations(args):
                     f['same_dist_f0'][row] = same_dist_f0
                     f['diff_dist_f0'][row] = diff_dist_f0
                     f['target_word_int'][row] = word_int
-                    f['target_loc'][row] = [azim, elev]
+                    f['target_loc'][row] = [target_azim, target_elev]
+                    f['distractor_loc'][row] = [distractor_azim, distractor_elev]
 
                     save_activations(f, 'cochleagram', 'cue', cue, row, n_rows_to_save, time_average=args.time_average)
                     save_activations(f, 'cochleagram', 'target', target, row, n_rows_to_save, time_average=args.time_average)
@@ -414,32 +430,32 @@ def get_activations(args):
                     ## Process single source signals and get corrs 
                     for source_str, source in zip(['target', 'same_sex_dist', 'diff_sex_dist', 'nat_scene_dist'], [target, same_sex_dist, diff_sex_dist, nat_scene_dist]):
                         # run without cue 
-                        activations = {}
-                        model(silence_cue, source, None)
-                        for layer, acts in activations.items():
-                            if len(acts) == 2:
-                                _, acts = acts
-                            save_activations(f, layer, source_str, acts, row, n_rows_to_save, time_average=args.time_average)
-                            # for cpr 
-                            if 'relufc' in layer or not args.time_average:
-                                acts = acts.cpu().view(-1).numpy()
-                            else:
-                                acts = acts.mean(-1).cpu().view(-1).numpy()
-                            # get corrs between target and each source
-                            if source_str == 'target':
-                                for mixture_str in ["mixture_same", "mixture_diff", "mixture_nat_scene"]:
-                                    mixture_acts = f[f"{layer}_{mixture_str}"][row]
-                                    corr = pearsonr(acts, mixture_acts)
-                                    save_metric(f, layer, f"{source_str}_{mixture_str}_corr", corr, row, n_rows_to_save, is_corr=True)
-                            elif source_str == 'same_sex_dist':
-                                corr = pearsonr(acts, f[f"{layer}_mixture_same"][row])
-                                save_metric(f, layer, f"{source_str}_mixture_same_corr", corr, row, n_rows_to_save, is_corr=True)
-                            elif source_str == 'diff_sex_dist':
-                                corr = pearsonr(acts, f[f"{layer}_mixture_diff"][row])
-                                save_metric(f, layer, f"{source_str}_mixture_diff_corr", corr, row, n_rows_to_save, is_corr=True)
-                            elif source_str == 'nat_scene_dist':
-                                corr = pearsonr(acts, f[f"{layer}_mixture_nat_scene"][row])
-                                save_metric(f, layer, f"{source_str}_mixture_nat_scene_corr", corr, row, n_rows_to_save, is_corr=True)
+                        # activations = {}
+                        # model(silence_cue, source, None)
+                        # for layer, acts in activations.items():
+                        #     if len(acts) == 2:
+                        #         _, acts = acts
+                        #     save_activations(f, layer, source_str, acts, row, n_rows_to_save, time_average=args.time_average)
+                        #     # for cpr 
+                        #     if 'relufc' in layer or not args.time_average:
+                        #         acts = acts.cpu().view(-1).numpy()
+                        #     else:
+                        #         acts = acts.mean(-1).cpu().view(-1).numpy()
+                        #     # get corrs between target and each source
+                        #     if source_str == 'target':
+                        #         for mixture_str in ["mixture_same", "mixture_diff", "mixture_nat_scene"]:
+                        #             mixture_acts = f[f"{layer}_{mixture_str}"][row]
+                        #             corr = pearsonr(acts, mixture_acts)
+                        #             save_metric(f, layer, f"{source_str}_{mixture_str}_corr", corr, row, n_rows_to_save, is_corr=True)
+                        #     elif source_str == 'same_sex_dist':
+                        #         corr = pearsonr(acts, f[f"{layer}_mixture_same"][row])
+                        #         save_metric(f, layer, f"{source_str}_mixture_same_corr", corr, row, n_rows_to_save, is_corr=True)
+                        #     elif source_str == 'diff_sex_dist':
+                        #         corr = pearsonr(acts, f[f"{layer}_mixture_diff"][row])
+                        #         save_metric(f, layer, f"{source_str}_mixture_diff_corr", corr, row, n_rows_to_save, is_corr=True)
+                        #     elif source_str == 'nat_scene_dist':
+                        #         corr = pearsonr(acts, f[f"{layer}_mixture_nat_scene"][row])
+                        #         save_metric(f, layer, f"{source_str}_mixture_nat_scene_corr", corr, row, n_rows_to_save, is_corr=True)
                         
                         # run with cue 
                         activations = {}
@@ -488,7 +504,7 @@ def cli_main():
     parser = ArgumentParser()
     parser.add_argument('--config', type=str, default="", help='Path to experiment config.')
     parser.add_argument(
-        "--model_dir",
+        "--output_dir",
         default=Path("./binaural_unit_tuning"),
         type=Path,
         help="Directory to save activations to. (Default: './exp')",
@@ -565,6 +581,11 @@ def cli_main():
         "--overwrite",
         action='store_true',
         help="Whether to overwrite existing activations file.",
+    )
+    parser.add_argument(
+        "--resume_progress",
+        action='store_true',
+        help="Whether to resume progress if activations file exists and has some rows filled in.",
     )
     args = parser.parse_args()
 

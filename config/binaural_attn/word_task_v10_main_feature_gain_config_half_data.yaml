@@ -2,7 +2,7 @@ corpus:
   name: 'spatialized_commonvoice_audioset_scenes'
   cue_type: "mixed"
   task: "word"
-  root: '/orcd/data/jhm/001/datasets/dataset_binaural_attn/v10/'
+  root: '/om/scratch/Fri/imgriff/dataset_binaural_attn/v10/'
   mixture_percentages:
     voice_only: 0.5
     voice_and_location: 0.5
@@ -46,7 +46,7 @@ noise_kwargs: # parameters for background signal levels
   high_snr: 10
 
 hparas:                                   # Experiment hyper-parameters
-  valid_step: 2000
+  valid_step: 500
   epochs: 1000
   optimizer: 'AdamW'
   lr: 0.00005                            # Initial learning rate of 0.00005 -> drop if manually testing late-training effects of smaller lr

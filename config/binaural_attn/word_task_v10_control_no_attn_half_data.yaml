@@ -2,7 +2,7 @@ corpus:
   name: 'spatialized_commonvoice_audioset_scenes'
   cue_type: "mixed"
   task: "word"
-  root: '/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v10'
+  root: '/orcd/data/jhm/001/datasets/dataset_binaural_attn/v10/'
   mixture_percentages:
     voice_only: 0.5
     voice_and_location: 0.5
@@ -53,7 +53,7 @@ hparas:                                   # Experiment hyper-parameters
   lr: 0.0001
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 100 
-  batch_size: 764                        # 576 for 8 288 for 4Gets divided by num gpus
+  batch_size: 768                        # 576 for 8 288 for 4Gets divided by num gpus
   mask_cues: False                    
   limit_train_batches: 0.5              
 
