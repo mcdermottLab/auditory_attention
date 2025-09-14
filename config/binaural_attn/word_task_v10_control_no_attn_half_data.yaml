@@ -8,7 +8,7 @@ corpus:
     voice_and_location: 0.5
   gender_balanced_4M: True
   cue_free_percentage: 0.1    # prop of cue-free examples
-  v06: True                # USE v06 dataclass 
+  v06: True  
 
 audio:                                  # Attributes of audio feature
   rep_type:  'cochlea_filt'
@@ -38,8 +38,9 @@ audio:                                  # Attributes of audio feature
     clip_value: 5
     power: 0.3
 
+
 val_metric: 'val_acc'
-model_name: 'gender_balanced_training_v10_4M_no_cue_learned_5e-5lr_5e-1_dropout'
+model_name: 'controll_no_attn_v10'
 
 noise_kwargs: # parameters for background signal levels 
   low_snr: -10
@@ -49,14 +50,17 @@ hparas:                                   # Experiment hyper-parameters
   valid_step: 2000
   epochs: 1000
   optimizer: 'AdamW'
-  lr: 0.00005                            # Initial learning rate of 0.00005 -> drop if manually testing late-training effects of smaller lr
+  lr: 0.0001
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 100 
-  batch_size: 768                       # 768 for 4 h200s 288 for 4Gets divided by num gpus
+  batch_size: 768                        # 576 for 8 288 for 4Gets divided by num gpus
   mask_cues: False                    
+  limit_train_batches: 0.5              
 
-model:                                    # Model architecture
+
+model:                                   # Model architecture
   input_sr: 10000
+  input_channels: 4                      # Will stack cue & mixture channels (2 ch + 2 ch = 4 ch)
   out_channels: [32, 64, 256, 512, 512, 512, 512]                       
   kernel:  [[2, 34], [2, 14], [5, 5], [5, 5], [6, 6], [5, 5], [6, 6]]
   stride: [[1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1]]
@@ -64,15 +68,15 @@ model:                                    # Model architecture
   pool_stride: [[2, 4], [2, 4], [1, 5], [1, 4], [1, 1], [1, 1], [2, 4]] 
   pool_size: [[9, 13], [9, 13], [1, 13], [1, 13], [1, 1], [1, 1], [6, 13]]
   pool_padding: [[4,6], [4,6], [0,6], [0,6], [0,0], [0,0], [3,6]]
-  attn: [1, 1, 1, 1, 1, 1, 1]
+  attn: [0, 0, 0, 0, 0, 0, 0]
   num_classes:                         # 998 words in cv vocab
     num_words: 800
   fc_size: 512
   global_avg_cue: False
   dropout: 0.5
-  attn_constraints:
-    slope: True
   v08: True 
+  attn_constraints: 
+    any: False 
   norm_first: True
   ln_affine: True
-  gain_post_norm: True
+  control_arch: True

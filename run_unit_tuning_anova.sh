@@ -5,14 +5,13 @@
 #SBATCH --mem=12Gb                           
 #SBATCH --cpus-per-task=12
 #SBATCH --time=4:00:00
-#SBATCH --partition=mcdermott
+#SBATCH --partition=mit_preemptable
 #SBATCH --array=0-6 # 0-6 for full
-#SBATCH -x dgx001,dgx002,node043,node091,node093
+module add miniforge
 
-module load openmind8/anaconda/3-2022.10
 export HDF5_USE_FILE_LOCKING=FALSE
 
-source activate /om2/user/imgriff/conda_envs/pytorch_2_sva
+mamba activate pytorch_2
 
 
 python3 src/unit_tuning_anova.py --model_name "word_task_v10_main_feature_gain_config_latest_ckpt" \

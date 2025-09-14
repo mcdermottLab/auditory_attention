@@ -175,3 +175,4 @@ prelim_binaural_figs/diff_min_same_confusion_at_0_elev.pdf
 *.h5
 .hparams.yaml
 binaural_unit_activation_analysis/word_task_v10_main_feature_gain_config_latest_ckpt/.word_task_v10_main_feature_gain_config_latest_ckpt_model_activations_0dB_diotic_cue_single_source.h5.gl4EBJ
+globusconnectpersonal-latest.tgz

@@ -6,8 +6,7 @@
 #SBATCH --time=3:00:00
 #SBATCH --partition=ou_bcs_high
 #SBATCH --cpus-per-task=20
-#SBATCH --gres=gpu:1 
-
+#SBATCH --gres=gpu:1
 module add miniforge
 
 export HDF5_USE_FILE_LOCKING=FALSE
