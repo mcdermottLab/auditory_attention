@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH --job-name=get_unit_acts
-#SBATCH --output=outLogs/get_unit_acts_diff_sources_%A_%a.out
-#SBATCH --error=outLogs/get_unit_acts_diff_sources_%A_%a.err
+#SBATCH --output=outLogs/get_unit_acts_sym_distractor_%A_%a.out
+#SBATCH --error=outLogs/get_unit_acts_sym_distractor_%A_%a.err
 #SBATCH --mem=20Gb                           
 #SBATCH --cpus-per-task=8
 #SBATCH --time=12:00:00

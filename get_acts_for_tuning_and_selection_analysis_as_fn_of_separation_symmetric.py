@@ -86,6 +86,17 @@ def save_metric(f, layer, suffix, metric, row, n_rows_to_save, is_corr=False):
     else:
         f[f'{layer}_{suffix}'][row] = metric
 
+def make_torch_brir(azim: int,
+            elevation: int,
+            h5_fn: Path,
+            IR_df: pd.DataFrame,
+            out_sr: int = 44_100,
+            device: str = 'cuda',
+            start_crop_in_s: float = None,
+            end_crop_in_s: float = None):
+    brir = get_brir(azim=azim, elev=elevation, h5_fn=h5_fn, IR_df=IR_df, out_sr=out_sr)
+    brir = at.Spatialize(brir, model_sr=out_sr, start_crop_in_s=start_crop_in_s, end_crop_in_s=end_crop_in_s).to(device)
+    return brir
 
 def get_activations(args):
     # set random seeds 
@@ -274,7 +285,9 @@ def get_activations(args):
     layer_shape_dict = {}
 
     ## For first pass, alternate whether target or distractor is stationary. 
-    loc_pairs = [(0, 0), (5,0), (45,0)]
+    shared_elevation = 0 
+    loc_pairs = [(0, shared_elevation), (5,shared_elevation), (45,shared_elevation)]
+
 
     if outname.exists() and not args.overwrite:
         print(f"{outname} already exists. Exiting.")
@@ -284,20 +297,33 @@ def get_activations(args):
         with torch.no_grad():
             n_rows_to_save = int(n_activations * len(loc_pairs)) # n sounds x n locs 
             target_azim = 0 
-            target_elev = 0 
-            target_brir = get_brir(azim=0, elev=0, h5_fn=h5_fn, IR_df=only14_manifest, out_sr=sr)
-            target_brir = at.Spatialize(target_brir, model_sr=sr, start_crop_in_s=None, end_crop_in_s=None).cuda()
+            target_elev = shared_elevation
+            target_brir = make_torch_brir(azim=target_azim,
+                                          elev=shared_elevation,
+                                          h5_fn=h5_fn,
+                                          IR_df=only14_manifest,
+                                          out_sr=sr,
+                                          device='cuda')
+
             for loc_x, (dist_azim, dist_elev) in enumerate(tqdm(loc_pairs, desc="Location ")):
                 dist_left_azim = dist_azim
-                dist_right_azim = 360 - dist_azim
+                dist_right_azim = 360 - dist_azim if dist_azim != 0 else  0
 
-                distractor_left_brir = get_brir(azim=dist_left_azim, elev=dist_elev, h5_fn=h5_fn, IR_df=only14_manifest, out_sr=sr)
-                distractor_left_brir = at.Spatialize(distractor_left_brir, model_sr=sr, start_crop_in_s=None, end_crop_in_s=None).cuda()
+                distractor_left_brir = make_torch_brir(azim=dist_left_azim,
+                                                       elev=dist_elev,
+                                                       h5_fn=h5_fn,
+                                                       IR_df=only14_manifest,
+                                                       out_sr=sr,
+                                                       device='cuda')
+                
+                distractor_right_brir = make_torch_brir(azim=dist_right_azim,
+                                                       elev=dist_elev,
+                                                       h5_fn=h5_fn,
+                                                       IR_df=only14_manifest,
+                                                       out_sr=sr,
+                                                       device='cuda')
 
-                distractor_right_brir = get_brir(azim=dist_right_azim, elev=dist_elev, h5_fn=h5_fn, IR_df=only14_manifest, out_sr=sr)
-                distractor_right_brir = at.Spatialize(distractor_right_brir, model_sr=sr, start_crop_in_s=None, end_crop_in_s=None).cuda()
-            
-                for ix, batch in tqdm(enumerate(dataloader), total=n_activations, desc=f'Processing activations for location +/-{dist_left_azim}az {elev}elev', leave=False):
+                for ix, batch in tqdm(enumerate(dataloader), total=n_activations, desc=f'Processing activations for location +/-{dist_left_azim}az {target_elev}elev', leave=False):
    
                     ## get row index for saving activations that is global ix of three loops 
                     row = ix + (loc_x * n_activations)
