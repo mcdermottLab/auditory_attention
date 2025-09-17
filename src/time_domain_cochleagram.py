@@ -1,6 +1,6 @@
 import sys
-sys.path.append('/om/user/imgriff/python-packages/chcochleagram')
-sys.path.append('/om/user/imgriff/python-packages/')
+sys.path.append('/orcd/data/jhm/001/om2/rphess/python-packages/chcochleagram')
+sys.path.append('/orcd/data/jhm/001/om2/rphess/python-packages/')
 import chcochleagram
 import chcochleagram.compression as compression
 import chcochleagram.downsampling as downsampling

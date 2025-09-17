@@ -5,7 +5,7 @@ import numpy as np
 import sys
 from scipy.io import loadmat
 import scipy.signal as sps
-sys.path.append('/om/user/imgriff/python-packages/chcochleagram')
+sys.path.append('/orcd/data/jhm/001/om2/rphess/python-packages/chcochleagram')
 import chcochleagram
 from chcochleagram import compression
 from chcochleagram import cochleagram

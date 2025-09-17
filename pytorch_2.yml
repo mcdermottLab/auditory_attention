@@ -1,0 +1,43 @@
+name: pytorch_2
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+channel_priority: strict
+
+dependencies:
+  - python=3.11
+  - pip
+
+  # Core scientific stack
+  - numpy
+  - scipy
+  - scikit-learn
+  - pandas
+  - h5py
+
+  # Plotting / notebooks
+  - matplotlib
+  - jupyterlab
+  - ipykernel
+
+  # Audio + IO
+  - ffmpeg
+  - soxr
+  - libsndfile
+  - pysoundfile
+  - librosa
+
+  # PyTorch (GPU)
+  - pytorch=2.5.*
+  - torchvision=0.20.*
+  - torchaudio=2.5.*
+  - pytorch-cuda=12.4
+
+  # Utils
+  - tqdm
+  - requests
+
+  - pip:
+      - pytorch-lightning==2.5.0.post0
+      - torchmetrics==1.6.1

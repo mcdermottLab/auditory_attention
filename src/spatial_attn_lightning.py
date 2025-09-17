@@ -143,6 +143,8 @@ class BinauralAttentionModule(LightningModule):
         getting_acts = self.config.get('getting_acts', False)
         if not getting_acts and int(torch.__version__.split('.')[0]) >= 2 and not self.multi_task and not self.audio_config.get('upsample_audio', False):
             self.model = torch.compile(self.model, mode="default")
+        if self.config.get('force_compile', False):
+            self.model = torch.compile(self.model, mode="default")
 
         ## get local rank
         print(f"Using dataset {self.dataset.__name__}")

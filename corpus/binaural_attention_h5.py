@@ -20,6 +20,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
                  gender_balanced_4M=False,
                  mostly_same_dist=False,
                  cue_free_percentage=None,
+                 return_azim_loc_only=False,
                  mixture_percentages={'voice_and_location':.33, 'voice_only':.33, "location_only":.33}, **kwargs):
         """
         Builds the pytorch hdf5 combined dataset from the files found in the
@@ -79,9 +80,13 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
             # filter bad files from the dataset on the fly 
             files_to_keep = []
             for file in self.all_hdf5_files:
-                with h5py.File(file, 'r', swmr=True) as f:
-                    if f['sr'][:].all():
-                        files_to_keep.append(file)
+                try:
+                    with h5py.File(file, 'r', swmr=True) as f:
+                        if f['sr'][:].all():
+                            files_to_keep.append(file)
+                except:
+                    print(f"Skipping bad file {file}")
+                    
             self.all_hdf5_files = files_to_keep 
                 
         print(f"cue type: {cue_type}")
@@ -95,7 +100,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
             dataset_class = H5DatasetV06
         else:
             dataset_class = H5Dataset
-        self.all_hdf5_datasets = [dataset_class(h5_file, cue_type, task, batch_size, run_mono, skip_negative_elev, mono_sanity_check, clean_percentage, mixture_percentages, no_cue_on_clean) for h5_file in self.all_hdf5_files]
+        self.all_hdf5_datasets = [dataset_class(h5_file, cue_type, task, batch_size, run_mono, skip_negative_elev, mono_sanity_check, clean_percentage, mixture_percentages, no_cue_on_clean, return_azim_loc_only) for h5_file in self.all_hdf5_files]
 
         super().__init__(self.all_hdf5_datasets)
 
@@ -379,7 +384,7 @@ class H5DatasetV05(torch.utils.data.Dataset):
 
 
 class H5DatasetV06(torch.utils.data.Dataset):
-    def __init__(self, path, scene_type, task, batch_size, run_mono, skip_negative_elev=False, mono_sanity_check=False,  clean_percentage=0.0, mixture_percentages={'voice_and_location':.50, 'voice_only':.50}, no_cue_on_clean=False, **kwargs):
+    def __init__(self, path, scene_type, task, batch_size, run_mono, skip_negative_elev=False, mono_sanity_check=False,  clean_percentage=0.0, mixture_percentages={'voice_and_location':.50, 'voice_only':.50}, no_cue_on_clean=False, return_azim_loc_only=False, **kwargs):
         """
         Builds a pytorch hdf5 dataset for v06 of binaural attention dataset
         This class handles batching, returning batches of cues and scenes.
@@ -413,7 +418,7 @@ class H5DatasetV06(torch.utils.data.Dataset):
         self.batch_ixs = np.arange(self.batch_size)
         self.ix_probs = torch.tensor([1/batch_size] * batch_size) # uniform ix likelihoods 
         self.n_to_sample = int(self.clean_percentage * self.batch_size)
-      
+        self.return_azim_loc_only = return_azim_loc_only
         self.cue_key = 'voice_cue_target_loc'
         self.scene_type = scene_type
         if scene_type == "mixed":
@@ -423,6 +428,7 @@ class H5DatasetV06(torch.utils.data.Dataset):
             self.label_key = 'word_int'
         elif self.task == 'location':
             self.label_key = ['label_loc_target_azim', 'label_loc_target_elev']
+
         elif self.task == 'word_and_location':
             self.label_key = ('word_int', 'label_loc_target_azim', 'label_loc_target_elev')
 
@@ -435,6 +441,9 @@ class H5DatasetV06(torch.utils.data.Dataset):
         else:
             # + 40 is so lowest elevation is 0 in label index
             return np.array((((elev + 40) / 10) * 72) + (azim / 5), dtype=np.int64)
+        
+    def azim_to_label(self, azim):
+        return np.array((azim / 5), dtype=np.int64)
 
     def label_to_azim_elev(self, label):
         """
@@ -480,13 +489,19 @@ class H5DatasetV06(torch.utils.data.Dataset):
         elif self.task == 'location':
             azim = self.dataset[self.label_key[0]][start:end]
             elev = self.dataset[self.label_key[1]][start:end]
-            label = self.azim_elev_to_label(azim, elev)
-
+            if self.return_azim_loc_only:
+                label = self.azim_to_label(azim)
+            else:
+                label = self.azim_elev_to_label(azim, elev)
         else:
             word = self.dataset[self.label_key[0]][start:end]
             azim = self.dataset[self.label_key[1]][start:end]
             elev = self.dataset[self.label_key[2]][start:end]
-            loc = self.azim_elev_to_label(azim, elev)
+            if self.return_azim_loc_only:
+                loc = self.azim_to_label(azim)
+            else:
+                loc = self.azim_elev_to_label(azim, elev)
+
             label = np.stack((word, loc), axis=1)
 
         if self.clean_percentage > 0.0:
