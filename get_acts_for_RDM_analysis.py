@@ -217,9 +217,9 @@ def get_activations(args):
         timg_avg_extn = ''
 
     if args.diotic:
-        outname = Path(f'{args.model_dir}/{model_name}/{model_name}_model_activations_{snr}dB{timg_avg_extn}_diotic.h5')
+        outname = Path(f"{args.model_dir}/{model_name}/{model_name}_model_activations_{snr}dB{timg_avg_extn}_diotic{'_coch_only' if args.coch_only else ''}.h5")
     else:
-        outname = Path(f'{args.model_dir}/{model_name}/{model_name}_model_activations_{snr}dB{timg_avg_extn}.h5')
+        outname = Path(f"{args.model_dir}/{model_name}/{model_name}_model_activations_{snr}dB{timg_avg_extn}{'_coch_only' if args.coch_only else ''}.h5")
 
     layer_shape_dict_name = Path(f'{args.model_dir}/{model_name}/{model_name}_layer_shape_dict{timg_avg_extn}.pkl')
     outname.parent.mkdir(parents=True, exist_ok=True)
@@ -324,7 +324,13 @@ def get_activations(args):
                         for metric_str, metric_fn in zip(['corr', 'l2_norm'], [corr_coef, torch.nn.functional.pairwise_distance]):
                             metric = metric_fn(target.mean(-1).flatten(), mixture_rep.mean(-1).flatten()).item()
                             save_metric(f, 'cochleagram', f"{metric_str}_uncued_{mixture_str}_v_target", metric, row, n_rows_to_save, is_corr=False)
-                         
+                    
+                    if args.coch_only:
+                        if ix == n_activations-1:
+                            break
+                        else:
+                            continue
+
                     # get unattended activations per layer 
                     for signal_str, signal in zip(['cue', 'target', 'same_sex_sig', 'diff_sex_sig', 'nat_scene_sig', 'mixture_same_sex', 'mixture_diff_sex', 'mixture_nat_scene'],
                                                    [cue, target, same_sex_sig, diff_sex_sig, nat_scene_sig, mixture_same_sex, mixture_diff_sex, mixture_nat_scene]):
@@ -389,6 +395,11 @@ def cli_main():
         default=Path("./binaural_unit_tuning"),
         type=Path,
         help="Directory to save activations to. (Default: './exp')",
+    )
+    parser.add_argument(
+        "--coch_only",
+        action='store_true',
+        help="Whether to only run cochleagram.",
     )
     parser.add_argument(
         "--ckpt_path",

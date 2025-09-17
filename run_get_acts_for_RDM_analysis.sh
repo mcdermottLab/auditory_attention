@@ -1,8 +1,8 @@
 #!/bin/bash -l
 #SBATCH --job-name=get_unit_acts
-#SBATCH --output=outLogs/get_unit_acts_%j.out
-#SBATCH --error=outLogs/get_unit_acts_%j.err
-#SBATCH --mem=8Gb                           
+#SBATCH --output=outLogs/get_unit_acts_for_RDM_%j.out
+#SBATCH --error=outLogs/get_unit_acts_for_RDM_%j.err
+#SBATCH --mem=100Gb                           
 #SBATCH --cpus-per-task=1
 #SBATCH --time=12:00:00
 #SBATCH --partition=mcdermott
@@ -21,6 +21,7 @@ python3 get_acts_for_RDM_analysis.py --config config/binaural_attn/word_task_v10
                 --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt \
                 --model_dir /om/scratch/Thu/imgriff/acts_for_RDM_analysis \
                 --n_activations 100 \
-                --n_jobs 0 
+                --n_jobs 0 \
+                --coch_only 
                 # --time_average
 
