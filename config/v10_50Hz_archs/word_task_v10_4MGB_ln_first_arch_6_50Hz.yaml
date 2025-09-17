@@ -43,7 +43,7 @@ corpus:
   task: word
   v06: true
 hparas:
-  batch_size: 288
+  batch_size: 200
   epochs: 1000
   eps: 1.0e-07
   gradient_clip_val: 100

@@ -1,0 +1,39 @@
+#!/bin/bash -l
+#SBATCH --job-name=get_unit_acts
+#SBATCH --output=outLogs/get_unit_acts_%j.out
+#SBATCH --error=outLogs/get_unit_acts_%j.err
+#SBATCH --mem=8Gb                           
+#SBATCH --cpus-per-task=1
+#SBATCH --time=5:00:00
+#SBATCH --partition=use-everything
+##SBATCH --array=1 # 0-8 for full
+#SBATCH --gres=gpu:1 --constraint=16GB
+#SBATCH -x dgx001,dgx002,node043,node091,node093
+
+set -euo pipefail
+
+module load openmind8/anaconda/3-2022.10
+export HDF5_USE_FILE_LOCKING=FALSE
+
+# Prefer modern conda activation; fall back to sourcing the env's activate script if needed
+if command -v conda >/dev/null 2>&1; then
+	source "$(conda info --base)/etc/profile.d/conda.sh"
+	conda activate /om2/user/imgriff/conda_envs/pytorch_2
+elif [ -f "/om2/user/imgriff/conda_envs/pytorch_2/bin/activate" ]; then
+	source "/om2/user/imgriff/conda_envs/pytorch_2/bin/activate"
+else
+	echo "ERROR: Could not find conda or the env activate script at /om2/user/imgriff/conda_envs/pytorch_2/bin/activate" >&2
+	exit 1
+fi
+
+# Diagnostics to confirm activation
+which python3 || true
+python3 -V || true
+python -V || true
+
+/om2/user/imgriff/conda_envs/pytorch_2/bin/python3 get_acts_for_RDM_analysis.py --config /om2/user/imgriff/projects/torch_2_aud_attn/config/binaural_attn/word_task_v10_main_feature_gain_config.yaml \
+                --ckpt_path /om2/user/imgriff/projects/torch_2_aud_attn/attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt \
+                --n_activations 100 \
+                --model_dir acts_for_RDM_analysis \
+                --n_jobs 0 --time_average
+
