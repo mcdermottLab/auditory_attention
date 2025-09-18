@@ -30,7 +30,8 @@ rsync_file() {
 
                 
 
-python3 get_acts_for_tuning_and_selection_analysis_as_fn_of_separation_symmetric.py --config_list model_architecture_activation_manifests/all_v10_architectures_alts_and_controls.pkl \
+python3 get_acts_for_tuning_and_selection_analysis_as_fn_of_separation_symmetric.py \
+                --config_list model_architecture_activation_manifests/all_v10_architectures_alts_and_controls.pkl \
                 --n_activations 500 \
                 --n_jobs 8 \
                 --job_id $SLURM_ARRAY_TASK_ID \
