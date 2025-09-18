@@ -3,7 +3,7 @@
 #SBATCH --output=outLogs/notebook_%j.out
 #SBATCH --error=outLogs/notebook_%j.err
 #SBATCH --mem=50Gb 
-#SBATCH --time=1:00:00
+#SBATCH --time=3:00:00
 #SBATCH --partition=mcdermott
 #SBATCH --cpus-per-task=20
 ##SBATCH --gres=gpu:1 
