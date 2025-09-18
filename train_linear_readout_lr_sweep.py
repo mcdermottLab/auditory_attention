@@ -316,7 +316,7 @@ class ModelWithFrontEnd(nn.Module):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Train linear readout classifiers on backbone features"
+        description="Train linear readout classifiers on backbone features for LR sweep"
     )
     parser.add_argument(
         "--layer_idx",
@@ -325,13 +325,13 @@ def main():
         help="Index of the backbone layer to extract features from",
     )
     parser.add_argument(
-        "--lr_word", type=float, default=1e-3, help="Learning rate for classifier heads"
+        "--lr_word", type=float, default=1e-3, help="Learning rate for word classifier"
     )
     parser.add_argument(
-        "--lr_azim", type=float, default=1e-3, help="Learning rate for classifier heads"
+        "--lr_azim", type=float, default=1e-3, help="Learning rate for word classifier"
     )
     parser.add_argument(
-        "--lr_f0", type=float, default=1e-3, help="Learning rate for classifier heads"
+        "--lr_f0", type=float, default=1e-3, help="Learning rate for word classifier"
     )
     parser.add_argument(
         "--tasks",
@@ -414,32 +414,24 @@ def main():
     )
 
     # WandB logger setup
-    if len(args.tasks) == 1:
-        if args.tasks[0] == "num_word_classes":
-            run_name = f"layer_{args.layer_idx}_word_lr_{args.lr_word}"
-        elif args.tasks[0] == "num_azim_classes":
-            run_name = f"layer_{args.layer_idx}_azim_lr_{args.lr_azim}"
-        elif args.tasks[0] == "num_f0_bins":
-            run_name = f"layer_{args.layer_idx}_f0_lr_{args.lr_f0}"
-    else:
-        run_name = f"layer_{args.layer_idx}_multitask_lr_word_{args.lr_word}_lr_azim_{args.lr_azim}_lr_f0_{args.lr_f0}"
+    run_name = f"layer_{args.layer_idx}_lr_word_{args.lr_word}_lr_azim_{args.lr_azim}_lr_f0_{args.lr_f0}"
     wandb_logger = WandbLogger(
-        project="auditory_attn_linear_readout",
+        project="auditory_attn_linear_readout_lr_sweep",
         name=run_name,
         group=f"layer_{args.layer_idx}",
     )
 
-    # 5. Train
+    # 5. Train - exactly one training epoch, then one validation epoch
     trainer = pl.Trainer(
-        # detect_anomaly=True,
         accelerator="gpu",
         devices=1,
-        max_epochs=2,
-        val_check_interval=config["hparas"]["valid_step"],
+        max_epochs=1,  # Only one epoch total
+        val_check_interval=1.0,  # Validate at the end of the epoch
         profiler=None,
-        # strategy=DDPStrategy(find_unused_parameters=True),
         logger=wandb_logger,
     )
+    
+    # First run training epoch
     trainer.fit(
         model,
         train_dataloaders=module.train_dataloader(),
