@@ -8,7 +8,7 @@
 #SBATCH --cpus-per-task=20
 #SBATCH --mem=160G
 #SBATCH --time=1-00:00:00
-#SBATCH --array=10-34                  # 7 layers (0-6) × 5 learning rates = 35 jobs
+#SBATCH --array=10-14                  # 7 layers (0-6) × 5 learning rates = 35 jobs
 
 source /etc/profile.d/modules.sh
 source /om2/user/rphess/miniforge3/etc/profile.d/conda.sh
@@ -17,8 +17,8 @@ export HDF5_USE_FILE_LOCKING=FALSE
 
 conda activate /om2/user/imgriff/conda_envs/pytorch_2
 
-# Define learning rates in log space from 1e-5 to 1e-3
-LEARNING_RATES=(1e-5 3.16e-5 1e-4 3.16e-4 1e-3)
+# Define learning rates in log space from 1e-6 to 1e-4
+LEARNING_RATES=(1e-7 3.16e-7 1e-6 3.16e-6 1e-5)
 
 # Calculate layer index and learning rate index from array task ID
 LAYER_IDX=$((SLURM_ARRAY_TASK_ID / 5))
@@ -35,5 +35,6 @@ srun python train_linear_readout_lr_sweep.py \
   --lr_word "$LR" \
   --lr_azim "$LR" \
   --lr_f0 "$LR" \
+  --tasks "num_word_classes" \
   --config_path "config/linear_readout/linear_readout_layer_${LAYER_IDX}.yaml" \
   --save_outputs

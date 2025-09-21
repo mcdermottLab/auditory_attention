@@ -423,7 +423,7 @@ class BinauralAttentionModule(LightningModule):
             collate_fn=self.train_val_collate_fn,
             pin_memory=True,
             # persistent_workers=True,
-            shuffle=True if self.use_backbone_arch else False
+            shuffle=True # if self.use_backbone_arch else False
         )
         return dataloader
 

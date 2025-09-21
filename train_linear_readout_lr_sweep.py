@@ -93,7 +93,7 @@ class MultiClassifierModule(pl.LightningModule):
         )
 
         self.f0_bin_counts = {}
-        self.count_f0_bins = True  # Flag to control f0 bin counting
+        self.count_f0_bins = False  # Flag to control f0 bin counting
 
         # Tracking best validation loss per task and running sums
         self.best_val_loss: Dict[str, float] = {
@@ -140,7 +140,10 @@ class MultiClassifierModule(pl.LightningModule):
                 )
 
         for i, task_name in enumerate(self.task_names):
-            optimizer = self.optimizers()[i]
+            if len(self.task_names) > 1:
+                optimizer = self.optimizers()[i]
+            else:
+                optimizer = self.optimizers()
             optimizer.zero_grad()
             head = self.classifier_heads[task_name]
             logits = head(feats)
@@ -414,7 +417,7 @@ def main():
     )
 
     # WandB logger setup
-    run_name = f"layer_{args.layer_idx}_lr_word_{args.lr_word}_lr_azim_{args.lr_azim}_lr_f0_{args.lr_f0}"
+    run_name = f"layer_{args.layer_idx}_lr_word_{args.lr_word}" # _lr_azim_{args.lr_azim}_lr_f0_{args.lr_f0}"
     wandb_logger = WandbLogger(
         project="auditory_attn_linear_readout_lr_sweep",
         name=run_name,

@@ -2,8 +2,8 @@
 #SBATCH --job-name=jupyter_notebook
 #SBATCH --output=outLogs/notebook%j.out
 #SBATCH --error=outLogs/notebook%j.err
-#SBATCH --mem=8Gb
-#SBATCH --cpus-per-task=1
+#SBATCH --mem=20Gb
+#SBATCH --cpus-per-task=10
 #SBATCH --time=3:00:00
 #SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:a100:1  # --constraint=20GB

@@ -97,7 +97,9 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         if self.v05:
             dataset_class = H5DatasetV05
         elif self.v06:
-            dataset_class = H5DatasetV06
+            # dataset_class = H5DatasetV06
+            dataset_class = H5DatasetLinearReadout
+            print("Using linear readout dataset")
         else:
             dataset_class = H5Dataset
         self.all_hdf5_datasets = [dataset_class(h5_file, cue_type, task, batch_size, run_mono, skip_negative_elev, mono_sanity_check, clean_percentage, mixture_percentages, no_cue_on_clean, return_azim_loc_only) for h5_file in self.all_hdf5_files]
@@ -524,6 +526,121 @@ class H5DatasetV06(torch.utils.data.Dataset):
             target = np.sum(target, axis=1, keepdims=True).repeat(2, axis=1)
             background = np.sum(background, axis=1, keepdims=True).repeat(2, axis=1)
             
+        return cue, target, background, label
+
+    def __len__(self):
+        return self.dataset_len
+
+
+class H5DatasetLinearReadout(torch.utils.data.Dataset):
+    def __init__(self, path, scene_type, task, batch_size, run_mono, skip_negative_elev=False, mono_sanity_check=False,  clean_percentage=1.0, mixture_percentages={'voice_and_location':.50, 'voice_only':.50}, no_cue_on_clean=False, return_azim_loc_only=False, **kwargs):
+        """
+        Builds a pytorch hdf5 dataset for linear readout of binaural attention dataset
+        This class handles batching, returning batches of cues and scenes.
+        All cues are "voice_cue_target_loc" for linear readout: the target voice at the target location.
+        The "voice only" condition is achieved by using scenes where all signals are co-located. 
+
+        Parameters:
+            path (str): location of the hdf5 dataset
+            scene_type (str): string indicating whether to use both co-located and normal scenes, or just normal scenes.
+            task (str): string indicating label keys to return - word, location, or both
+            batch_size (int): batch size
+            run_mono (bool): whether to return mono signals or stereo signals (default)
+            skip_negative_elev (bool): whether to skip negative elevation labels (default False)
+            mono_sanity_check (bool): whether to use only left channel for both channels (default False)
+            mixture_percentages (dict): dictionary of percentages for each scene type in the mixed scene condition.
+                The keys are 'voice_and_location' and 'voice_only'. The values are floats that sum to 1.0.
+        Returns:
+            cue, target, background, label
+        """
+        self.file_path = Path(path).as_posix()
+        self.dataset = None
+        self.task = task
+        self.run_mono = run_mono
+        self.batch_size = batch_size
+        self.skip_negative_elev = skip_negative_elev
+        self.mono_sanity_check = mono_sanity_check
+        self.clean_percentage = clean_percentage
+        self.no_cue_on_clean = no_cue_on_clean
+        # set logic for sampling cue-free examples
+        self.batch_ixs = np.arange(self.batch_size)
+        self.ix_probs = torch.tensor([1/batch_size] * batch_size) # uniform ix likelihoods 
+        self.n_to_sample = int(self.clean_percentage * self.batch_size)
+        self.return_azim_loc_only = return_azim_loc_only
+        self.cue_key = 'voice_cue_target_loc'
+        self.scene_type = scene_type
+        if scene_type == "mixed":
+            self.voice_and_loc_size = int(batch_size * mixture_percentages['voice_and_location'])
+            self.voice_only_percent_size = int(batch_size * mixture_percentages['voice_only'])
+        if self.task == 'word':
+            self.label_key = 'word_int'
+        elif self.task == 'location':
+            self.label_key = ['label_loc_target_azim', 'label_loc_target_elev']
+
+        elif self.task == 'word_and_location':
+            self.label_key = ('word_int', 'label_loc_target_azim', 'label_loc_target_elev')
+
+        with h5py.File(self.file_path, 'r', swmr=True) as file:
+            self.dataset_len = len(file['target']) // self.batch_size
+
+    def azim_elev_to_label(self, azim, elev):
+        if self.skip_negative_elev:
+            return np.array(((elev / 10) * 72) + (azim / 5), dtype=np.int64)
+        else:
+            # + 40 is so lowest elevation is 0 in label index
+            return np.array((((elev + 40) / 10) * 72) + (azim / 5), dtype=np.int64)
+
+    def azim_to_label(self, azim):
+        return np.array((azim / 5), dtype=np.int64)
+
+    def label_to_azim_elev(self, label):
+        """
+        """
+        elev = np.array((label // 72) * 10)
+        azim = np.array((label % 72) * 5)
+        return np.array(azim).astype(float), np.array(elev).astype(float)
+
+    def __getitem__(self, index):
+        """
+        Returns examples from the hdf5 file.
+        Args: 
+            index (int): index into the hdf5 file
+        Returns:
+            cue (np.array): the cue audio 
+            scene (np.array): the scene audio 
+            None (None): None - instead of background for compatability with past versions
+            label (np.array): the label for the batch.
+        """
+        start = index * self.batch_size
+        end = start + self.batch_size
+        if self.dataset is None:
+            self.dataset = h5py.File(self.file_path, 'r', swmr=True)
+
+        cue = self.dataset['voice_cue_target_loc'][start:end].transpose((0, 2, 1))
+        target = self.dataset['target'][start:end].transpose((0, 2, 1))
+
+        if self.task == 'word':
+            label = self.dataset[self.label_key][start:end]
+        elif self.task == 'location':
+            azim = self.dataset[self.label_key[0]][start:end]
+            elev = self.dataset[self.label_key[1]][start:end]
+            if self.return_azim_loc_only:
+                label = self.azim_to_label(azim)
+            else:
+                label = self.azim_elev_to_label(azim, elev)
+        else:
+            word = self.dataset[self.label_key[0]][start:end]
+            azim = self.dataset[self.label_key[1]][start:end]
+            elev = self.dataset[self.label_key[2]][start:end]
+            if self.return_azim_loc_only:
+                loc = self.azim_to_label(azim)
+            else:
+                loc = self.azim_elev_to_label(azim, elev)
+
+            label = np.stack((word, loc), axis=1)
+
+        background = np.zeros_like(target)
+
         return cue, target, background, label
 
     def __len__(self):
