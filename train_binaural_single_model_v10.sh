@@ -6,9 +6,9 @@
 #SBATCH -N 1
 
 
-#SBATCH --time=5-00:00:00
+#SBATCH --time=2-00:00:00
 #SBATCH --cpus-per-task=16
-#SBATCH --partition=mcdermott   # multi-gpu
+#SBATCH --partition=normal   # multi-gpu
 #SBATCH --gres=gpu:a100:4
 
 ##SBATCH --mem=100Gb

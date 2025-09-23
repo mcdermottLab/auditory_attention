@@ -87,14 +87,14 @@ def save_metric(f, layer, suffix, metric, row, n_rows_to_save, is_corr=False):
         f[f'{layer}_{suffix}'][row] = metric
 
 def make_torch_brir(azim: int,
-            elevation: int,
+            elev: int,
             h5_fn: Path,
             IR_df: pd.DataFrame,
             out_sr: int = 44_100,
             device: str = 'cuda',
             start_crop_in_s: float = None,
             end_crop_in_s: float = None):
-    brir = get_brir(azim=azim, elev=elevation, h5_fn=h5_fn, IR_df=IR_df, out_sr=out_sr)
+    brir = get_brir(azim=azim, elev=elev, h5_fn=h5_fn, IR_df=IR_df, out_sr=out_sr)
     brir = at.Spatialize(brir, model_sr=out_sr, start_crop_in_s=start_crop_in_s, end_crop_in_s=end_crop_in_s).to(device)
     return brir
 
@@ -273,7 +273,7 @@ def get_activations(args):
     else:
         outname = Path(f'{args.output_dir}/{model_name}{rand_weight_str}/{model_name}{rand_weight_str}_model_activations_{snr}dB{timg_avg_extn}{center_loc_str}{cue_single_source_str}_as_fn_of_sep_symmetric_distractor.h5')
 
-    out_dir = Path("/om/scratch/Thu/imgriff")
+    out_dir = Path("/om/scratch/Fri/imgriff")
     outname = out_dir / outname 
 
     layer_shape_dict_name = Path(f'{args.output_dir}/{model_name}/{model_name}_layer_shape_dict{timg_avg_extn}.pkl')
