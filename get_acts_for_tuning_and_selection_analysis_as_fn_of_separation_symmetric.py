@@ -362,7 +362,7 @@ def get_activations(args):
                         f.create_dataset('distractor_r_loc', shape=[n_rows_to_save, 2], dtype=np.float32)
 
                     # check if row has been written to already
-                    if f['target_f0'][row] != 0 and args.resume_progress:
+                    if f['attncoch_gains'][row].sum() != 0 and args.resume_progress:
                         continue
                     # save cochleagram outputs and labels 
                     if not ('control' in config_path.stem or 'late_only' in config_path.stem):
