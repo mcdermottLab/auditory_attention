@@ -49,7 +49,9 @@ hparas:                                   # Experiment hyper-parameters
   valid_step: 0.5
   epochs: 1000
   optimizer: 'AdamW'
-  lr: 0.000005                            # Initial learning rate of 0.00005 -> drop if manually testing late-training effects of smaller lr
+  lr_word: 1.0e-11                           
+  lr_azim: 3.16e-7
+  lr_f0: 3.16e-7
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 100 
   batch_size: 8

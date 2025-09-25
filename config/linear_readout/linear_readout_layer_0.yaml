@@ -49,10 +49,12 @@ hparas:                                   # Experiment hyper-parameters
   valid_step: 4_400
   epochs: 1000
   optimizer: 'AdamW'
-  lr: 0.000005                            # Initial learning rate of 0.00005 -> drop if manually testing late-training effects of smaller lr
+  lr_word: None                            
+  lr_azim: None
+  lr_f0: 3.16e-8
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 100 
-  batch_size: 2                       # 576 for 8 288 for 4Gets divided by num gpus
+  batch_size: 16                      # batch size 16 for f0 bins      
   mask_cues: False                    
 
 model:                                    # Model architecture

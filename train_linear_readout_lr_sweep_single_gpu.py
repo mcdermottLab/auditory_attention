@@ -2,7 +2,6 @@ import argparse
 import json
 import os
 import re
-from functools import partial
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -13,9 +12,7 @@ import torch.nn.functional as F
 import torchaudio.functional as ta_F
 import yaml
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.strategies import FSDPStrategy
-from torch.distributed.fsdp import CPUOffload, ShardingStrategy
-from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy, wrap
+from pytorch_lightning.strategies import DDPStrategy
 
 from src.spatial_attn_lightning import BinauralAttentionModule
 
@@ -53,23 +50,6 @@ class StageFeatureExtractor(nn.Module):
         return self._features
 
 
-class ColumnParallelHead(nn.Module):
-    def __init__(self, in_features, out_features, chunks=16, bias=True):
-        super().__init__()
-        per = (out_features + chunks - 1) // chunks
-        sizes, remain = [], out_features
-        while remain > 0:
-            take = min(per, remain)
-            sizes.append(take)
-            remain -= take
-        self.linears = nn.ModuleList(
-            [nn.Linear(in_features, s, bias=bias) for s in sizes]
-        )
-
-    def forward(self, x):
-        return torch.cat([lin(x) for lin in self.linears], dim=-1)
-
-
 class MultiClassifierModule(pl.LightningModule):
     def __init__(
         self,
@@ -97,25 +77,20 @@ class MultiClassifierModule(pl.LightningModule):
             p.requires_grad = False
 
         # Infer feature dim
-        if self.layer_idx == 0:
-            feat_dim = 24918816
-        else:
-            with torch.no_grad():
-                dummy = torch.randn(1, 2, 110_250)
-                feats = self.feature_extractor(mixture=dummy)
-                # delete dummy
-                del dummy
-                feat_dim = feats.view(1, -1).shape[1]
-
-        if int(os.environ.get("RANK", "0")) == 0:
-            print(f"!!!!!!!!!!!!!! [debug] feat_dim: {feat_dim} !!!!!!!!!!!!!!!")
+        with torch.no_grad():
+            dummy = torch.randn(1, 2, 110_250, device="cuda")
+            feats = self.feature_extractor(mixture=dummy)
+            # delete dummy
+            del dummy
+            feat_dim = feats.view(1, -1).shape[1]
 
         # Classifier heads
-        self.classifier_heads = nn.ModuleDict({})
-        for task, num_classes in task_dict.items():
-            self.classifier_heads[task] = ColumnParallelHead(
-                feat_dim, num_classes, chunks=16
-            )
+        self.classifier_heads = nn.ModuleDict(
+            {
+                task: nn.Linear(feat_dim, num_classes)
+                for task, num_classes in task_dict.items()
+            }
+        )
 
         self.f0_bin_counts = {}
         self.count_f0_bins = False  # Flag to control f0 bin counting
@@ -131,15 +106,6 @@ class MultiClassifierModule(pl.LightningModule):
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.save_outputs = save_outputs
-
-    def configure_model(self):
-        self.feature_extractor = wrap(self.feature_extractor)
-        for task, head in list(self.classifier_heads.items()):
-            if isinstance(head, ColumnParallelHead):
-                for i, lin in enumerate(head.linears):
-                    head.linears[i] = wrap(lin)
-            else:
-                self.classifier_heads[task] = wrap(head)
 
     def forward(self, return_f0_labels: bool = True, **inputs):
         f0_labels = None
@@ -169,7 +135,9 @@ class MultiClassifierModule(pl.LightningModule):
         if self.count_f0_bins and self.training:
             for f0_label in f0_labels:
                 label_val = f0_label.item()
-                self.f0_bin_counts[label_val] = self.f0_bin_counts.get(label_val, 0) + 1
+                self.f0_bin_counts[label_val] = (
+                    self.f0_bin_counts.get(label_val, 0) + 1
+                )
 
         for i, task_name in enumerate(self.task_names):
             if len(self.task_names) > 1:
@@ -387,7 +355,7 @@ def main():
 
     config = yaml.load(open(config_path, "r"), Loader=yaml.FullLoader)
 
-    config["num_workers"] = min(5, 16 // 2)
+    config["num_workers"] = min(10, 32 // 2)
     # config["hparas"]["batch_size"] = 64
     # config["hparas"]["valid_step"] = 4_400
     # config["corpus"]["root"] = "/orcd/data/jhm/001/datasets/dataset_binaural_attn/v10/"
@@ -398,10 +366,10 @@ def main():
 
     config["model"]["num_classes"]["num_locs"] = 72
     # Step 1: Create model architecture
-    module = BinauralAttentionModule(config=config)
+    module = BinauralAttentionModule(config=config).cuda()
 
     # Step 2: Load the checkpoint manually
-    checkpoint = torch.load(ckpt_path)
+    checkpoint = torch.load(ckpt_path, map_location="cuda")
 
     # Step 3: Load the weights only (ignore compilation and trainer states)
     module.load_state_dict(checkpoint["state_dict"], strict=False)
@@ -422,12 +390,12 @@ def main():
     # 3. Remove classifier layer to prevent interference
     backbone.model.classification = nn.Identity()
 
-    task_dict = {
-        "num_word_classes": 800,
-        "num_azim_classes": 512,
-        "num_f0_bins": 32,
-    }
-    lr_dict = {
+    task_dict={
+            "num_word_classes": 800,
+            "num_azim_classes": 512,
+            "num_f0_bins": 32,
+        }
+    lr_dict={
         "num_word_classes": args.lr_word,
         "num_azim_classes": args.lr_azim,
         "num_f0_bins": args.lr_f0,
@@ -449,52 +417,23 @@ def main():
     )
 
     # WandB logger setup
-    run_name = f"layer_{args.layer_idx}_lr_azim_{args.lr_azim}"
+    run_name = f"layer_{args.layer_idx}_lr_word_{args.lr_word}" # _lr_azim_{args.lr_azim}_lr_f0_{args.lr_f0}"
     wandb_logger = WandbLogger(
         project="auditory_attn_linear_readout_lr_sweep",
         name=run_name,
         group=f"layer_{args.layer_idx}",
-        log_model=False,  # Prevents saving model weights to wandb
-    )
-
-    auto_wrap = partial(size_based_auto_wrap_policy, min_num_params=10_000)
-
-    def meta_init_fn(mod):
-        try:
-            mod.to_empty(device="meta")
-        except Exception:
-            pass
-
-    strategy = FSDPStrategy(
-        auto_wrap_policy=auto_wrap,
-        sharding_strategy=ShardingStrategy.FULL_SHARD,
-        use_orig_params=True,
-        limit_all_gathers=True,
-        sync_module_states=True,
-        cpu_offload=CPUOffload(offload_params=True),
-        param_init_fn=meta_init_fn,
     )
 
     # 5. Train - exactly one training epoch, then one validation epoch
     trainer = pl.Trainer(
         accelerator="gpu",
-        devices=2,
-        num_nodes=1,
-        precision="bf16-mixed",
+        devices=1,
         max_epochs=1,  # Only one epoch total
-        limit_train_batches=50,
-        limit_val_batches=50,
         val_check_interval=1.0,  # Validate at the end of the epoch
         profiler=None,
         logger=wandb_logger,
-        strategy=strategy,
     )
-
-    if int(os.environ.get("RANK", "0")) == 0:
-        for task, head in model.classifier_heads.items():
-            n = sum(p.numel() for p in head.parameters())
-            print(f"[debug] head {task}: {n/1e6:.2f}M params ({type(head).__name__})")
-
+    
     # First run training epoch
     trainer.fit(
         model,

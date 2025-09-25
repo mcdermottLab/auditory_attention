@@ -324,15 +324,15 @@ def main():
         required=True,
         help="Index of the backbone layer to extract features from",
     )
-    parser.add_argument(
-        "--lr_word", type=float, default=1e-3, help="Learning rate for classifier heads"
-    )
-    parser.add_argument(
-        "--lr_azim", type=float, default=1e-3, help="Learning rate for classifier heads"
-    )
-    parser.add_argument(
-        "--lr_f0", type=float, default=1e-3, help="Learning rate for classifier heads"
-    )
+    # parser.add_argument(
+    #     "--lr_word", type=float, default=1e-3, help="Learning rate for classifier heads"
+    # )
+    # parser.add_argument(
+    #     "--lr_azim", type=float, default=1e-3, help="Learning rate for classifier heads"
+    # )
+    # parser.add_argument(
+    #     "--lr_f0", type=float, default=1e-3, help="Learning rate for classifier heads"
+    # )
     parser.add_argument(
         "--tasks",
         nargs="+",
@@ -393,9 +393,9 @@ def main():
             "num_f0_bins": 32,
         }
     lr_dict={
-        "num_word_classes": args.lr_word,
-        "num_azim_classes": args.lr_azim,
-        "num_f0_bins": args.lr_f0,
+        "num_word_classes": config["hparas"]["lr_word"],
+        "num_azim_classes": config["hparas"]["lr_azim"],
+        "num_f0_bins": config["hparas"]["lr_f0"],
     }
 
     # only keep tasks in task_dict if they are in args.tasks
