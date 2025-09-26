@@ -16,6 +16,11 @@ from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.strategies import FSDPStrategy
 from torch.distributed.fsdp import CPUOffload, ShardingStrategy
 from torch.distributed.fsdp.wrap import size_based_auto_wrap_policy, wrap
+from torch.distributed.fsdp import (
+    FullyShardedDataParallel as FSDP,
+    StateDictType,
+)
+from torch.distributed.fsdp import StateDictConfig
 
 from src.spatial_attn_lightning import BinauralAttentionModule
 
@@ -253,7 +258,18 @@ class MultiClassifierModule(pl.LightningModule):
             self.val_total[task_name] = 0
 
     def _save_best_head_weights(self, task_name: str):
+        if int(os.environ.get("RANK", "0")) != 0:
+            return
+
         head = self.classifier_heads[task_name]
+
+        try:
+            cfg = StateDictConfig(offload_to_cpu=True)
+            with FSDP.state_dict_type(head, StateDictType.SHARDED_STATE_DICT, cfg):
+                sd = head.state_dict()
+        except Exception:
+            sd = {k: v.cpu() for k, v in head.state_dict().items()}
+
         # file path: save under save_dir/layer_{ix}/{task_name}_best.pth
         try:
             layer_ix = int(self.layer_idx)
@@ -264,7 +280,7 @@ class MultiClassifierModule(pl.LightningModule):
         save_subdir.mkdir(parents=True, exist_ok=True)
         file_name = f"{task_name}_best.pth"
         save_path = save_subdir / file_name
-        torch.save(head.state_dict(), save_path)
+        torch.save(sd, save_path)
 
     def configure_optimizers(self):
         return [
@@ -473,6 +489,7 @@ def main():
         sync_module_states=True,
         cpu_offload=CPUOffload(offload_params=True),
         param_init_fn=meta_init_fn,
+        state_dict_type="sharded",
     )
 
     # 5. Train - exactly one training epoch, then one validation epoch
@@ -484,6 +501,7 @@ def main():
         max_epochs=1,  # Only one epoch total
         limit_train_batches=50,
         limit_val_batches=50,
+        num_sanity_val_steps=0,
         val_check_interval=1.0,  # Validate at the end of the epoch
         profiler=None,
         logger=wandb_logger,

@@ -6,8 +6,8 @@
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:a100:2
 #SBATCH --ntasks-per-node=2
-#SBATCH --cpus-per-task=20
-#SBATCH --mem=160G
+#SBATCH --cpus-per-task=10
+#SBATCH --mem=500G
 #SBATCH --time=1-00:00:00
 #SBATCH --array=0               # 7 layers (0-6) × 5 learning rates = 35 jobs
 

@@ -93,7 +93,7 @@ class MultiClassifierModule(pl.LightningModule):
         )
 
         self.f0_bin_counts = {}
-        self.count_f0_bins = True  # Flag to control f0 bin counting
+        self.count_f0_bins = False  # Flag to control f0 bin counting
 
         # Tracking best validation loss per task and running sums
         self.best_val_loss: Dict[str, float] = {
@@ -101,6 +101,10 @@ class MultiClassifierModule(pl.LightningModule):
         }
         self.val_loss_sum: Dict[str, float] = {task: 0.0 for task in self.task_names}
         self.val_total: Dict[str, int] = {task: 0 for task in self.task_names}
+        
+        # Early stopping tracking
+        self.val_loss_no_improve_count: Dict[str, int] = {task: 0 for task in self.task_names}
+        self.training_stopped: Dict[str, bool] = {task: False for task in self.task_names}
 
         # Where to save best-performing classifier head weights
         self.save_dir = Path(save_dir)
@@ -140,7 +144,14 @@ class MultiClassifierModule(pl.LightningModule):
                 )
 
         for i, task_name in enumerate(self.task_names):
-            optimizer = self.optimizers()[i]
+            # Skip training if this task has stopped early
+            if self.training_stopped[task_name]:
+                continue
+                
+            if len(self.task_names) > 1:
+                optimizer = self.optimizers()[i]
+            else:
+                optimizer = self.optimizers()
             optimizer.zero_grad()
             head = self.classifier_heads[task_name]
             logits = head(feats)
@@ -167,9 +178,19 @@ class MultiClassifierModule(pl.LightningModule):
         feats, f0_labels = self(mixture=scene_features, return_f0_labels=True)
         if "num_f0_bins" in self.task_names:
             targets["num_f0_bins"] = f0_labels
+            # get indices of f0 bins that are >=23 and <=8
+            f0_bin_ixs = (f0_labels >= 23) & (f0_labels <= 8)
 
         for task_name in self.task_names:
+            # Skip validation if this task has stopped early
+            if self.training_stopped[task_name]:
+                continue
+                
             logits = self.classifier_heads[task_name](feats)
+            if task_name == "num_f0_bins":
+                # remove f0 bins that are >=23 and <=8
+                logits = logits[~f0_bin_ixs]
+                targets[task_name] = targets[task_name][~f0_bin_ixs]
 
             loss = F.cross_entropy(logits, targets[task_name])
 
@@ -178,6 +199,18 @@ class MultiClassifierModule(pl.LightningModule):
                 total = targets[task_name].numel()
                 self.val_loss_sum[task_name] += float(loss.item()) * int(total)
                 self.val_total[task_name] += int(total)
+
+                # Log accuracy per task
+                if not hasattr(self, "val_correct"):
+                    self.val_correct = {}
+                if task_name not in self.val_correct:
+                    self.val_correct[task_name] = 0
+
+                # Only compute accuracy if targets are not None
+                if targets[task_name] is not None:
+                    preds = torch.argmax(logits, dim=1)
+                    correct = (preds == targets[task_name]).sum().item()
+                    self.val_correct[task_name] += correct
 
     def on_train_epoch_end(self):
         # Save f0 bin counts after the first epoch and disable counting
@@ -197,8 +230,12 @@ class MultiClassifierModule(pl.LightningModule):
         print(f"Saved f0 bin counts to {save_path}")
 
     def on_validation_epoch_end(self):
-        # compute per-task average validation loss for the epoch, save best head if improved (lower is better)
+        # compute per-task average validation loss and accuracy for the epoch, save best head if improved (lower is better)
         for task_name in self.task_names:
+            # Skip if this task has stopped early
+            if self.training_stopped[task_name]:
+                continue
+                
             total = self.val_total.get(task_name, 0)
             if total == 0:
                 continue
@@ -207,17 +244,43 @@ class MultiClassifierModule(pl.LightningModule):
                 f"val_avg_loss_{task_name}", avg_loss, prog_bar=True, sync_dist=True
             )
 
+            # Compute validation accuracy if possible
+            # We'll need to accumulate correct predictions and total for each task during validation_step
+            correct = getattr(self, "val_correct", {}).get(task_name, None)
+            if correct is not None:
+                val_acc = correct / float(total)
+                self.log(
+                    f"val_acc_{task_name}", val_acc, prog_bar=True, sync_dist=True
+                )
+
+            # Check for improvement and early stopping
             if avg_loss < self.best_val_loss.get(task_name, float("inf")):
                 self.best_val_loss[task_name] = avg_loss
+                self.val_loss_no_improve_count[task_name] = 0  # Reset counter
                 if self.save_outputs:
-                    self._save_best_head_weights(task_name)
+                    self._save_best_head_weights(task_name, val_acc)
+            else:
+                self.val_loss_no_improve_count[task_name] += 1
+                
+            # Check if we should stop training this task
+            if self.val_loss_no_improve_count[task_name] >= 5:
+                self.training_stopped[task_name] = True
+                print(f"Early stopping for task {task_name} - no improvement for 5 consecutive validation checks")
+
+        # Check if all tasks have stopped - if so, stop the entire training job
+        if all(self.training_stopped.values()):
+            print("All tasks have stopped early - stopping training job")
+            raise KeyboardInterrupt("All tasks stopped early")
 
         # reset counters for next epoch
         for task_name in self.task_names:
-            self.val_loss_sum[task_name] = 0.0
-            self.val_total[task_name] = 0
+            if not self.training_stopped[task_name]:
+                self.val_loss_sum[task_name] = 0.0
+                self.val_total[task_name] = 0
+                if hasattr(self, "val_correct"):
+                    self.val_correct[task_name] = 0
 
-    def _save_best_head_weights(self, task_name: str):
+    def _save_best_head_weights(self, task_name: str, val_acc: float):
         head = self.classifier_heads[task_name]
         # file path: save under save_dir/layer_{ix}/{task_name}_best.pth
         try:
@@ -229,7 +292,13 @@ class MultiClassifierModule(pl.LightningModule):
         save_subdir.mkdir(parents=True, exist_ok=True)
         file_name = f"{task_name}_best.pth"
         save_path = save_subdir / file_name
-        torch.save(head.state_dict(), save_path)
+        save_data = {
+            "state_dict": head.state_dict(),
+            "val_loss": self.best_val_loss[task_name],
+            "val_acc": val_acc,
+            "epoch": self.current_epoch,
+        }
+        torch.save(save_data, save_path)
 
     def configure_optimizers(self):
         return [
@@ -416,17 +485,18 @@ def main():
     # WandB logger setup
     if len(args.tasks) == 1:
         if args.tasks[0] == "num_word_classes":
-            run_name = f"layer_{args.layer_idx}_word_lr_{args.lr_word}"
+            run_name = f"layer_{args.layer_idx}_word_lr_{config['hparas']['lr_word']}"
         elif args.tasks[0] == "num_azim_classes":
-            run_name = f"layer_{args.layer_idx}_azim_lr_{args.lr_azim}"
+            run_name = f"layer_{args.layer_idx}_azim_lr_{config['hparas']['lr_azim']}"
         elif args.tasks[0] == "num_f0_bins":
-            run_name = f"layer_{args.layer_idx}_f0_lr_{args.lr_f0}"
+            run_name = f"layer_{args.layer_idx}_f0_lr_{config['hparas']['lr_f0']}"
     else:
-        run_name = f"layer_{args.layer_idx}_multitask_lr_word_{args.lr_word}_lr_azim_{args.lr_azim}_lr_f0_{args.lr_f0}"
+        run_name = f"layer_{args.layer_idx}_multitask_lr_word_{config['hparas']['lr_word']}_lr_azim_{config['hparas']['lr_azim']}_lr_f0_{config['hparas']['lr_f0']}"
     wandb_logger = WandbLogger(
         project="auditory_attn_linear_readout",
         name=run_name,
         group=f"layer_{args.layer_idx}",
+        log_model=False,
     )
 
     # 5. Train
@@ -434,7 +504,6 @@ def main():
         # detect_anomaly=True,
         accelerator="gpu",
         devices=1,
-        max_epochs=2,
         val_check_interval=config["hparas"]["valid_step"],
         profiler=None,
         # strategy=DDPStrategy(find_unused_parameters=True),
