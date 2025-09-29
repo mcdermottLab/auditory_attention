@@ -95,15 +95,15 @@ class MultiClassifierModule(pl.LightningModule):
         self.f0_bin_counts = {}
         self.count_f0_bins = False  # Flag to control f0 bin counting
 
-        # Tracking best validation loss per task and running sums
-        self.best_val_loss: Dict[str, float] = {
-            task: float("inf") for task in self.task_names
+        # Tracking best validation accuracy per task and running sums
+        self.best_val_acc: Dict[str, float] = {
+            task: 0.0 for task in self.task_names
         }
         self.val_loss_sum: Dict[str, float] = {task: 0.0 for task in self.task_names}
         self.val_total: Dict[str, int] = {task: 0 for task in self.task_names}
         
-        # Early stopping tracking
-        self.val_loss_no_improve_count: Dict[str, int] = {task: 0 for task in self.task_names}
+        # Early stopping tracking based on validation accuracy
+        self.val_acc_no_improve_count: Dict[str, int] = {task: 0 for task in self.task_names}
         self.training_stopped: Dict[str, bool] = {task: False for task in self.task_names}
 
         # Where to save best-performing classifier head weights
@@ -160,7 +160,7 @@ class MultiClassifierModule(pl.LightningModule):
             self.manual_backward(loss)
             optimizer.step()
 
-            self.log(f"train_loss_{task_name}", loss, prog_bar=True)
+            self.log(f"train_loss_{task_name}", loss, prog_bar=True, sync_dist=True)
 
     def validation_step(self, batch, batch_idx):
         cue_features, cue_mask_ixs, loc_task_ixs, scene_features, labels = batch
@@ -230,7 +230,7 @@ class MultiClassifierModule(pl.LightningModule):
         print(f"Saved f0 bin counts to {save_path}")
 
     def on_validation_epoch_end(self):
-        # compute per-task average validation loss and accuracy for the epoch, save best head if improved (lower is better)
+        # compute per-task average validation loss and accuracy for the epoch, save best head if improved (higher accuracy is better)
         for task_name in self.task_names:
             # Skip if this task has stopped early
             if self.training_stopped[task_name]:
@@ -241,7 +241,7 @@ class MultiClassifierModule(pl.LightningModule):
                 continue
             avg_loss = self.val_loss_sum[task_name] / float(total)
             self.log(
-                f"val_avg_loss_{task_name}", avg_loss, prog_bar=True, sync_dist=True
+                f"val_avg_loss_{task_name}", avg_loss, prog_bar=False, sync_dist=True
             )
 
             # Compute validation accuracy if possible
@@ -250,22 +250,22 @@ class MultiClassifierModule(pl.LightningModule):
             if correct is not None:
                 val_acc = correct / float(total)
                 self.log(
-                    f"val_acc_{task_name}", val_acc, prog_bar=True, sync_dist=True
+                    f"val_acc_{task_name}", val_acc, prog_bar=False, sync_dist=True
                 )
 
-            # Check for improvement and early stopping
-            if avg_loss < self.best_val_loss.get(task_name, float("inf")):
-                self.best_val_loss[task_name] = avg_loss
-                self.val_loss_no_improve_count[task_name] = 0  # Reset counter
-                if self.save_outputs:
-                    self._save_best_head_weights(task_name, val_acc)
-            else:
-                self.val_loss_no_improve_count[task_name] += 1
-                
-            # Check if we should stop training this task
-            if self.val_loss_no_improve_count[task_name] >= 5:
-                self.training_stopped[task_name] = True
-                print(f"Early stopping for task {task_name} - no improvement for 5 consecutive validation checks")
+                # Check for improvement and early stopping based on validation accuracy
+                if val_acc > self.best_val_acc.get(task_name, 0.0):
+                    self.best_val_acc[task_name] = val_acc
+                    self.val_acc_no_improve_count[task_name] = 0  # Reset counter
+                    if self.save_outputs:
+                        self._save_best_head_weights(task_name, val_acc)
+                else:
+                    self.val_acc_no_improve_count[task_name] += 1
+                    
+                # Check if we should stop training this task
+                if self.val_acc_no_improve_count[task_name] >= 5:
+                    self.training_stopped[task_name] = True
+                    print(f"Early stopping for task {task_name} - no accuracy improvement for 5 consecutive validation checks")
 
         # Check if all tasks have stopped - if so, stop the entire training job
         if all(self.training_stopped.values()):
@@ -294,8 +294,7 @@ class MultiClassifierModule(pl.LightningModule):
         save_path = save_subdir / file_name
         save_data = {
             "state_dict": head.state_dict(),
-            "val_loss": self.best_val_loss[task_name],
-            "val_acc": val_acc,
+            "val_acc": self.best_val_acc[task_name],
             "epoch": self.current_epoch,
         }
         torch.save(save_data, save_path)
@@ -393,15 +392,6 @@ def main():
         required=True,
         help="Index of the backbone layer to extract features from",
     )
-    # parser.add_argument(
-    #     "--lr_word", type=float, default=1e-3, help="Learning rate for classifier heads"
-    # )
-    # parser.add_argument(
-    #     "--lr_azim", type=float, default=1e-3, help="Learning rate for classifier heads"
-    # )
-    # parser.add_argument(
-    #     "--lr_f0", type=float, default=1e-3, help="Learning rate for classifier heads"
-    # )
     parser.add_argument(
         "--tasks",
         nargs="+",
@@ -412,6 +402,7 @@ def main():
         "--save_outputs", action="store_true", help="Save outputs of the model"
     )
     parser.add_argument("--config_path", type=str, help="Path to the config file")
+    parser.add_argument("--num_gpus", type=int, default=1, help="Number of GPUs to use")
     args = parser.parse_args()
 
     config_path = Path(args.config_path)
@@ -422,10 +413,6 @@ def main():
     config = yaml.load(open(config_path, "r"), Loader=yaml.FullLoader)
 
     config["num_workers"] = min(10, 32 // 2)
-    # config["hparas"]["batch_size"] = 64
-    # config["hparas"]["valid_step"] = 4_400
-    # config["corpus"]["root"] = "/orcd/data/jhm/001/datasets/dataset_binaural_attn/v10/"
-    # config["corpus"]["task"] = "word_and_location"
     config["corpus"]["return_azim_loc_only"] = True
     config["corpus"]["feature_gain"] = True
     config["corpus"]["clean_percentage"] = 1.0
@@ -457,8 +444,8 @@ def main():
     backbone.model.classification = nn.Identity()
 
     task_dict={
-            "num_word_classes": 800,
-            "num_azim_classes": 512,
+            "num_word_classes": 200,
+            "num_azim_classes": 72,
             "num_f0_bins": 32,
         }
     lr_dict={
@@ -503,10 +490,10 @@ def main():
     trainer = pl.Trainer(
         # detect_anomaly=True,
         accelerator="gpu",
-        devices=1,
+        devices=args.num_gpus,
         val_check_interval=config["hparas"]["valid_step"],
         profiler=None,
-        # strategy=DDPStrategy(find_unused_parameters=True),
+        strategy=DDPStrategy(find_unused_parameters=True),
         logger=wandb_logger,
     )
     trainer.fit(

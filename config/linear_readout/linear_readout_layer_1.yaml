@@ -49,12 +49,12 @@ hparas:                                   # Experiment hyper-parameters
   valid_step: 0.5
   epochs: 1000
   optimizer: 'AdamW'
-  lr_word: None                            
+  lr_word: 3.16e-10                            
   lr_azim: 3.16e-7
   lr_f0: 3.16e-7
   eps: 0.0000001                         # 1e-7
   gradient_clip_val: 100 
-  batch_size: 8                      # batch size 16 for f0 bins batch size 8 for azim bins  
+  batch_size: 4                      # batch size 16 for f0 bins batch size 8 for azim bins  
   mask_cues: False                    
 
 model:                                    # Model architecture

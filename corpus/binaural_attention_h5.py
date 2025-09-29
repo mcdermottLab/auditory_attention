@@ -580,8 +580,15 @@ class H5DatasetLinearReadout(torch.utils.data.Dataset):
         elif self.task == 'word_and_location':
             self.label_key = ('word_int', 'label_loc_target_azim', 'label_loc_target_elev')
 
+        # Filter dataset to only include examples with word indices 0-199
         with h5py.File(self.file_path, 'r', swmr=True) as file:
-            self.dataset_len = len(file['target']) // self.batch_size
+            total_len = len(file['target'])
+            word_indices = file['word_int'][:]
+            # Find indices where word_int is in range 0-199
+            self.valid_indices = np.where((word_indices >= 0) & (word_indices <= 199))[0]
+            # Calculate dataset length based on valid indices
+            self.dataset_len = len(self.valid_indices) // self.batch_size
+            print(f"Filtered dataset: {len(self.valid_indices)} examples with word indices 0-199 out of {total_len} total examples")
 
     def azim_elev_to_label(self, azim, elev):
         if self.skip_negative_elev:
@@ -604,34 +611,39 @@ class H5DatasetLinearReadout(torch.utils.data.Dataset):
         """
         Returns examples from the hdf5 file.
         Args: 
-            index (int): index into the hdf5 file
+            index (int): index into the filtered dataset
         Returns:
             cue (np.array): the cue audio 
             scene (np.array): the scene audio 
             None (None): None - instead of background for compatability with past versions
             label (np.array): the label for the batch.
         """
-        start = index * self.batch_size
-        end = start + self.batch_size
+        # Map from filtered dataset index to actual indices in the hdf5 file
+        start_idx = index * self.batch_size
+        end_idx = start_idx + self.batch_size
+        
+        # Get the actual indices in the original dataset
+        actual_indices = self.valid_indices[start_idx:end_idx]
+        
         if self.dataset is None:
             self.dataset = h5py.File(self.file_path, 'r', swmr=True)
 
-        cue = self.dataset['voice_cue_target_loc'][start:end].transpose((0, 2, 1))
-        target = self.dataset['target'][start:end].transpose((0, 2, 1))
+        cue = self.dataset['voice_cue_target_loc'][actual_indices].transpose((0, 2, 1))
+        target = self.dataset['target'][actual_indices].transpose((0, 2, 1))
 
         if self.task == 'word':
-            label = self.dataset[self.label_key][start:end]
+            label = self.dataset[self.label_key][actual_indices]
         elif self.task == 'location':
-            azim = self.dataset[self.label_key[0]][start:end]
-            elev = self.dataset[self.label_key[1]][start:end]
+            azim = self.dataset[self.label_key[0]][actual_indices]
+            elev = self.dataset[self.label_key[1]][actual_indices]
             if self.return_azim_loc_only:
                 label = self.azim_to_label(azim)
             else:
                 label = self.azim_elev_to_label(azim, elev)
         else:
-            word = self.dataset[self.label_key[0]][start:end]
-            azim = self.dataset[self.label_key[1]][start:end]
-            elev = self.dataset[self.label_key[2]][start:end]
+            word = self.dataset[self.label_key[0]][actual_indices]
+            azim = self.dataset[self.label_key[1]][actual_indices]
+            elev = self.dataset[self.label_key[2]][actual_indices]
             if self.return_azim_loc_only:
                 loc = self.azim_to_label(azim)
             else:
