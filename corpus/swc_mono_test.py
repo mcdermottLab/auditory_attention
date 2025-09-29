@@ -5,7 +5,7 @@ import pandas as pd
 from pathlib import Path
 import h5py
 import sys 
-sys.path.append('/om2/user/imgriff/datasets/spatial_audio_pipeline/spatial_audio_util/')
+sys.path.append('/orcd/data/jhm/001/om2/imgriff/datasets/spatial_audio_pipeline/spatial_audio_util/')
 import util_audio 
 
 class SWCMonoTestSet(torch.utils.data.Dataset):
@@ -290,6 +290,46 @@ class SWCMonoTestSetH5DatasetForUnitTuning(torch.utils.data.Dataset):
         diff_dist_f0 = util_audio.get_avg_f0(diff_sex_dist, self.sr, fmin=80, fmax=300)
 
         return cue, target, same_sex_dist, diff_sex_dist, nat_scene_dist, word_int, target_f0, same_dist_f0, diff_dist_f0
+
+    def __len__(self):
+        return self.dataset_len
+
+
+class SWCMonoTestSetH5DatasetForSymmetricDistractorStageOfSelection(torch.utils.data.Dataset):
+    def __init__(self, h5_path, model_sr):
+
+        self.h5_path = h5_path
+        self.dataset = None
+        self.sr = model_sr
+
+        with h5py.File(self.h5_path, 'r', swmr=True) as file:
+            self.dataset_len = len(file['target_signal'])
+
+    def get_class_map(self):
+        """
+        Loads the mapping between the word IDX and human readable word map. 
+        """
+        word_2_class = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", "rb" )) 
+        return word_2_class
+
+    def __getitem__(self, index):
+        # get stimulus 
+        if self.dataset is None:
+            self.dataset = h5py.File(self.h5_path, 'r', swmr=True)
+
+        cue = self.dataset['cue_signal'][index]
+        target = self.dataset['target_signal'][index]
+        word_int = self.dataset['word_int_label'][index]
+
+        # get distractor types 
+        same_sex_dist = self.dataset['1-talker-english-same'][index]
+        diff_sex_dist = self.dataset['1-talker-english-different'][index]
+
+        target_f0 = util_audio.get_avg_f0(target, self.sr, fmin=80, fmax=300)
+        same_dist_f0 = util_audio.get_avg_f0(same_sex_dist, self.sr, fmin=80, fmax=300)
+        diff_dist_f0 = util_audio.get_avg_f0(diff_sex_dist, self.sr, fmin=80, fmax=300)
+
+        return cue, target, same_sex_dist, diff_sex_dist, word_int, target_f0, same_dist_f0, diff_dist_f0
 
     def __len__(self):
         return self.dataset_len

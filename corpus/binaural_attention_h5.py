@@ -105,7 +105,7 @@ class BinauralAttentionDataset(torch.utils.data.ConcatDataset):
         """
         Loads the mapping between the word IDX and human readable word map. 
         """
-        class_map = pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", "rb" )) 
+        class_map = pickle.load( open("cv_800_word_label_to_int_dict.pkl", "rb" )) 
         return class_map
 
 

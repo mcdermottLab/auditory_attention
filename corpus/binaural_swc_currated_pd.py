@@ -108,7 +108,7 @@ class SWCHumanExperimentStimDataset(Dataset):
         """
         Loads the mapping between the word IDX and human readable word map. 
         """
-        return pickle.load( open("/om2/user/imgriff/datasets/commonvoice_9/en/cv_800_word_label_to_int_dict.pkl", "rb" )) 
+        return pickle.load( open("cv_800_word_label_to_int_dict.pkl", "rb" )) 
     
 
     def __getitem__(self, index):
