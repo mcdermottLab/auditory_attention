@@ -8,6 +8,9 @@ import pandas as pd
 import seaborn as sns 
 import re
 
+
+MARKER_SIZE = 8
+
 ################################################
 # Psychometric functions written by Mark Saddler 
 ################################################
