@@ -7,7 +7,7 @@
 #SBATCH --time=12:00:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:a100:1 
-#SBATCH --array=12  # 0-12  # 0-12
+#SBATCH --array=12 # 0-12  # 0-12
 
 module load openmind8/anaconda/3-2022.10
 export HDF5_USE_FILE_LOCKING=FALSE
@@ -36,7 +36,7 @@ python3 get_acts_for_tuning_and_selection_analysis_as_fn_of_separation_symmetric
                 --n_jobs 8 \
                 --job_id $SLURM_ARRAY_TASK_ID \
                 --cue_single_source \
-                --output_dir binaural_unit_activation_analysis_symmetric_distractor \
+                --output_dir binaural_unit_activation_analysis_symmetric_distractor_v2 \
                 --resume_progress \
                 --overwrite \
                 # --random_weights

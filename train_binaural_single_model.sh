@@ -10,15 +10,12 @@
 #SBATCH -N 1 
 
 
-
 source /etc/profile.d/modules.sh
 module load openmind8/anaconda/3-2022.10
 
 export HDF5_USE_FILE_LOCKING=FALSE
 
 source activate /om2/user/imgriff/conda_envs/pytorch_2
-
-
 
 # srun torchrun --nproc_per_node=4  \
 #               spatialtrain.py --config config/binaural_attn/word_task_v10_gain_post_norm_config.yaml \
