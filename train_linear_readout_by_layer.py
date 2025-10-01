@@ -3,7 +3,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 
 import pytorch_lightning as pl
 import torch
@@ -12,6 +12,7 @@ import torch.nn.functional as F
 import torchaudio.functional as ta_F
 import yaml
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.strategies import DDPStrategy
 
 from src.spatial_attn_lightning import BinauralAttentionModule
@@ -235,13 +236,13 @@ class MultiClassifierModule(pl.LightningModule):
             # Skip if this task has stopped early
             if self.training_stopped[task_name]:
                 continue
-                
+
             total = self.val_total.get(task_name, 0)
             if total == 0:
                 continue
             avg_loss = self.val_loss_sum[task_name] / float(total)
             self.log(
-                f"val_avg_loss_{task_name}", avg_loss, prog_bar=False, sync_dist=True
+                f"val_loss_{task_name}", avg_loss, prog_bar=False, sync_dist=True
             )
 
             # Compute validation accuracy if possible
@@ -250,35 +251,8 @@ class MultiClassifierModule(pl.LightningModule):
             if correct is not None:
                 val_acc = correct / float(total)
                 self.log(
-                    f"val_acc_{task_name}", val_acc, prog_bar=False, sync_dist=True
+                    f"val_acc_{task_name}", val_acc, prog_bar=True, sync_dist=True
                 )
-
-                # Check for improvement and early stopping based on validation accuracy
-                if val_acc > self.best_val_acc.get(task_name, 0.0):
-                    self.best_val_acc[task_name] = val_acc
-                    self.val_acc_no_improve_count[task_name] = 0  # Reset counter
-                    if self.save_outputs:
-                        self._save_best_head_weights(task_name, val_acc)
-                else:
-                    self.val_acc_no_improve_count[task_name] += 1
-                    
-                # Check if we should stop training this task
-                if self.val_acc_no_improve_count[task_name] >= 5:
-                    self.training_stopped[task_name] = True
-                    print(f"Early stopping for task {task_name} - no accuracy improvement for 5 consecutive validation checks")
-
-        # Check if all tasks have stopped - if so, stop the entire training job
-        if all(self.training_stopped.values()):
-            print("All tasks have stopped early - stopping training job")
-            raise KeyboardInterrupt("All tasks stopped early")
-
-        # reset counters for next epoch
-        for task_name in self.task_names:
-            if not self.training_stopped[task_name]:
-                self.val_loss_sum[task_name] = 0.0
-                self.val_total[task_name] = 0
-                if hasattr(self, "val_correct"):
-                    self.val_correct[task_name] = 0
 
     def _save_best_head_weights(self, task_name: str, val_acc: float):
         head = self.classifier_heads[task_name]
@@ -298,6 +272,43 @@ class MultiClassifierModule(pl.LightningModule):
             "epoch": self.current_epoch,
         }
         torch.save(save_data, save_path)
+
+    def load_best_weights_for_tasks(self, tasks_to_load: Optional[List[str]] = None):
+        """Load best-performing classifier head weights from disk for specified tasks.
+
+        Checkpoints are expected at:
+        {save_dir}/layer_{layer_idx}/{task_name}_best.pth
+
+        If a checkpoint is missing for a task, that task is skipped.
+        """
+        if tasks_to_load is None:
+            tasks_to_load = self.task_names
+
+        # Determine subdirectory for this layer
+        try:
+            layer_ix = int(self.layer_idx)
+        except Exception:
+            layer_ix = str(self.layer_idx).replace("/", "_")
+
+        load_subdir = self.save_dir / f"layer_{layer_ix}"
+
+        for task_name in tasks_to_load:
+            if task_name not in self.classifier_heads:
+                continue
+            file_path = load_subdir / f"{task_name}_best.pth"
+            if not file_path.exists():
+                print(f"No saved weights found for task '{task_name}' at {file_path}; skipping load.")
+                continue
+            try:
+                ckpt = torch.load(file_path, map_location=self.device)
+                state_dict = ckpt.get("state_dict", ckpt)
+                self.classifier_heads[task_name].load_state_dict(state_dict)
+                # Optionally restore best val acc if present
+                if "val_acc" in ckpt:
+                    self.best_val_acc[task_name] = float(ckpt["val_acc"])
+                print(f"Loaded best weights for task '{task_name}' from {file_path}.")
+            except Exception as e:
+                print(f"Failed to load weights for task '{task_name}' from {file_path}: {e}")
 
     def configure_optimizers(self):
         return [
@@ -399,6 +410,11 @@ def main():
         help="Tasks to train",
     )
     parser.add_argument(
+        "--load_best_weights",
+        action="store_true",
+        help="Load best saved head weights for the specified tasks to resume training",
+    )
+    parser.add_argument(
         "--save_outputs", action="store_true", help="Save outputs of the model"
     )
     parser.add_argument("--config_path", type=str, help="Path to the config file")
@@ -469,6 +485,10 @@ def main():
         save_outputs=args.save_outputs,
     )
 
+    # Optionally load saved best weights for selected tasks to resume training
+    if args.load_best_weights:
+        model.load_best_weights_for_tasks(tasks_to_load=list(task_dict.keys()))
+
     # WandB logger setup
     if len(args.tasks) == 1:
         if args.tasks[0] == "num_word_classes":
@@ -485,6 +505,26 @@ def main():
         group=f"layer_{args.layer_idx}",
         log_model=False,
     )
+    callbacks = []
+    for task_name in args.tasks:
+        checkpoint_callback = ModelCheckpoint(
+            monitor=f"val_acc_{task_name}",
+            mode="max",
+            save_top_k=1,
+            save_weights_only=True,
+            verbose=True,
+            save_dir=model.save_dir / f"layer_{args.layer_idx}",
+            filename=f"{task_name}_best.pth",
+        )
+        callbacks.append(checkpoint_callback)
+        early_stopping_callback = EarlyStopping(
+            monitor=f"val_acc_{task_name}",
+            mode="max",
+            patience=5,
+            verbose=True,
+            check_on_train_epoch_end=False,
+        )
+        callbacks.append(early_stopping_callback)
 
     # 5. Train
     trainer = pl.Trainer(
@@ -495,6 +535,7 @@ def main():
         profiler=None,
         strategy=DDPStrategy(find_unused_parameters=True),
         logger=wandb_logger,
+        callbacks=callbacks,
     )
     trainer.fit(
         model,
