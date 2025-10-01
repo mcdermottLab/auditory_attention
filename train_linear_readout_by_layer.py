@@ -3,7 +3,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
 
 import pytorch_lightning as pl
 import torch
@@ -11,8 +11,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchaudio.functional as ta_F
 import yaml
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from pytorch_lightning.strategies import DDPStrategy
 
 from src.spatial_attn_lightning import BinauralAttentionModule
@@ -97,15 +97,9 @@ class MultiClassifierModule(pl.LightningModule):
         self.count_f0_bins = False  # Flag to control f0 bin counting
 
         # Tracking best validation accuracy per task and running sums
-        self.best_val_acc: Dict[str, float] = {
-            task: 0.0 for task in self.task_names
-        }
+        self.best_val_acc: Dict[str, float] = {task: 0.0 for task in self.task_names}
         self.val_loss_sum: Dict[str, float] = {task: 0.0 for task in self.task_names}
         self.val_total: Dict[str, int] = {task: 0 for task in self.task_names}
-        
-        # Early stopping tracking based on validation accuracy
-        self.val_acc_no_improve_count: Dict[str, int] = {task: 0 for task in self.task_names}
-        self.training_stopped: Dict[str, bool] = {task: False for task in self.task_names}
 
         # Where to save best-performing classifier head weights
         self.save_dir = Path(save_dir)
@@ -140,15 +134,11 @@ class MultiClassifierModule(pl.LightningModule):
         if self.count_f0_bins and self.training:
             for f0_label in f0_labels:
                 label_val = f0_label.item()
-                self.f0_bin_counts[label_val] = (
-                    self.f0_bin_counts.get(label_val, 0) + 1
-                )
+                self.f0_bin_counts[label_val] = self.f0_bin_counts.get(label_val, 0) + 1
 
         for i, task_name in enumerate(self.task_names):
             # Skip training if this task has stopped early
-            if self.training_stopped[task_name]:
-                continue
-                
+
             if len(self.task_names) > 1:
                 optimizer = self.optimizers()[i]
             else:
@@ -184,9 +174,7 @@ class MultiClassifierModule(pl.LightningModule):
 
         for task_name in self.task_names:
             # Skip validation if this task has stopped early
-            if self.training_stopped[task_name]:
-                continue
-                
+
             logits = self.classifier_heads[task_name](feats)
             if task_name == "num_f0_bins":
                 # remove f0 bins that are >=23 and <=8
@@ -234,25 +222,19 @@ class MultiClassifierModule(pl.LightningModule):
         # compute per-task average validation loss and accuracy for the epoch, save best head if improved (higher accuracy is better)
         for task_name in self.task_names:
             # Skip if this task has stopped early
-            if self.training_stopped[task_name]:
-                continue
 
             total = self.val_total.get(task_name, 0)
             if total == 0:
                 continue
             avg_loss = self.val_loss_sum[task_name] / float(total)
-            self.log(
-                f"val_loss_{task_name}", avg_loss, prog_bar=False, sync_dist=True
-            )
+            self.log(f"val_loss_{task_name}", avg_loss, prog_bar=False, sync_dist=True)
 
             # Compute validation accuracy if possible
             # We'll need to accumulate correct predictions and total for each task during validation_step
             correct = getattr(self, "val_correct", {}).get(task_name, None)
             if correct is not None:
                 val_acc = correct / float(total)
-                self.log(
-                    f"val_acc_{task_name}", val_acc, prog_bar=True, sync_dist=True
-                )
+                self.log(f"val_acc_{task_name}", val_acc, prog_bar=True, sync_dist=True)
 
     def _save_best_head_weights(self, task_name: str, val_acc: float):
         head = self.classifier_heads[task_name]
@@ -297,7 +279,9 @@ class MultiClassifierModule(pl.LightningModule):
                 continue
             file_path = load_subdir / f"{task_name}_best.pth"
             if not file_path.exists():
-                print(f"No saved weights found for task '{task_name}' at {file_path}; skipping load.")
+                print(
+                    f"No saved weights found for task '{task_name}' at {file_path}; skipping load."
+                )
                 continue
             try:
                 ckpt = torch.load(file_path, map_location=self.device)
@@ -308,7 +292,9 @@ class MultiClassifierModule(pl.LightningModule):
                     self.best_val_acc[task_name] = float(ckpt["val_acc"])
                 print(f"Loaded best weights for task '{task_name}' from {file_path}.")
             except Exception as e:
-                print(f"Failed to load weights for task '{task_name}' from {file_path}: {e}")
+                print(
+                    f"Failed to load weights for task '{task_name}' from {file_path}: {e}"
+                )
 
     def configure_optimizers(self):
         return [
@@ -459,12 +445,12 @@ def main():
     # 3. Remove classifier layer to prevent interference
     backbone.model.classification = nn.Identity()
 
-    task_dict={
-            "num_word_classes": 200,
-            "num_azim_classes": 72,
-            "num_f0_bins": 32,
-        }
-    lr_dict={
+    task_dict = {
+        "num_word_classes": 200,
+        "num_azim_classes": 72,
+        "num_f0_bins": 32,
+    }
+    lr_dict = {
         "num_word_classes": config["hparas"]["lr_word"],
         "num_azim_classes": config["hparas"]["lr_azim"],
         "num_f0_bins": config["hparas"]["lr_f0"],
@@ -505,6 +491,8 @@ def main():
         group=f"layer_{args.layer_idx}",
         log_model=False,
     )
+
+    # Model weights and early stopping callbacks
     callbacks = []
     for task_name in args.tasks:
         checkpoint_callback = ModelCheckpoint(
@@ -513,18 +501,19 @@ def main():
             save_top_k=1,
             save_weights_only=True,
             verbose=True,
-            save_dir=model.save_dir / f"layer_{args.layer_idx}",
+            dirpath=model.save_dir / f"layer_{args.layer_idx}",
             filename=f"{task_name}_best.pth",
         )
         callbacks.append(checkpoint_callback)
-        early_stopping_callback = EarlyStopping(
-            monitor=f"val_acc_{task_name}",
-            mode="max",
-            patience=5,
-            verbose=True,
-            check_on_train_epoch_end=False,
-        )
-        callbacks.append(early_stopping_callback)
+        if len(args.tasks) == 1:
+            early_stopping_callback = EarlyStopping(
+                monitor=f"val_acc_{task_name}",
+                mode="max",
+                patience=5,
+                verbose=True,
+                check_on_train_epoch_end=False,
+            )
+            callbacks.append(early_stopping_callback)
 
     # 5. Train
     trainer = pl.Trainer(

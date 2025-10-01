@@ -6,10 +6,10 @@
 #SBATCH -N 1
 #SBATCH --cpus-per-task=20
 #SBATCH --ntasks-per-node=2
-#SBATCH --time=3-00:00:00
-#SBATCH --partition=mcdermott
+#SBATCH --time=1-00:00:00
+#SBATCH --partition=use-everything
 #SBATCH --gres=gpu:a100:2
-#SBATCH --array=1                 # ex: run layers 0..6 (adjust as needed)
+#SBATCH --array=0,2-3,5-6                 # ex: run layers 0..6 (adjust as needed)
 
 source /etc/profile.d/modules.sh
 source /om2/user/rphess/miniforge3/etc/profile.d/conda.sh
@@ -27,4 +27,3 @@ srun python train_linear_readout_by_layer.py \
   --tasks "num_f0_bins"  \
   --num_gpus 2 \
   --save_outputs \
-  --load_best_weights
