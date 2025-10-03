@@ -13,7 +13,7 @@ from tqdm.auto import tqdm
 import pickle
 import soxr
 
-from corpus.binaural_word_rec_h5 import BinauralWordRecDataset
+from corpus.binaural_attention_h5 import BinauralAttentionDataset
 
 torch.set_float32_matmul_precision('medium')
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -92,17 +92,12 @@ def get_activations(args):
     sr = config['audio']['rep_kwargs']['sr']
           
     # get dataset
-    dataset = BinauralWordRecDataset(
-                    root='/om/scratch/Fri/imgriff/dataset_binaural_attn/v10/',
-                    cue_type='mixed',
-                    task="word",
-                    mode=args.data_split,
-                    batch_size=1
-    )
-
+    dataset = BinauralAttentionDataset(**config['corpus'], batch_size=1, mode=args.data_split,)
+    
     dataloader = torch.utils.data.DataLoader(
                             dataset,
                             batch_size=1,
+                            shuffle=False,
                             num_workers=args.n_jobs)
 
     ########################
@@ -136,7 +131,7 @@ def get_activations(args):
 
     model = model.eval().cuda()
     outname = Path(f'binaural_unit_activations_for_SVM/{model_name}{rand_weight_str}/{model_name}{rand_weight_str}_model_activations_for_word_SVM_{args.data_split}.h5')
-    out_dir = Path("/om/scratch/Thu/imgriff")
+    out_dir = Path("/om/scratch/Fri/imgriff")
     outname = out_dir / outname 
 
     layer_shape_dict_name = Path(f'binaural_unit_activations_for_SVM/{model_name}/{model_name}_layer_shape_dict.pkl')
