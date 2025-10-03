@@ -93,7 +93,7 @@ def get_activations(args):
           
     # get dataset
     dataset = BinauralWordRecDataset(
-                    root='/om/scratch/Fri/imgriff/dataset_binaural_attn/v10/train_gender_balanced/',
+                    root='/om/scratch/Fri/imgriff/dataset_binaural_attn/v10/',
                     cue_type='mixed',
                     task="word",
                     mode=args.data_split,
