@@ -7,7 +7,7 @@
 #SBATCH --time=12:00:00
 #SBATCH --partition=normal
 #SBATCH --gres=gpu:a100:1 
-#SBATCH --array=12 # 0-12  # 0-12
+#SBATCH --array=0-12 # 0-12  # 0-12
 
 module load openmind8/anaconda/3-2022.10
 export HDF5_USE_FILE_LOCKING=FALSE
