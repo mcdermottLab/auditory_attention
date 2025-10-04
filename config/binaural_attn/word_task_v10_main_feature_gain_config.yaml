@@ -2,7 +2,7 @@ corpus:
   name: 'spatialized_commonvoice_audioset_scenes'
   cue_type: "mixed"
   task: "word"
-  root: '/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v10'
+  root: '/om/scratch/Fri/imgriff/dataset_binaural_attn/v10'
   mixture_percentages:
     voice_only: 0.5
     voice_and_location: 0.5

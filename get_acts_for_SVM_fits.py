@@ -55,6 +55,7 @@ def get_activations(args):
             
     print(config_path)
     config = yaml.load(open(config_path, 'r'), Loader=yaml.FullLoader)
+    config['corpus']['cue_free_percentage'] = 0.0
     model_name = config_path.stem
 
     # Set audio transforms  
@@ -150,7 +151,7 @@ def get_activations(args):
         if args.resume_progress:
             print(f"{outname} exists. Resuming progress...")
             # Count existing examples per word
-            with h5py.File(outname, 'r') as f:
+            with h5py.File(outname, 'a') as f:
                 if 'target_word_int' in f:
                     existing_labels = f['target_word_int'][:]
                     for label in existing_labels:
@@ -184,6 +185,7 @@ def get_activations(args):
                 
                 # Get signals 
                 cue, target, background, label = batch
+                target = target.squeeze(0)
                 word_ix = int(label.item())
                 
                 # Skip if this word already has enough examples
@@ -194,13 +196,13 @@ def get_activations(args):
                 row = word_ix * n_activations + word_class_counts[word_ix]
                 
                 # Check if already processed
-                if args.resume_progress and f['target_word_int'][row] != 0:
+                if args.resume_progress and f['cochleagram'][row].sum() != 0:
                     word_class_counts[word_ix] += 1
                     continue
                 
                 # Process audio
                 target, _ = audio_transforms(target, None)
-                _, target = coch_gram(_, target)
+                _, target = coch_gram(_, target.cuda())
                 
                 # Save label
                 f['target_word_int'][row] = word_ix
@@ -211,13 +213,13 @@ def get_activations(args):
                 
                 # Get model activations
                 activations = {}
-                model(target, None, None)
+                model(None, target, None)
                 
                 for layer, acts in activations.items():
                     if 'relu' not in layer:
                         continue # only save relu layers to save space
                     if len(acts) == 2:
-                        acts, _ = acts
+                        _, acts = acts
                     save_activations(f, layer, f"acts_word{word_ix}", acts, row, n_rows_to_save, 
                                    time_average=args.time_average)
                 
