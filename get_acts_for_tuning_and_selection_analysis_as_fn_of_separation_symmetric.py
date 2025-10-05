@@ -128,25 +128,24 @@ def get_activations(args):
     # Set audio transforms  
     # snr = snr_dict[args.job_id]
 
-    snr = 0 
+    snr = args.snr
     audio_transforms = at.AudioCompose([
                     at.AudioToTensor(),
-                    # at.BinauralCombineWithRandomDBSNR(low_snr=snr,    
-                    #                                 high_snr=snr,       
-                    #                                 v2_demean=True), 
-                    # at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02,
-                    #                                                v2_demean=True), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+                    at.BinauralCombineWithRandomDBSNR(low_snr=snr,    
+                                                    high_snr=snr,       
+                                                    v2_demean=True), 
+                    at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02,
+                                                                   v2_demean=True), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
+            ])
+    audio_transforms_0_db = at.AudioCompose([
+                    at.AudioToTensor(),
+                    at.BinauralCombineWithRandomDBSNR(low_snr=0,    
+                                                    high_snr=0,       
+                                                    v2_demean=True), 
+                    at.BinauralRMSNormalizeForegroundAndBackground(rms_level=0.02,
+                                                                   v2_demean=True), # 20 * np.log10(0.02/20e-6) = 60 dB SPL 
             ])
     
-    BASE_SPL = 60
-    # manually set distractors to level, then spatialize, then add 
-    dist_level = BASE_SPL - 10*np.log10(2) # 2 is the number of distractors
-    dist_rms = db_to_rms(dist_level)
-    set_dist_level = at.BinauralRMSNormalizeForegroundAndBackground(dist_rms).cuda()
-
-    # cue and target level 
-    target_rms = db_to_rms(BASE_SPL)
-    set_target_level = at.BinauralRMSNormalizeForegroundAndBackground(target_rms).cuda()
 
 
     # init brir search
@@ -341,44 +340,18 @@ def get_activations(args):
                     row = ix + (loc_x * n_activations)
                     # get signals 
                     cue, target, distractor_1, distractor_2, label, dist_word_label, dist_word_label2, stim_ixs = batch
-
-                    # try as in sim array experiment 
-                    # set level then spatialize 
-
-                    cue, _ = audio_transforms(cue, None)
-                    target, _ = audio_transforms(target, None)
-                    distractor_1, _ = audio_transforms(distractor_1, None)
-                    distractor_2, _ = audio_transforms(distractor_2, None)
-
-                    # set levels 
-                    cue, _ = set_target_level(cue.cuda(), None) 
-                    target, _ = set_target_level(target.cuda(), None)
-                    distractor_1, _ = set_dist_level(distractor_1.cuda(), None)
-                    distractor_2, _ = set_dist_level(distractor_2.cuda(), None)
-
-                    # spatialize
-                    cue = target_brir(cue)
-                    target = target_brir(target)
-                    distractor_l = distractor_left_brir(distractor_1)
-                    distractor_r = distractor_right_brir(distractor_2)
-
-                    symmetric_distractor = distractor_l + distractor_r
-                    mixture = target + symmetric_distractor
-
-
-                    # TODO - clean up level set after determining analysis 
                     # # spatialize 
-                    # cue = target_brir(cue.cuda())
-                    # target = target_brir(target.cuda())
-                    # distractor_l = distractor_left_brir(distractor_1.cuda())
-                    # distractor_r = distractor_right_brir(distractor_2.cuda())
-                    # # norm and mix transforms 
-                    # cue, _ = audio_transforms(cue, None)
-                    # target, _ = audio_transforms(target, None)
-                    # symmetric_distractor, _ = audio_transforms(distractor_l, distractor_r)
+                    cue = target_brir(cue.cuda())
+                    target = target_brir(target.cuda())
+                    distractor_l = distractor_left_brir(distractor_1.cuda())
+                    distractor_r = distractor_right_brir(distractor_2.cuda())
+                    # norm and mix transforms 
+                    cue, _ = audio_transforms_0_db(cue, None)
+                    target, _ = audio_transforms_0_db(target, None)
+                    symmetric_distractor, _ = audio_transforms_0_db(distractor_l, distractor_r)
 
                     # # get mixture signals 
-                    # mixture, _ = audio_transforms(target, symmetric_distractor)
+                    mixture, _ = audio_transforms(target, symmetric_distractor)
     
                     # convert to cochleagrams
                     cue, target = coch_gram(cue, target)
@@ -513,6 +486,12 @@ def cli_main():
         default=0,
         type=int,
         help="SLURM job array id used to index into config list to select which one to use. (Default: 0)",
+        )
+    parser.add_argument(
+        "--snr",
+        default=0,
+        type=int,
+        help="SNR to mix traget and distractor at. (Default: 0)",
         )
     parser.add_argument(
         "--config_list",

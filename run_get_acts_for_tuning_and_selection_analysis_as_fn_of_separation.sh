@@ -37,8 +37,9 @@ python3 get_acts_for_tuning_and_selection_analysis_as_fn_of_separation.py --conf
                 --cue_single_source \
                 --output_dir binaural_unit_activation_analysis \
                 --resume_progress \
+                --snr 3 \
                 --overwrite \
-                --random_weights
+                # --random_weights
                 # --diotic \
 
 

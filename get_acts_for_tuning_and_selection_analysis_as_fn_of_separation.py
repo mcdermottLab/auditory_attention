@@ -114,7 +114,7 @@ def get_activations(args):
     # Set audio transforms  
     # snr = snr_dict[args.job_id]
 
-    snr = 0 
+    snr = args.snr
     audio_transforms = at.AudioCompose([
                     at.AudioToTensor(),
                     at.BinauralCombineWithRandomDBSNR(low_snr=snr,    
@@ -543,6 +543,10 @@ def cli_main():
                         type=str,
                         help="Path to room manifest")
     parser.add_argument("--room_ix",
+                        default=0,
+                        type=int,
+                        help="Room index to use") 
+    parser.add_argument("--snr",
                         default=0,
                         type=int,
                         help="Room index to use") 

@@ -36,9 +36,10 @@ python3 get_acts_for_tuning_and_selection_analysis_as_fn_of_separation_symmetric
                 --n_jobs 8 \
                 --job_id $SLURM_ARRAY_TASK_ID \
                 --cue_single_source \
-                --output_dir binaural_unit_activation_analysis_symmetric_distractor_v2 \
+                --output_dir binaural_unit_activation_analysis_symmetric_distractor \
                 --resume_progress \
                 --overwrite \
+                --snr 3
                 # --random_weights
                 # --diotic \
 

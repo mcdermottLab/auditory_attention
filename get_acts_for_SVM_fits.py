@@ -164,7 +164,7 @@ def get_activations(args):
 
     n_rows_to_save = n_words * n_activations
     
-    with h5py.File(outname, 'a' if args.resume_progress else 'w') as f:
+    with h5py.File(outname, 'a') as f:
         # Initialize target_word_int dataset if it doesn't exist
         if 'target_word_int' not in f:
             f.create_dataset('target_word_int', shape=[n_rows_to_save], dtype=np.int32)
