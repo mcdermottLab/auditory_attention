@@ -109,7 +109,7 @@ def cross_validate_svm(X_train, y_train, cv=5, param_grid=None, max_iter=1000, d
             'estimator__C': [0.1, 1, 10],
         }
     
-    # dual=True when n_samples < n_features 
+    # dual=False when n_samples < n_features 
     ovr = OneVsRestClassifier(svm.LinearSVC(max_iter=max_iter, dual=dual,
                                             random_state=random_state))
 
@@ -127,7 +127,7 @@ def cross_validate_svm(X_train, y_train, cv=5, param_grid=None, max_iter=1000, d
 
 
 # ========== 4. SINGLE RUN FUNCTION ==========
-def run_one_vs_rest_svm(X, y, param_grid=None, max_iter=1000, dual=True, 
+def run_one_vs_rest_svm(X, y, param_grid=None, max_iter=1000, dual=False, 
                         random_state=0):
     # Step 1: Train-test split
     X_train, X_test, y_train, y_test = split_data(X, y)
@@ -165,7 +165,7 @@ def run_one_vs_rest_svm(X, y, param_grid=None, max_iter=1000, dual=True,
 
 
 # ========== 5. K-FOLD FUNCTION ==========
-def run_kfold_svm(X, y, k=10, param_grid=None, max_iter=1000, dual=True, 
+def run_kfold_svm(X, y, k=10, param_grid=None, max_iter=1000, dual=False, 
                   random_state=42, cv_inner=5):
     """
     Run K-fold cross-validation on SVM.
@@ -516,7 +516,7 @@ def main():
     n_samples, n_features = X.shape
     if args.verbose:
         if args.dual and n_samples > n_features:
-            print(f"\nWarning: Using dual=True but n_samples ({n_samples}) > n_features ({n_features})")
+            print(f"\nWarning: Using dual=False but n_samples ({n_samples}) > n_features ({n_features})")
             print("Consider using --no_dual for better performance")
         elif not args.dual and n_samples < n_features:
             print(f"\nWarning: Using dual=False but n_samples ({n_samples}) < n_features ({n_features})")

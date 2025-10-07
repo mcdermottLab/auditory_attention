@@ -31,4 +31,5 @@ python src/run_svm_on_acts.py \
     --dual \
     --random_state 42 \
     --output_dir ./svm_results \
-    --verbose
+    --verbose \
+    --no_dual
