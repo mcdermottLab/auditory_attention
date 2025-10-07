@@ -236,25 +236,6 @@ class MultiClassifierModule(pl.LightningModule):
                 val_acc = correct / float(total)
                 self.log(f"val_acc_{task_name}", val_acc, prog_bar=True, sync_dist=True)
 
-    # def _save_best_head_weights(self, task_name: str, val_acc: float):
-    #     head = self.classifier_heads[task_name]
-    #     # file path: save under save_dir/layer_{ix}/{task_name}_best.pth
-    #     try:
-    #         layer_ix = int(self.layer_idx)
-    #     except Exception:
-    #         # fallback to target_stage text if layer_idx is unavailable
-    #         layer_ix = str(self.layer_idx).replace("/", "_")
-    #     save_subdir = self.save_dir / f"layer_{layer_ix}"
-    #     save_subdir.mkdir(parents=True, exist_ok=True)
-    #     file_name = f"{task_name}_best.pth"
-    #     save_path = save_subdir / file_name
-    #     save_data = {
-    #         "state_dict": head.state_dict(),
-    #         "val_acc": self.best_val_acc[task_name],
-    #         "epoch": self.current_epoch,
-    #     }
-    #     torch.save(save_data, save_path)
-
     def load_best_weights_for_tasks(self, tasks_to_load: Optional[List[str]] = None):
         """Load best-performing classifier head weights from disk for specified tasks.
 
@@ -454,9 +435,9 @@ def main():
     args = parser.parse_args()
 
     config_path = Path(args.config_path)
-    ckpt_path = Path(
-        "attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt"
-    )
+    # ckpt_path = Path(
+    #     "attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt"
+    # )
 
     config = yaml.load(open(config_path, "r"), Loader=yaml.FullLoader)
 

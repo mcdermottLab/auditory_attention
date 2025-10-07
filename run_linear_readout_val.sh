@@ -9,7 +9,7 @@
 #SBATCH --time=1-00:00:00
 #SBATCH --partition=mcdermott
 #SBATCH --gres=gpu:a100:1
-#SBATCH --array=0-4               # ex: run layers 0..6 (adjust as needed)
+#SBATCH --array=5-6               # ex: run layers 0..6 (adjust as needed)
 
 source /etc/profile.d/modules.sh
 source /om2/user/rphess/miniforge3/etc/profile.d/conda.sh
