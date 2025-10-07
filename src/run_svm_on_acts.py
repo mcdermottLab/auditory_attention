@@ -70,7 +70,8 @@ def apply_pca(X, n_components=512, target_variance=0.8, random_state=42):
         print(f"  Variance at {n_components} components: {cumsum_var[n_components-1]:.4f}")
         
         # Use the maximum of n_components and components_for_target
-        effective_n_components = max(n_components, components_for_target)
+        # Clip max effective components to 4096 for memory considerations
+        effective_n_components = min(max(n_components, components_for_target), 4096)
         
         if effective_n_components > n_components:
             print(f"  ⚠ Need {effective_n_components} components to reach {target_variance*100}% variance")
@@ -97,7 +98,7 @@ def split_data(X, y, test_size=0.2, random_state=42):
 
 
 # ========== 3. HYPERPARAMETER TUNING ==========
-def cross_validate_svm(X_train, y_train, cv=5, param_grid=None, max_iter=1000, dual=True, 
+def cross_validate_svm(X_train, y_train, cv=5, param_grid=None, max_iter=1000, dual=False, 
                        random_state=0):
     """
     Perform cross-validation for SVM hyperparameters (C and kernel).

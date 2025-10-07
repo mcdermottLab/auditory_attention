@@ -4,7 +4,7 @@
 #SBATCH --error=outLogs/svm_layer_%A_%a.err
 #SBATCH --array=0-8 #2-8  # Adjust based on number of layers
 #SBATCH --time=1-00:00:00
-#SBATCH --partition=mcdermott
+#SBATCH --partition=use-everything
 #SBATCH --mem=500G
 #SBATCH --cpus-per-task=20
 
