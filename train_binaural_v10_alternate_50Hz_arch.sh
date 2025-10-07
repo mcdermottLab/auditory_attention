@@ -18,6 +18,7 @@ export HDF5_USE_FILE_LOCKING=FALSE
 
 source activate /om2/user/imgriff/conda_envs/pytorch_2
 
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
 # rm -r /tmp/torchinductor_imgriff
 

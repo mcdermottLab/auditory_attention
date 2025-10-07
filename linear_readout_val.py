@@ -106,6 +106,9 @@ class MultiClassifierModule(pl.LightningModule):
         self.save_dir.mkdir(parents=True, exist_ok=True)
         self.save_outputs = save_outputs
 
+        self.val_labels = None
+        self.val_preds = None
+
     def forward(self, return_f0_labels: bool = True, **inputs):
         f0_labels = None
         if "num_f0_bins" in self.task_names and return_f0_labels:
@@ -165,6 +168,7 @@ class MultiClassifierModule(pl.LightningModule):
                 targets[task_name] = None
             else:
                 raise ValueError(f"Unknown task_name: {task_name}")
+
         # Do not update f0_bin_counts in validation
         feats, f0_labels = self(mixture=scene_features, return_f0_labels=True)
         if "num_f0_bins" in self.task_names:
@@ -173,13 +177,19 @@ class MultiClassifierModule(pl.LightningModule):
             f0_bin_ixs = (f0_labels >= 23) & (f0_labels <= 8)
 
         for task_name in self.task_names:
-            # Skip validation if this task has stopped early
-
             logits = self.classifier_heads[task_name](feats)
             if task_name == "num_f0_bins":
                 # remove f0 bins that are >=23 and <=8
                 logits = logits[~f0_bin_ixs]
                 targets[task_name] = targets[task_name][~f0_bin_ixs]
+            if self.val_labels is None:
+                self.val_labels = targets[task_name]
+            else:
+                self.val_labels = torch.cat([self.val_labels, targets[task_name]])
+            if self.val_preds is None:
+                self.val_preds = torch.argmax(logits, dim=1)
+            else:
+                self.val_preds = torch.cat([self.val_preds, torch.argmax(logits, dim=1)])
 
             loss = F.cross_entropy(logits, targets[task_name])
 
@@ -219,128 +229,27 @@ class MultiClassifierModule(pl.LightningModule):
         print(f"Saved f0 bin counts to {save_path}")
 
     def on_validation_epoch_end(self):
-        # compute per-task average validation loss and accuracy for the epoch, save best head if improved (higher accuracy is better)
         for task_name in self.task_names:
-            # Skip if this task has stopped early
-
             total = self.val_total.get(task_name, 0)
             if total == 0:
                 continue
             avg_loss = self.val_loss_sum[task_name] / float(total)
             self.log(f"val_loss_{task_name}", avg_loss, prog_bar=False, sync_dist=True)
 
-            # Compute validation accuracy if possible
-            # We'll need to accumulate correct predictions and total for each task during validation_step
             correct = getattr(self, "val_correct", {}).get(task_name, None)
             if correct is not None:
                 val_acc = correct / float(total)
                 self.log(f"val_acc_{task_name}", val_acc, prog_bar=True, sync_dist=True)
-
-    # def _save_best_head_weights(self, task_name: str, val_acc: float):
-    #     head = self.classifier_heads[task_name]
-    #     # file path: save under save_dir/layer_{ix}/{task_name}_best.pth
-    #     try:
-    #         layer_ix = int(self.layer_idx)
-    #     except Exception:
-    #         # fallback to target_stage text if layer_idx is unavailable
-    #         layer_ix = str(self.layer_idx).replace("/", "_")
-    #     save_subdir = self.save_dir / f"layer_{layer_ix}"
-    #     save_subdir.mkdir(parents=True, exist_ok=True)
-    #     file_name = f"{task_name}_best.pth"
-    #     save_path = save_subdir / file_name
-    #     save_data = {
-    #         "state_dict": head.state_dict(),
-    #         "val_acc": self.best_val_acc[task_name],
-    #         "epoch": self.current_epoch,
-    #     }
-    #     torch.save(save_data, save_path)
-
-    def load_best_weights_for_tasks(self, tasks_to_load: Optional[List[str]] = None):
-        """Load best-performing classifier head weights from disk for specified tasks.
-
-        Checkpoints are expected at:
-        {save_dir}/layer_{layer_idx}/{task_name}_best.pth
-
-        If a checkpoint is missing for a task, that task is skipped.
-        """
-        if tasks_to_load is None:
-            tasks_to_load = self.task_names
-
-        # Determine subdirectory for this layer
-        try:
-            layer_ix = int(self.layer_idx)
-        except Exception:
-            layer_ix = str(self.layer_idx).replace("/", "_")
-
-        load_subdir = self.save_dir / f"layer_{layer_ix}"
-
-        for task_name in tasks_to_load:
-            if task_name not in self.classifier_heads:
-                continue
-            # Collect both .pth and .ckpt and pick the most recent by ctime
-            candidates = list(load_subdir.glob(f"{task_name}*.pth")) + list(
-                load_subdir.glob(f"{task_name}*.ckpt")
-            )
-            if not candidates:
-                print(
-                    f"No saved weights found for task '{task_name}' at {load_subdir}; skipping load."
-                )
-                continue
-            file_path = max(candidates, key=os.path.getctime)
-            try:
-                ckpt = torch.load(file_path, map_location=self.device)
-                state_dict = ckpt.get("state_dict", ckpt)
-
-                # If the chosen file is a head-only save, expect top-level 'weight'/'bias'
-                if "weight" in state_dict and "bias" in state_dict and isinstance(
-                    state_dict["weight"], torch.Tensor
-                ):
-                    self.classifier_heads[task_name].load_state_dict(state_dict, strict=True)
-                else:
-                    # Otherwise, extract from a full lightning checkpoint
-                    found_weight = None
-                    found_bias = None
-                    for k, v in state_dict.items():
-                        if isinstance(k, str) and k.endswith(
-                            f"classifier_heads.{task_name}.weight"
-                        ):
-                            found_weight = v
-                        elif isinstance(k, str) and k.endswith(
-                            f"classifier_heads.{task_name}.bias"
-                        ):
-                            found_bias = v
-
-                    # Fallback: search contains instead of endswith
-                    if found_weight is None or found_bias is None:
-                        for k, v in state_dict.items():
-                            if isinstance(k, str) and f"classifier_heads.{task_name}.weight" in k:
-                                found_weight = v
-                            elif isinstance(k, str) and f"classifier_heads.{task_name}.bias" in k:
-                                found_bias = v
-
-                    # Final fallback: raw top-level keys
-                    if found_weight is None and "weight" in state_dict:
-                        found_weight = state_dict.get("weight")
-                    if found_bias is None and "bias" in state_dict:
-                        found_bias = state_dict.get("bias")
-
-                    if found_weight is None or found_bias is None:
-                        raise RuntimeError(
-                            "Could not locate classifier head weights in checkpoint."
-                        )
-
-                    self.classifier_heads[task_name].load_state_dict(
-                        {"weight": found_weight, "bias": found_bias}, strict=True
-                    )
-
-                if isinstance(ckpt, dict) and "val_acc" in ckpt:
-                    self.best_val_acc[task_name] = float(ckpt["val_acc"])
-                    self.log(f"val_acc_{task_name}", self.best_val_acc[task_name], prog_bar=True, sync_dist=True)
-                print(f"Loaded best weights for task '{task_name}' from {file_path}.")
-            except Exception as e:
-                print(
-                    f"Failed to load weights for task '{task_name}' from {file_path}: {e}"
-                )
+            out_dict = {
+                "val_loss": avg_loss,
+                "val_acc": val_acc,
+                "val_labels": self.val_labels.cpu().tolist(),
+                "val_preds": self.val_preds.cpu().tolist(),
+            }
+            with open(self.save_dir / f"layer_{self.layer_idx}_{task_name}_val_results.json", "w") as f:
+                json.dump(out_dict, f, indent=2)
+        self.val_labels = None
+        self.val_preds = None
 
     def configure_optimizers(self):
         return [
@@ -427,7 +336,7 @@ class ModelWithFrontEnd(nn.Module):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Train linear readout classifiers on backbone features"
+        description="Get linear readout validation metrics for a given layer"
     )
     parser.add_argument(
         "--layer_idx",
@@ -436,27 +345,20 @@ def main():
         help="Index of the backbone layer to extract features from",
     )
     parser.add_argument(
-        "--tasks",
-        nargs="+",
-        default=["num_word_classes", "num_azim_classes", "num_f0_bins"],
-        help="Tasks to train",
+        "--task",
+        type=str,
+        default="num_word_classes",
+        # options=["num_word_classes", "num_azim_classes", "num_f0_bins"],
+        help="Task to evaluate",
     )
     parser.add_argument(
-        "--load_best_weights",
-        action="store_true",
-        help="Load best saved head weights for the specified tasks to resume training",
-    )
-    parser.add_argument(
-        "--save_outputs", action="store_true", help="Save outputs of the model"
+        "--save_outputs", action="store_true", help="Save outputs of the evaluation"
     )
     parser.add_argument("--config_path", type=str, help="Path to the config file")
     parser.add_argument("--num_gpus", type=int, default=1, help="Number of GPUs to use")
     args = parser.parse_args()
 
     config_path = Path(args.config_path)
-    ckpt_path = Path(
-        "attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt"
-    )
 
     config = yaml.load(open(config_path, "r"), Loader=yaml.FullLoader)
 
@@ -466,14 +368,8 @@ def main():
     config["corpus"]["clean_percentage"] = 1.0
 
     config["model"]["num_classes"]["num_locs"] = 72
-    # Step 1: Create model architecture
+
     module = BinauralAttentionModule(config=config).cuda()
-
-    # # Step 2: Load the checkpoint manually
-    # checkpoint = torch.load(ckpt_path, map_location="cuda")
-
-    # # Step 3: Load the weights only (ignore compilation and trainer states)
-    # module.load_state_dict(checkpoint["state_dict"], strict=False)
 
     cochgram = module.coch_gram
     cnn = module.model
@@ -503,8 +399,8 @@ def main():
     }
 
     # only keep tasks in task_dict if they are in args.tasks
-    task_dict = {k: v for k, v in task_dict.items() if k in args.tasks}
-    lr_dict = {k: v for k, v in lr_dict.items() if k in args.tasks}
+    task_dict = {k: v for k, v in task_dict.items() if k in args.task}
+    lr_dict = {k: v for k, v in lr_dict.items() if k in args.task}
 
     # 4. Create full Lightning model
     model = MultiClassifierModule(
@@ -517,77 +413,44 @@ def main():
         save_outputs=args.save_outputs,
     )
 
-    # Optionally load saved best weights for selected tasks to resume training
-    if args.load_best_weights:
-        #! CHANGE HERE
-        # model.load_best_weights_for_tasks(tasks_to_load=list(task_dict.keys()))
-        load_subdir = model.save_dir / f"layer_{args.layer_idx}"
-        candidates = list(load_subdir.glob(f"{args.tasks[0]}*.pth")) + list(load_subdir.glob(f"{args.tasks[0]}*.ckpt"))
-        if not candidates:
-            print(f"No saved weights found for layer {args.layer_idx} at {load_subdir}; skipping load.")
-        else:
-            file_path = max(candidates, key=os.path.getctime)
-            print(f"Loading best weights from {file_path}")
-            ckpt = torch.load(file_path, map_location=model.device)
-            model.load_state_dict(ckpt["state_dict"], strict=True)
+    load_subdir = model.save_dir / f"layer_{args.layer_idx}"
+    candidates = list(load_subdir.glob(f"{args.task}*.pth")) + list(load_subdir.glob(f"{args.task}*.ckpt"))
+    if not candidates:
+        print(f"No saved weights found for layer {args.layer_idx} at {load_subdir}; skipping load.")
+    else:
+        file_path = max(candidates, key=os.path.getctime)
+        print(f"Loading best weights from {file_path}")
+        ckpt = torch.load(file_path, map_location=model.device)
+        model.load_state_dict(ckpt["state_dict"], strict=True)
 
     # WandB logger setup
-    if len(args.tasks) == 1:
-        if args.tasks[0] == "num_word_classes":
+    if args.task == "num_word_classes":
             run_name = f"layer_{args.layer_idx}_word_lr_{config['hparas']['lr_word']}"
-        elif args.tasks[0] == "num_azim_classes":
-            run_name = f"layer_{args.layer_idx}_azim_lr_{config['hparas']['lr_azim']}"
-        elif args.tasks[0] == "num_f0_bins":
-            run_name = f"layer_{args.layer_idx}_f0_lr_{config['hparas']['lr_f0']}"
-    else:
-        run_name = f"layer_{args.layer_idx}_multitask_lr_word_{config['hparas']['lr_word']}_lr_azim_{config['hparas']['lr_azim']}_lr_f0_{config['hparas']['lr_f0']}"
+    elif args.task == "num_azim_classes":
+        run_name = f"layer_{args.layer_idx}_azim_lr_{config['hparas']['lr_azim']}"
+    elif args.task == "num_f0_bins":
+        run_name = f"layer_{args.layer_idx}_f0_lr_{config['hparas']['lr_f0']}"
     wandb_logger = WandbLogger(
-        project="auditory_attn_linear_readout",
+        project="auditory_attn_lin_eval",
         name=run_name,
         group=f"layer_{args.layer_idx}",
         log_model=False,
     )
 
-    # Model weights and early stopping callbacks
-    callbacks = []
-    for task_name in args.tasks:
-        monitor = f"val_acc_{task_name}"
-        checkpoint_callback = ModelCheckpoint(
-            monitor=monitor,
-            mode="max",
-            save_top_k=1,
-            save_weights_only=True,
-            verbose=True,
-            dirpath=model.save_dir / f"layer_{args.layer_idx}",
-            filename=f"{task_name}_best",
-        )
-        callbacks.append(checkpoint_callback)
-        if len(args.tasks) == 1:
-            early_stopping_callback = EarlyStopping(
-                monitor=f"val_acc_{task_name}",
-                mode="max",
-                patience=5,
-                verbose=True,
-                check_on_train_epoch_end=False,
-                min_delta=0.001,
-            )
-            callbacks.append(early_stopping_callback)
-
-    # 5. Train
+    # 5. Evaluate
     trainer = pl.Trainer(
         # detect_anomaly=True,
         accelerator="gpu",
         devices=args.num_gpus,
         val_check_interval=config["hparas"]["valid_step"],
         profiler=None,
-        strategy=DDPStrategy(), # find_unused_parameters=True),
+        # strategy=DDPStrategy(), # find_unused_parameters=True),
         logger=wandb_logger,
-        callbacks=callbacks,
+        num_sanity_val_steps=0,
     )
-    trainer.fit(
+    trainer.validate(
         model,
-        train_dataloaders=module.train_dataloader(),
-        val_dataloaders=module.val_dataloader(),
+        dataloaders=module.val_dataloader(),
     )
 
 

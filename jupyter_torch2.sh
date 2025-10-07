@@ -1,21 +1,17 @@
-#!/bin/bash
+#!/bin/bash 
 #SBATCH --job-name=jupyter_notebook
-#SBATCH --output=outLogs/notebook_%j.out
-#SBATCH --error=outLogs/notebook_%j.err
-#SBATCH --mem=50Gb 
+#SBATCH --output=outLogs/notebook%j.out
+#SBATCH --error=outLogs/notebook%j.err
+#SBATCH --mem=20Gb
+#SBATCH --cpus-per-task=10
 #SBATCH --time=3:00:00
-#SBATCH --partition=ou_bcs_high
-#SBATCH --cpus-per-task=20
+#SBATCH --partition=normal
 
-module add miniforge
+source /etc/profile.d/modules.sh
+source /om2/user/rphess/miniforge3/etc/profile.d/conda.sh
 
 export HDF5_USE_FILE_LOCKING=FALSE
 
-mamba activate pytorch_2
-#module add openmind/cudnn/11.5-v8.3.3.40
-#module add openmind/cuda/12.3
+conda activate /om2/user/imgriff/conda_envs/pytorch_2
 
-which python3
-
-
-export LC_ALL=C; unset XDG_RUNTIME_DIR && jupyter notebook --no-browser --ip='0.0.0.0' --port=1337
+export LC_ALL=C; unset XDG_RUNTIME_DIR && jupyter notebook --no-browser --ip='0.0.0.0' --port=1492
