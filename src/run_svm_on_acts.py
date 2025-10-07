@@ -13,16 +13,22 @@ from sklearn.metrics import classification_report, accuracy_score
 from sklearn.decomposition import PCA
 
 # ========== 1. PCA DIMENSIONALITY REDUCTION ==========
-def apply_pca(X, n_components=512, random_state=42):
+def apply_pca(X, n_components=512, target_variance=0.8, random_state=42):
     """
-    Apply PCA dimensionality reduction to features.
+    Apply PCA dimensionality reduction to features with adaptive component selection.
+    
+    The function uses a two-step approach:
+    1. Fit PCA with min(n_components, n_features, n_samples) components
+    2. If more than n_components would be used, find minimum components for target_variance
     
     Parameters:
     -----------
     X : numpy array
         Feature matrix
     n_components : int
-        Number of components to reduce to
+        Minimum number of components (default: 512)
+    target_variance : float
+        Target explained variance ratio when n_components would be exceeded (default: 0.8)
     random_state : int
         Random state for reproducibility
     
@@ -32,19 +38,52 @@ def apply_pca(X, n_components=512, random_state=42):
         PCA-transformed features
     pca : PCA object
         Fitted PCA transformer
+    explained_variance : float
+        Actual explained variance ratio
     """
     n_samples, n_features = X.shape
-    effective_n_components = min(n_components, n_features, n_samples)
+    max_components = min(n_features, n_samples)
     
     print(f"\nApplying PCA:")
     print(f"  Original dimensions: {n_features}")
-    print(f"  Target dimensions: {n_components}")
-    print(f"  Effective dimensions: {effective_n_components}")
+    print(f"  Minimum components requested: {n_components}")
+    print(f"  Target variance (if > {n_components} components): {target_variance}")
     
+    # Determine effective number of components
+    if max_components <= n_components:
+        # Use all available components
+        effective_n_components = max_components
+        print(f"  Using all available components: {effective_n_components}")
+    else:
+        # First, fit PCA with max_components to analyze variance
+        print(f"  Fitting initial PCA to analyze variance...")
+        pca_temp = PCA(n_components=max_components, random_state=random_state)
+        pca_temp.fit(X)
+        
+        # Calculate cumulative explained variance
+        cumsum_var = np.cumsum(pca_temp.explained_variance_ratio_)
+        
+        # Find number of components needed for target variance
+        components_for_target = np.argmax(cumsum_var >= target_variance) + 1
+        
+        print(f"  Components for {target_variance*100}% variance: {components_for_target}")
+        print(f"  Variance at {n_components} components: {cumsum_var[n_components-1]:.4f}")
+        
+        # Use the maximum of n_components and components_for_target
+        effective_n_components = max(n_components, components_for_target)
+        
+        if effective_n_components > n_components:
+            print(f"  ⚠ Need {effective_n_components} components to reach {target_variance*100}% variance")
+            print(f"  Using {effective_n_components} components (exceeds minimum of {n_components})")
+        else:
+            print(f"  Using minimum {n_components} components")
+    
+    # Fit final PCA with determined number of components
     pca = PCA(n_components=effective_n_components, random_state=random_state)
     X_reduced = pca.fit_transform(X)
     
     explained_variance = np.sum(pca.explained_variance_ratio_)
+    print(f"  Final components: {effective_n_components}")
     print(f"  Explained variance: {explained_variance:.4f}")
     print(f"  Reduced shape: {X_reduced.shape}")
     print(f"  Memory footprint: {X_reduced.nbytes / (1024**2):.2f} MB")
@@ -354,7 +393,7 @@ def parse_param_grid(c_values_str):
 # ========== 9. MAIN FUNCTION ==========
 def main():
     parser = argparse.ArgumentParser(
-        description='Run OneVsRest SVM on H5 layer activations with K-fold CV and PCA',
+        description='Run OneVsRest SVM on H5 layer activations with K-fold CV and Adaptive PCA',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     
@@ -388,7 +427,9 @@ def main():
     
     # PCA arguments
     parser.add_argument('--n_components', type=int, default=512,
-                        help='Number of PCA components to reduce to')
+                        help='Minimum number of PCA components (default: 512)')
+    parser.add_argument('--target_variance', type=float, default=0.8,
+                        help='Target explained variance when more than n_components needed (default: 0.8)')
     parser.add_argument('--skip_pca', action='store_true',
                         help='Skip PCA dimensionality reduction')
     
@@ -430,7 +471,8 @@ def main():
         print(f"  C values: {param_grid['estimator__C']}")
         print(f"  Max iterations: {args.max_iter}")
         print(f"  Dual formulation: {args.dual}")
-        print(f"  PCA components: {args.n_components}")
+        print(f"  PCA components (min): {args.n_components}")
+        print(f"  PCA target variance: {args.target_variance}")
         print(f"  Skip PCA: {args.skip_pca}")
         print(f"  Random state: {args.random_state}")
     
@@ -453,10 +495,15 @@ def main():
     # Apply PCA if not skipped
     pca_info = None
     if not args.skip_pca:
-        X, pca_model, explained_variance = apply_pca(X_original, n_components=args.n_components, 
-                                                      random_state=args.random_state)
+        X, pca_model, explained_variance = apply_pca(
+            X_original, 
+            n_components=args.n_components,
+            target_variance=args.target_variance,
+            random_state=args.random_state
+        )
         pca_info = {
-            'n_components': args.n_components,
+            'n_components_requested': args.n_components,
+            'target_variance': args.target_variance,
             'effective_n_components': X.shape[1],
             'explained_variance': float(explained_variance)
         }

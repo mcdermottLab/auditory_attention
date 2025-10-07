@@ -24,7 +24,7 @@ python src/run_svm_on_acts.py \
     --layer_idx $SLURM_ARRAY_TASK_ID \
     --label_key target_word_int \
     --exclude_keys layer_names \
-    --k_folds 5 \
+    --k_folds 10 \
     --cv_inner 5 \
     --c_values "0.01,0.1,1" \
     --max_iter 1000 \
