@@ -366,7 +366,7 @@ def get_activations(args):
                             continue 
                         if len(acts) == 2:
                             _, acts = acts
-                            save_activations(f, layer, "mixture", acts, row, n_rows_to_save, time_average=args.time_average) 
+                        save_activations(f, layer, "mixture", acts, row, n_rows_to_save, time_average=args.time_average) 
     
                     if row == 0:
                         layer_shape_dict = {layer: activations[layer].shape for layer in activations.keys()}

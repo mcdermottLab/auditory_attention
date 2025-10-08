@@ -49,9 +49,16 @@ def main(args):
     h5_fn = analysis_dir / f"{model}_model_activations_3dB_time_avg.h5"
 
     h5 = h5py.File(h5_fn, 'r')
+    print(list(h5.keys()))
+    print(list(h5['layer_names']))
     layer_name = f'conv_block_{args.layer_ix}_relu_mixture'
     target_f0s = h5["target_f0"][:]
     target_locs = h5["target_loc"][:]
+    
+    ## Filter rows with nan target_f0s
+    valid_indices = ~np.isnan(target_f0s)
+    target_f0s = target_f0s[valid_indices]
+    target_locs = target_locs[valid_indices]
 
     ## set up labeling 
     unique_locations = np.unique(target_locs, axis=0).astype(int)
@@ -68,7 +75,7 @@ def main(args):
             location_ixs[f"{elev} elev"] = loc_ixs
 
 
-    optimal_bins = optimal_bin_count(target_f0s)
+    optimal_bins = 15 # optimal_bin_count(target_f0s)
     counts, bins = np.histogram(target_f0s, bins=optimal_bins)
     f0_assignments = np.digitize(target_f0s, bins, right=True)
     bins = bins.round(0)
@@ -83,7 +90,7 @@ def main(args):
     f0_list = [f"{bin} Hz" for bin in f0_bins]
 
     ## make pandas dataframe 
-    layer_acts = h5[layer_name][:]
+    layer_acts = h5[layer_name][valid_indices]
     n_units = layer_acts.shape[-1]
     n_examples = layer_acts.shape[0]
     dependent_var = layer_acts.flatten()
@@ -94,7 +101,7 @@ def main(args):
     act_df['unit_ix'] = unit_ix.astype(int)
     act_df['f0'] = np.repeat(f0_list, n_units)
     act_df['location'] = np.repeat(loc_list, n_units)
-    act_df['word_int'] = np.repeat(h5['target_word_int'][:], n_units).astype('int')
+    act_df['word_int'] = np.repeat(h5['target_word_int'][valid_indices], n_units).astype('int')
 
 
     formula = 'activation ~ C(f0) + C(location) + C(word_int)' #  + C(f0):C(location) + C(f0):C(word_int) + C(location):C(word_int)'

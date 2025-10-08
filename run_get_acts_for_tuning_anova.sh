@@ -23,6 +23,7 @@ python3 get_acts_for_tuning_anova.py --config config/binaural_attn/word_task_v10
                 --n_activations 500 \
                 --n_jobs 8 \
                 --time_average \
+                --overwrite
 
 
 
