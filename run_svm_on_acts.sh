@@ -2,10 +2,10 @@
 #SBATCH --job-name=svm_layers
 #SBATCH --output=outLogs/svm_layer_%A_%a.out
 #SBATCH --error=outLogs/svm_layer_%A_%a.err
-#SBATCH --array=0-8 #2-8  # Adjust based on number of layers
-#SBATCH --time=1-00:00:00
-#SBATCH --partition=use-everything
-#SBATCH --mem=500G
+#SBATCH --array=1 #2-8  # Adjust based on number of layers
+#SBATCH --time=2-00:00:00
+#SBATCH --partition=mcdermott
+#SBATCH --mem=900G
 #SBATCH --cpus-per-task=20
 
 
@@ -24,7 +24,7 @@ python src/run_svm_on_acts.py \
     --layer_idx $SLURM_ARRAY_TASK_ID \
     --label_key target_word_int \
     --exclude_keys layer_names \
-    --k_folds 10 \
+    --k_folds 5 \
     --cv_inner 5 \
     --c_values "0.01,0.1,1" \
     --max_iter 1000 \

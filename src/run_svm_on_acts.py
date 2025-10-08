@@ -299,7 +299,7 @@ def load_h5_layer_data(h5_path, layer_name, label_key='target_word_int'):
         if label_key not in f:
             raise ValueError(f"Label key '{label_key}' not found in H5 file. Available: {list(f.keys())}")
         
-        X = f[layer_name][:]
+        X = f[layer_name][:].astype('float16')  # Ensure float16 for memory efficiency
         y = f[label_key][:]
         
         print(f"Loaded layer '{layer_name}':")

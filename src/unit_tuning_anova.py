@@ -46,14 +46,10 @@ def main(args):
     model = args.model_name
     analysis_dir = Path(args.analysis_dir) / model
 
-    h5_fn = analysis_dir / f"{model}_model_activations_0dB_time_avg.h5"
+    h5_fn = analysis_dir / f"{model}_model_activations_3dB_time_avg.h5"
 
     h5 = h5py.File(h5_fn, 'r')
-    if 'control' in model:
-        layer_name = f'conv_block_{args.layer_ix}_relu_target'
-    else:
-        layer_name = f'conv_block_{args.layer_ix}_relu_cue'
-
+    layer_name = f'conv_block_{args.layer_ix}_relu_mixture'
     target_f0s = h5["target_f0"][:]
     target_locs = h5["target_loc"][:]
 
