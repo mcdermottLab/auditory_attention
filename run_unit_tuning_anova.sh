@@ -6,7 +6,7 @@
 #SBATCH --cpus-per-task=64
 #SBATCH --time=4:00:00
 #SBATCH --partition=mcdermott
-#SBATCH --array=0-6 # 0-6 for full
+#SBATCH --array=2-6 # 0-6 for full
 
 source /etc/profile.d/modules.sh
 module add openmind/miniconda
