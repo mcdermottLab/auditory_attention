@@ -121,7 +121,7 @@ def main(args):
         h5.close()
         return
     
-        # Save results with layer and unit range in filename
+    # Save results with layer and unit range in filename
     out_path = analysis_dir 
     out_name = out_path / f"{layer_name}_jsin_stim_anova_results_units_{start_unit:05d}_{end_unit-1:05d}.npz"
 

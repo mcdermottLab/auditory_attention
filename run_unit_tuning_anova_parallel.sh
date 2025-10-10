@@ -2,11 +2,11 @@
 #SBATCH --job-name=unit_anova
 #SBATCH --output=outLogs/unit_anova_%A_%a.out
 #SBATCH --error=outLogs/unit_anova_%A_%a.err
-#SBATCH --mem=64Gb                           
-#SBATCH --cpus-per-task=12
+#SBATCH --mem=100Gb                           
+#SBATCH --cpus-per-task=64
 #SBATCH --time=4:00:00
 #SBATCH --partition=use-everything
-#SBATCH --array=10-92 # 0-92 for full
+#SBATCH --array=0-367 # 0-92 for full
 
 source /etc/profile.d/modules.sh
 module add openmind/miniconda
@@ -18,4 +18,4 @@ python3 src/unit_tuning_anova_parallel_jsin.py --model_name "word_task_v10_main_
                 --analysis_dir "/om/scratch/Thu/imgriff/binaural_unit_activations_for_anova/" \
                 --job_array_idx $SLURM_ARRAY_TASK_ID \
                 --n_jobs $SLURM_CPUS_PER_TASK \
-                --units_per_job 256
+                --units_per_job 64
