@@ -71,7 +71,7 @@ def save_activations(f, layer, suffix, activations, row, n_rows_to_save, time_av
     if time_average and 'relufc' not in layer:
         activations = activations.mean(dim=-1, keepdim=True)
     if row == 0:
-        f.create_dataset(f'{layer}_{suffix}', shape=[n_rows_to_save, np.prod(activations.shape)], dtype=np.float32)
+        f.create_dataset(f'{layer}_{suffix}', shape=[n_rows_to_save, np.prod(activations.shape)], dtype=np.float16)
     f[f'{layer}_{suffix}'][row] = activations.cpu().view(-1).numpy()
 
 
@@ -79,7 +79,7 @@ def save_metric(f, layer, suffix, metric, row, n_rows_to_save, is_corr=False):
     """Save activations to the HDF5 file."""
     shape = [n_rows_to_save, 2] if is_corr else [n_rows_to_save]
     if row == 0:
-        f.create_dataset(f'{layer}_{suffix}', shape=shape, dtype=np.float32)
+        f.create_dataset(f'{layer}_{suffix}', shape=shape, dtype=np.float16)
     if is_corr:
         f[f'{layer}_{suffix}'][row,:] = metric
     else:
@@ -359,13 +359,13 @@ def get_activations(args):
                 
                     if row == 0:
                         if not ('control' in config_path.stem or 'late_only' in config_path.stem):
-                            f.create_dataset('attncoch_gains', shape=[n_rows_to_save, coch_gains.view(-1).shape[0]], dtype=np.float32)
-                        f.create_dataset('target_f0', shape=[n_rows_to_save], dtype=np.float32)
-                        f.create_dataset('same_dist_f0', shape=[n_rows_to_save], dtype=np.float32)
-                        f.create_dataset('diff_dist_f0', shape=[n_rows_to_save], dtype=np.float32)
-                        f.create_dataset('target_word_int', shape=[n_rows_to_save], dtype=np.float32)
-                        f.create_dataset('target_loc', shape=[n_rows_to_save, 2], dtype=np.float32)
-                        f.create_dataset('distractor_loc', shape=[n_rows_to_save, 2], dtype=np.float32)
+                            f.create_dataset('attncoch_gains', shape=[n_rows_to_save, coch_gains.view(-1).shape[0]], dtype=np.float16)
+                        f.create_dataset('target_f0', shape=[n_rows_to_save], dtype=np.float16)
+                        f.create_dataset('same_dist_f0', shape=[n_rows_to_save], dtype=np.float16)
+                        f.create_dataset('diff_dist_f0', shape=[n_rows_to_save], dtype=np.float16)
+                        f.create_dataset('target_word_int', shape=[n_rows_to_save], dtype=np.float16)
+                        f.create_dataset('target_loc', shape=[n_rows_to_save, 2], dtype=np.float16)
+                        f.create_dataset('distractor_loc', shape=[n_rows_to_save, 2], dtype=np.float16)
 
                     # check if row has been written to already
                     if f['target_f0'][row] != 0 and args.resume_progress:
@@ -411,6 +411,8 @@ def get_activations(args):
                         gain_shape_dict = {}
                         model(cue, mixture, None)  # None is cue_mask_ixs which is not used for activations
                         for layer, acts in activations.items():
+                            if 'relu' not in layer:
+                                continue 
                             if 'relufc' in layer or 'attn' in layer or 'control' in config_path.stem:
                                 save_activations(f, layer, f"mixture_{dis_str}", acts, row, n_rows_to_save, time_average=args.time_average)
                             else:
@@ -429,38 +431,11 @@ def get_activations(args):
                     
                     ## Process single source signals and get corrs 
                     for source_str, source in zip(['target', 'same_sex_dist', 'diff_sex_dist', 'nat_scene_dist'], [target, same_sex_dist, diff_sex_dist, nat_scene_dist]):
-                        # run without cue 
-                        # activations = {}
-                        # model(silence_cue, source, None)
-                        # for layer, acts in activations.items():
-                        #     if len(acts) == 2:
-                        #         _, acts = acts
-                        #     save_activations(f, layer, source_str, acts, row, n_rows_to_save, time_average=args.time_average)
-                        #     # for cpr 
-                        #     if 'relufc' in layer or not args.time_average:
-                        #         acts = acts.cpu().view(-1).numpy()
-                        #     else:
-                        #         acts = acts.mean(-1).cpu().view(-1).numpy()
-                        #     # get corrs between target and each source
-                        #     if source_str == 'target':
-                        #         for mixture_str in ["mixture_same", "mixture_diff", "mixture_nat_scene"]:
-                        #             mixture_acts = f[f"{layer}_{mixture_str}"][row]
-                        #             corr = pearsonr(acts, mixture_acts)
-                        #             save_metric(f, layer, f"{source_str}_{mixture_str}_corr", corr, row, n_rows_to_save, is_corr=True)
-                        #     elif source_str == 'same_sex_dist':
-                        #         corr = pearsonr(acts, f[f"{layer}_mixture_same"][row])
-                        #         save_metric(f, layer, f"{source_str}_mixture_same_corr", corr, row, n_rows_to_save, is_corr=True)
-                        #     elif source_str == 'diff_sex_dist':
-                        #         corr = pearsonr(acts, f[f"{layer}_mixture_diff"][row])
-                        #         save_metric(f, layer, f"{source_str}_mixture_diff_corr", corr, row, n_rows_to_save, is_corr=True)
-                        #     elif source_str == 'nat_scene_dist':
-                        #         corr = pearsonr(acts, f[f"{layer}_mixture_nat_scene"][row])
-                        #         save_metric(f, layer, f"{source_str}_mixture_nat_scene_corr", corr, row, n_rows_to_save, is_corr=True)
-                        
-                        # run with cue 
                         activations = {}
                         model(cue, source, None)
                         for layer, acts in activations.items():
+                            if 'relu' not in layer:
+                                continue 
                             if len(acts) == 2:
                                 _, acts = acts
                             save_activations(f, layer, f"cued_{source_str}", acts, row, n_rows_to_save, time_average=args.time_average)

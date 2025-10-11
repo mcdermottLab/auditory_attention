@@ -35,11 +35,10 @@ python3 get_acts_for_tuning_and_selection_analysis_as_fn_of_separation.py --conf
                 --n_jobs 8 \
                 --job_id $SLURM_ARRAY_TASK_ID \
                 --cue_single_source \
-                --output_dir binaural_unit_activation_analysis \
+                --output_dir stage_of_selection_activations \
                 --resume_progress \
-                --snr 3 \
                 --overwrite \
-                # --random_weights
+                --random_weights
                 # --diotic \
 
 
