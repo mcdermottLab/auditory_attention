@@ -170,6 +170,7 @@ model_name_order = [
                     'Baseline CNN',
                     'Early-only',
                     'Late-only',
+                    'Norm before gain model'
                 ]
 model_name_order_w_50Hz = model_name_order + ["50Hz cutoff"]
 
@@ -180,6 +181,7 @@ model_color_dict = {
     'Baseline CNN': '#808080',
     'Early-only': '#4046CA',
     'Late-only': '#F68511',
+    'Norm before gain model': 'gold',
     '50Hz cutoff': '#DE3D82',
 }
 
@@ -217,6 +219,8 @@ def draw_stats_bar(ax, x1, x2, y, h, text, th=0.025, lw=1.5, col='k', fontsize=1
     
 
 def get_star(p_val):
+    if p_val >= 0.05:
+        return None
     if p_val < 0.05:
         text = "*"
     if p_val < 0.01:
