@@ -71,7 +71,7 @@ def save_activations(f, layer, suffix, activations, row, n_rows_to_save, time_av
     if time_average and 'relufc' not in layer:
         activations = activations.mean(dim=-1, keepdim=True)
     if row == 0:
-        f.create_dataset(f'{layer}_{suffix}', shape=[n_rows_to_save, np.prod(activations.shape)], dtype=np.float16)
+        f.create_dataset(f'{layer}_{suffix}', shape=[n_rows_to_save, np.prod(activations.shape)], dtype=np.float32)
     f[f'{layer}_{suffix}'][row] = activations.cpu().view(-1).numpy()
 
 
@@ -79,7 +79,7 @@ def save_metric(f, layer, suffix, metric, row, n_rows_to_save, is_corr=False):
     """Save activations to the HDF5 file."""
     shape = [n_rows_to_save, 2] if is_corr else [n_rows_to_save]
     if row == 0:
-        f.create_dataset(f'{layer}_{suffix}', shape=shape, dtype=np.float16)
+        f.create_dataset(f'{layer}_{suffix}', shape=shape, dtype=np.float32)
     if is_corr:
         f[f'{layer}_{suffix}'][row,:] = metric
     else:
@@ -359,13 +359,13 @@ def get_activations(args):
                 
                     if row == 0:
                         if not ('control' in config_path.stem or 'late_only' in config_path.stem):
-                            f.create_dataset('attncoch_gains', shape=[n_rows_to_save, coch_gains.view(-1).shape[0]], dtype=np.float16)
-                        f.create_dataset('target_f0', shape=[n_rows_to_save], dtype=np.float16)
-                        f.create_dataset('same_dist_f0', shape=[n_rows_to_save], dtype=np.float16)
-                        f.create_dataset('diff_dist_f0', shape=[n_rows_to_save], dtype=np.float16)
-                        f.create_dataset('target_word_int', shape=[n_rows_to_save], dtype=np.float16)
-                        f.create_dataset('target_loc', shape=[n_rows_to_save, 2], dtype=np.float16)
-                        f.create_dataset('distractor_loc', shape=[n_rows_to_save, 2], dtype=np.float16)
+                            f.create_dataset('attncoch_gains', shape=[n_rows_to_save, coch_gains.view(-1).shape[0]], dtype=np.float32)
+                        f.create_dataset('target_f0', shape=[n_rows_to_save], dtype=np.float32)
+                        f.create_dataset('same_dist_f0', shape=[n_rows_to_save], dtype=np.float32)
+                        f.create_dataset('diff_dist_f0', shape=[n_rows_to_save], dtype=np.float32)
+                        f.create_dataset('target_word_int', shape=[n_rows_to_save], dtype=np.float32)
+                        f.create_dataset('target_loc', shape=[n_rows_to_save, 2], dtype=np.float32)
+                        f.create_dataset('distractor_loc', shape=[n_rows_to_save, 2], dtype=np.float32)
 
                     # check if row has been written to already
                     if f['target_f0'][row] != 0 and args.resume_progress:
@@ -384,10 +384,10 @@ def get_activations(args):
                     save_activations(f, 'cochleagram', 'target', target, row, n_rows_to_save, time_average=args.time_average)
                     save_activations(f, 'cochleagram', 'same_sex_dist', same_sex_dist, row, n_rows_to_save, time_average=args.time_average)
                     save_activations(f, 'cochleagram', 'diff_sex_dist', diff_sex_dist, row, n_rows_to_save, time_average=args.time_average)
-                    save_activations(f, 'cochleagram', 'nat_scene_dist', nat_scene_dist, row, n_rows_to_save, time_average=args.time_average)
+                    # save_activations(f, 'cochleagram', 'nat_scene_dist', nat_scene_dist, row, n_rows_to_save, time_average=args.time_average)
                     save_activations(f, 'cochleagram', 'mixture_same', mixture_same, row, n_rows_to_save, time_average=args.time_average)
                     save_activations(f, 'cochleagram', 'mixture_diff', mixture_diff, row, n_rows_to_save, time_average=args.time_average)
-                    save_activations(f, 'cochleagram', 'mixture_nat_scene', mixture_nat_scene, row, n_rows_to_save, time_average=args.time_average)
+                    # save_activations(f, 'cochleagram', 'mixture_nat_scene', mixture_nat_scene, row, n_rows_to_save, time_average=args.time_average)
 
                     ## Corr  between fg and each mixture 
                     corr_same = pearsonr(target.view(-1).cpu().numpy(), mixture_same.view(-1).cpu().numpy())
@@ -401,8 +401,8 @@ def get_activations(args):
                     save_metric(f, 'cochleagram', 'same_dist_mixture_same_corr', corr_same_mix_same, row, n_rows_to_save, is_corr=True)
                     corr_diff_mix_diff = pearsonr(diff_sex_dist.view(-1).cpu().numpy(), mixture_diff.view(-1).cpu().numpy())
                     save_metric(f, 'cochleagram', 'diff_dist_mixture_diff_corr', corr_diff_mix_diff, row, n_rows_to_save, is_corr=True)
-                    corr_nat_scene_mix_nat_scene = pearsonr(nat_scene_dist.view(-1).cpu().numpy(), mixture_nat_scene.view(-1).cpu().numpy())
-                    save_metric(f, 'cochleagram', 'nat_scene_dist_mixture_nat_scene_corr', corr_nat_scene_mix_nat_scene, row, n_rows_to_save, is_corr=True)
+                    # corr_nat_scene_mix_nat_scene = pearsonr(nat_scene_dist.view(-1).cpu().numpy(), mixture_nat_scene.view(-1).cpu().numpy())
+                    # save_metric(f, 'cochleagram', 'nat_scene_dist_mixture_nat_scene_corr', corr_nat_scene_mix_nat_scene, row, n_rows_to_save, is_corr=True)
 
 
                     # get activations per layer 
@@ -430,7 +430,8 @@ def get_activations(args):
                                         save_activations(f, gain_fn_name, 'gains', gains, row, n_rows_to_save)
                     
                     ## Process single source signals and get corrs 
-                    for source_str, source in zip(['target', 'same_sex_dist', 'diff_sex_dist', 'nat_scene_dist'], [target, same_sex_dist, diff_sex_dist, nat_scene_dist]):
+                    # for source_str, source in zip(['target', 'same_sex_dist', 'diff_sex_dist', 'nat_scene_dist'], [target, same_sex_dist, diff_sex_dist, nat_scene_dist]):
+                    for source_str, source in zip(['target', 'same_sex_dist', 'diff_sex_dist'], [target, same_sex_dist, diff_sex_dist]):
                         activations = {}
                         model(cue, source, None)
                         for layer, acts in activations.items():
