@@ -122,7 +122,8 @@ def main(args):
         return
     
     # Save results with layer and unit range in filename
-    out_path = analysis_dir 
+    out_path = Path(args.out_dir) / model
+    out_path.mkdir(parents=True, exist_ok=True)
     out_name = out_path / f"{layer_name}_jsin_stim_anova_results_units_{start_unit:05d}_{end_unit-1:05d}.npz"
 
     if out_name.exists() and not args.overwrite:
@@ -156,7 +157,7 @@ def main(args):
             location_ixs[f"{elev} elev"] = loc_ixs
 
 
-    optimal_bins = 15 # optimal_bin_count(target_f0s)
+    optimal_bins = optimal_bin_count(target_f0s)
     counts, bins = np.histogram(target_f0s, bins=optimal_bins)
     f0_assignments = np.digitize(target_f0s, bins, right=True)
     bins = bins.round(0)
@@ -213,7 +214,7 @@ def main(args):
     # Function to process each unit
     def process_unit(unit_i):
         model = ols(formula, act_df[act_df.unit_ix == unit_i]).fit()
-        anova_table = sm.stats.anova_lm(model, typ=1)
+        anova_table = sm.stats.anova_lm(model, typ=2)
         total_ss = anova_table.sum_sq.sum()
         ssq = anova_table['sum_sq'][:-1]
         prop_var = ssq / total_ss
@@ -233,8 +234,8 @@ def main(args):
     
 
     # save as npz with unit range and layer information
-    np.savez(
-        out_name, 
+
+    out_dict = dict(  
         prop_var_per_unit=prop_var_per_unit, 
         ssq_per_unit=ssq_per_unit, 
         category_labels=category_labels,
@@ -243,7 +244,10 @@ def main(args):
         start_unit=start_unit,
         end_unit=end_unit,
         total_units=n_units
-    )
+        )
+    # save as pickle
+    with open(out_name, 'wb') as f:
+        pd.to_pickle(out_dict, f)
     
     print(f"Saved results to {out_name}")
 
@@ -253,6 +257,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_name", type=str, help="model name")
     parser.add_argument("--analysis_dir", type=str, help="path to analysis directory")
+    parser.add_argument("--out_dir", type=str, help="path to analysis directory")
     parser.add_argument("--job_array_idx", type=int, default=0, 
                         help="SLURM job array index (0-based). This determines both layer and unit range.")
     parser.add_argument("--units_per_job", type=int, default=100, 
