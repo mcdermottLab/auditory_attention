@@ -202,8 +202,6 @@ def main(args):
     act_df['location'] = np.repeat(loc_list, n_units)
     act_df['word_int'] = np.repeat(h5['target_word_int'][valid_indices], n_units).astype('int')
     act_df['speaker_int'] = np.repeat(h5['target_talker_id'][valid_indices], n_units).astype('int')
-
-    formula = 'activation ~ C(f0) + C(location) + C(word_int) + C(speaker_int)' #  + C(f0):C(location) + C(f0):C(word_int) + C(location):C(word_int)'
     
     # Initialize arrays for only the units this job processes
     n_units_this_job = end_unit - start_unit
@@ -213,12 +211,17 @@ def main(args):
 
     # Function to process each unit
     def process_unit(unit_i):
-        model = ols(formula, act_df[act_df.unit_ix == unit_i]).fit()
-        anova_table = sm.stats.anova_lm(model, typ=2)
-        total_ss = anova_table.sum_sq.sum()
-        ssq = anova_table['sum_sq'][:-1]
-        prop_var = ssq / total_ss
-        return unit_i, prop_var, ssq
+        ssq_per_cat = np.zeros(4)
+        prop_var = np.zeros(4)
+        for ix, category in enumerate(["C(f0)", "C(location)", "C(word_int)",  "C(speaker_int)"]):
+            formula = f"activation ~ {category}"
+            model = ols(formula, act_df[act_df.unit_ix == unit_i]).fit()
+            anova_table = sm.stats.anova_lm(model)
+            total_ss = anova_table.sum_sq.sum()
+            ssq = anova_table['sum_sq'][:-1].item()
+            ssq_per_cat[ix] = ssq
+            prop_var[ix] = (ssq / total_ss)
+        return unit_i, prop_var, ssq_per_cat
 
     # Process only the units assigned to this job
     results = Parallel(n_jobs=args.n_jobs)(
