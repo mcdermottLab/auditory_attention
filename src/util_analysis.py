@@ -7,9 +7,138 @@ from scipy import stats
 import pandas as pd
 import seaborn as sns 
 import re
+import scipy.stats as stats
+from tqdm import tqdm
+import warnings
+from pingouin import rm_anova
 
 
 MARKER_SIZE = 8
+
+
+# function to calculate Cohen's d for independent samples
+def cohend(d1, d2):
+	# calculate the size of samples
+	n1, n2 = len(d1), len(d2)
+	# calculate the variance of the samples
+	s1, s2 = np.var(d1, ddof=1), np.var(d2, ddof=1)
+	# calculate the pooled standard deviation
+	s = np.sqrt(((n1 - 1) * s1 + (n2 - 1) * s2) / (n1 + n2 - 2))
+	# calculate the means of the samples
+	u1, u2 = np.mean(d1), np.mean(d2)
+	# calculate the effect size
+	return (u1 - u2) / s
+
+## Cohen's d for paired samples
+def cohend_paired(d1, d2):
+    # is difference of means, divided by standard deviation of differences
+    return (np.mean(d1) - np.mean(d2))/ np.std(d1 - d2, ddof=1)
+
+
+def bootstrap_partial_eta_ci(
+    df: pd.DataFrame,
+    dv_col: str,
+    subject_col: str,
+    within_factors: list[str],
+    n_bootstrap: int = 2000,
+    ci_level: float = 0.95,
+    random_state: int | None = None,
+    tqdm_desc: str = "Partial η² bootstrap",
+    suppress_future_warnings: bool = True,
+):
+    """Run pingouin rm_anova and add bootstrap CIs for partial eta squared."""
+    if suppress_future_warnings:
+        warnings.filterwarnings("ignore", category=FutureWarning)
+
+    rng = np.random.default_rng(random_state)
+
+    # Base ANOVA
+    anova_table = rm_anova(
+        data=df,
+        dv=dv_col,
+        subject=subject_col,
+        within=within_factors,
+        effsize="np2",
+    )
+
+    subjects = df[subject_col].unique()
+    bootstrap_np2 = {src: [] for src in anova_table["Source"]}
+
+    for _ in tqdm(range(n_bootstrap), desc=tqdm_desc):
+        sampled_ids = rng.choice(subjects, size=len(subjects), replace=True)
+        boot_df = df[df[subject_col].isin(sampled_ids)].copy()
+
+        try:
+            boot_table = rm_anova(
+                data=boot_df,
+                dv=dv_col,
+                subject=subject_col,
+                within=within_factors,
+                effsize="np2",
+            )
+            for src, np2 in zip(boot_table["Source"], boot_table["np2"]):
+                bootstrap_np2[src].append(np2)
+        except Exception:
+            continue  # skip occasional singular fits
+
+    alpha = 1 - ci_level
+    lower = alpha / 2 * 100
+    upper = (1 - alpha / 2) * 100
+
+    anova_table["np2_CI_lower"] = [
+        np.percentile(bootstrap_np2[src], lower) if bootstrap_np2[src] else np.nan
+        for src in anova_table["Source"]
+    ]
+    anova_table["np2_CI_upper"] = [
+        np.percentile(bootstrap_np2[src], upper) if bootstrap_np2[src] else np.nan
+        for src in anova_table["Source"]
+    ]
+
+    return anova_table, bootstrap_np2
+
+
+def bootstrap_paired_ttest_cohens_d(
+    x: np.ndarray,
+    y: np.ndarray,
+    n_bootstrap: int = 2000,
+    ci_level: float = 0.95,
+    random_state: int | None = None,
+):
+    """Return paired t-test stats, Cohen's d, and bootstrap CI for d."""
+    assert len(x) == len(y), "paired samples must have same length"
+    rng = np.random.default_rng(random_state)
+
+    # point estimates
+    t_res = stats.ttest_rel(x, y, nan_policy="raise")
+    diff = x - y
+    cohens_d = diff.mean() / diff.std(ddof=1)
+
+    # bootstrap
+    boot_ds = []
+    idx = np.arange(len(x))
+    for _ in range(n_bootstrap):
+        sample_idx = rng.choice(idx, size=len(idx), replace=True)
+        diff_boot = (x[sample_idx] - y[sample_idx])
+        sd_boot = diff_boot.std(ddof=1)
+        if sd_boot == 0:  # guard against zero variance
+            continue
+        boot_ds.append(diff_boot.mean() / sd_boot)
+
+    alpha = 1 - ci_level
+    lower = np.percentile(boot_ds, alpha / 2 * 100)
+    upper = np.percentile(boot_ds, (1 - alpha / 2) * 100)
+
+    return {
+        "t": t_res.statistic,
+        "df": t_res.df,
+        "p": t_res.pvalue,
+        "d": cohens_d,
+        "d_ci_lower": lower,
+        "d_ci_upper": upper,
+        "n_bootstrap": len(boot_ds),
+    }
+
+
 
 ################################################
 # Psychometric functions written by Mark Saddler 
