@@ -1,6 +1,7 @@
 # Auditory Attention
 
-This repository accompanies Ian Griffith, R. Preston Hess, and Josh H. McDermott, _Optimized feature gains explain and predict successes and failures of human selective listening_.  
+The repository for Ian Griffith, R. Preston Hess, and Josh H. McDermott, _Optimized feature gains explain and predict successes and failures of human selective listening_.  
+
 It contains the trained attention models, curated human-participant datasets, demo stimuli, notebooks, and evaluation scripts needed to reproduce every figure and statistic in the manuscript. The sections below walk new users through the layout, dependencies, and common workflows.
 
 ## Repository map
