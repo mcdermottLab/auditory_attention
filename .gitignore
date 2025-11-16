@@ -1,0 +1,181 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+*.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# data and log directory
+log
+runs
+save
+TODO
+checkpoint
+run.sh
+ckpt
+outLogs
+result
+outLogs
+attn_cue_models
+attentional_gain_activations
+ARO_2023_figs
+demo_plots
+librispeech_pl
+null_activation_corrs
+results
+single_word_results
+wav2vec_exp
+wav2vec_1e-5_lr_exp
+word_rec
+lightning_logs
+behavioral_experiments
+results_figs
+binaural_eval
+popham_mono_eval
+confidenceScorers
+pre_train_word_loc
+ARO_2025
+confidencceScores/
+final_results_dir
+Denmark_2024
+api_util/
+phaselocknet_torch
+
+# swap file
+*.swp
+eg_gen_architecture.py
+corpus/jsinV3AttnTrackVal_v1.py
+
+# data
+*.npy
+*.npz
+*.pkl
+*.pdpkl
+*.json
+*.csv
+*.wav
+*.pckl
+*.tar
+*.txt
+tests/sample_data/gigaspeech_words-10k.vocab
+*.out
+*.err
+prelim_binaural_figs/avg_perf_confusion_at_0_elev.pdf
+prelim_binaural_figs/diff_min_same_confusion_at_0_elev.pdf
+*.ckpt
+*.png 
+*.svg
+*.pdf
+*.h5
+*.hparams.yaml
+*.pkl
+*.png

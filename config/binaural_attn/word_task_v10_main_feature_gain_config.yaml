@@ -1,0 +1,77 @@
+corpus:
+  name: 'spatialized_commonvoice_audioset_scenes'
+  cue_type: "mixed"
+  task: "word"
+  root: '/om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v10'
+  mixture_percentages:
+    voice_only: 0.5
+    voice_and_location: 0.5
+  gender_balanced_4M: True
+  cue_free_percentage: 0.1    # prop of cue-free examples
+  v06: True                # USE v06 dataclass 
+
+audio:                                  # Attributes of audio feature
+  rep_type:  'cochlea_filt'
+  v2_demean: True
+  rep_kwargs:
+    sr: 44100
+    env_sr: 10000
+    n_channels: 40
+    low_lim: 40
+    use_pad: True
+    binaural: True
+    rep_on_gpu: True
+    center_crop: True
+    out_dur: 2  ## in seconds
+    impulse_len: 0.25
+    env_extraction_type: 'Half-wave Rectification'
+    downsampling_type: 'TorchTransformsResample'
+    downsampling_kwargs:
+      lowpass_filter_width: 64
+      rolloff: 0.9475937167399596
+      resampling_method: "kaiser_window"
+      beta: 14.769656459379492
+  compression_type: 'coch_p3'
+  compression_kwargs:
+    scale: 1
+    offset: 0.0000001   
+    clip_value: 5
+    power: 0.3
+
+val_metric: 'val_acc'
+model_name: 'gender_balanced_training_v10_4M_no_cue_learned_5e-5lr_5e-1_dropout'
+
+noise_kwargs: # parameters for background signal levels 
+  low_snr: -10
+  high_snr: 10
+
+hparas:                                   # Experiment hyper-parameters
+  valid_step: 2000
+  epochs: 1000
+  optimizer: 'AdamW'
+  lr: 0.000005                            # Initial learning rate of 0.00005 -> drop if manually testing late-training effects of smaller lr
+  eps: 0.0000001                         # 1e-7
+  gradient_clip_val: 100 
+  batch_size: 288                       # 576 for 8 288 for 4Gets divided by num gpus
+  mask_cues: False                    
+
+model:                                    # Model architecture
+  input_sr: 10000
+  out_channels: [32, 64, 256, 512, 512, 512, 512]                       
+  kernel:  [[2, 34], [2, 14], [5, 5], [5, 5], [6, 6], [5, 5], [6, 6]]
+  stride: [[1,1], [1,1], [1,1], [1,1], [1,1], [1,1], [1,1]]
+  padding: ['valid_time', 'valid_time', 'valid_time', 'valid_time', 'valid_time', 'valid_time', 'valid_time']
+  pool_stride: [[2, 4], [2, 4], [1, 5], [1, 4], [1, 1], [1, 1], [2, 4]] 
+  pool_size: [[9, 13], [9, 13], [1, 13], [1, 13], [1, 1], [1, 1], [6, 13]]
+  pool_padding: [[4,6], [4,6], [0,6], [0,6], [0,0], [0,0], [3,6]]
+  attn: [1, 1, 1, 1, 1, 1, 1]
+  num_classes:                         # 998 words in cv vocab
+    num_words: 800
+  fc_size: 512
+  global_avg_cue: False
+  dropout: 0.5
+  attn_constraints:
+    slope: True
+  v08: True 
+  norm_first: True
+  ln_affine: True

@@ -1,0 +1,202 @@
+audio:
+  compression_kwargs:
+    clip_value: 5
+    offset: 1.0e-07
+    power: 0.3
+    scale: 1
+  compression_type: coch_p3
+  rep_kwargs:
+    binaural: true
+    center_crop: true
+    downsampling_kwargs:
+      beta: 14.769656459379492
+      lowpass_filter_width: 64
+      resampling_method: kaiser_window
+      rolloff: 0.9475937167399596
+    downsampling_type: TorchTransformsResample
+    env_extraction_type: Half-wave Rectification
+    env_sr: 10000
+    impulse_len: 0.25
+    low_lim: 40
+    n_channels: 40
+    out_dur: 2
+    rep_on_gpu: true
+    sr: 44100
+    use_pad: true
+  rep_type: cochlea_filt
+  v2_demean: true
+corpus:
+  cue_free_percentage: 0.1
+  cue_type: mixed
+  gender_balanced_4M: true
+  mixture_percentages:
+    voice_and_location: 0.5
+    voice_only: 0.5
+  name: spatialized_commonvoice_audioset_scenes
+  root: /om/scratch/Fri/imgriff/datasets/spatial_audio_pipeline/assets/dataset_binaural_attn/v10
+  task: word
+  v06: true
+hparas:
+  batch_size: 288
+  epochs: 1000
+  eps: 1.0e-07
+  gradient_clip_val: 100
+  lr: 5.0e-05
+  mask_cues: false
+  optimizer: AdamW
+  valid_step: 4000
+model:
+  attn:
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  attn_constraints:
+    slope: true
+  dropout: 0.5
+  fc_size: 512
+  global_avg_cue: false
+  input_sr: 10000
+  kernel:
+  - - 2
+    - 71
+  - - 1
+    - 33
+  - - 3
+    - 6
+  - - 5
+    - 3
+  - - 6
+    - 6
+  - - 3
+    - 5
+  - - 6
+    - 3
+  - - 4
+    - 4
+  - - 3
+    - 4
+  - - 3
+    - 3
+  ln_affine: true
+  norm_first: true
+  num_classes:
+    num_words: 800
+  out_channels:
+  - 32
+  - 64
+  - 128
+  - 256
+  - 512
+  - 512
+  - 512
+  - 512
+  - 512
+  - 512
+  padding:
+  - valid_time
+  - valid_time
+  - valid_time
+  - valid_time
+  - valid_time
+  - valid_time
+  - valid_time
+  - valid_time
+  - valid_time
+  - valid_time
+  pool_padding:
+  - - 4
+    - 10
+  - - 4
+    - 0
+  - - 0
+    - 4
+  - - 0
+    - 4
+  - - 0
+    - 6
+  - - 0
+    - 0
+  - - 0
+    - 4
+  - - 0
+    - 6
+  - - 0
+    - 6
+  - - 0
+    - 6
+  pool_size:
+  - - 8
+    - 20
+  - - 8
+    - 1
+  - - 1
+    - 8
+  - - 1
+    - 8
+  - - 1
+    - 12
+  - - 1
+    - 1
+  - - 1
+    - 8
+  - - 1
+    - 12
+  - - 1
+    - 12
+  - - 1
+    - 12
+  pool_stride:
+  - - 2
+    - 5
+  - - 2
+    - 1
+  - - 1
+    - 2
+  - - 1
+    - 2
+  - - 1
+    - 3
+  - - 1
+    - 1
+  - - 1
+    - 2
+  - - 1
+    - 3
+  - - 1
+    - 3
+  - - 1
+    - 3
+  stride:
+  - - 1
+    - 1
+  - - 1
+    - 1
+  - - 1
+    - 1
+  - - 1
+    - 1
+  - - 1
+    - 1
+  - - 1
+    - 1
+  - - 1
+    - 1
+  - - 1
+    - 1
+  - - 1
+    - 1
+  - - 1
+    - 1
+  v08: true
+model_name: word_task_v10_4MGB_ln_first_arch_7
+noise_kwargs:
+  high_snr: 10
+  low_snr: -10
+val_metric: val_acc
