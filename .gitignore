@@ -178,4 +178,4 @@ prelim_binaural_figs/diff_min_same_confusion_at_0_elev.pdf
 *.h5
 *.hparams.yaml
 *.pkl
-*.png
+notebooks/Final_Figures_old/
