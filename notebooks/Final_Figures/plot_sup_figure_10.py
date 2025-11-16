@@ -21,6 +21,7 @@ except NameError:
 # In[1]:
 
 
+import argparse
 import numpy as np 
 import pickle 
 import h5py
@@ -32,6 +33,7 @@ import pandas as pd
 from pathlib import Path
 import re
 
+from final_figures_paths import DATA_ROOT
 
 get_ipython().run_line_magic('matplotlib', 'inline')
 import matplotlib
@@ -52,14 +54,19 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['svg.fonttype'] = 'none'
 
-fig_out_dir = Path("final_figures/figure_5")
+parser = argparse.ArgumentParser(description="Supplementary Figure 10 generation")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="final_figures/figure_5", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+fig_out_dir = Path(args.fig_dir)
 fig_out_dir.mkdir(exist_ok=True, parents=True)
 
 
 # In[ ]:
 
-
-act_corrs = pd.read_csv('final_results_to_share/figure_5_model_activation_corrs.csv')
+act_corrs = pd.read_csv(DATA_ROOT / 'figure_5_model_activation_corrs.csv')
 
 
 # In[10]:
@@ -227,5 +234,6 @@ for ix, ax in enumerate(axs):
 ratio = 1 
 
 plt.tight_layout()
-# plt.savefig(fig_out_dir / "supplementary_fig_10.pdf", transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir / "supplementary_fig_10.pdf", transparent=True, bbox_inches='tight')
 

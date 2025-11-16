@@ -21,6 +21,7 @@ except NameError:
 # In[1]:
 
 
+import argparse
 import numpy as np 
 import pandas as pd
 import pickle
@@ -34,6 +35,7 @@ from pathlib import Path
 get_ipython().run_line_magic('matplotlib', 'inline')
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+from final_figures_paths import DATA_ROOT
 
 import matplotlib
 # So that we can edit the text in illustrator
@@ -45,7 +47,13 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['svg.fonttype'] = 'none'
 
-fig_out_dir = Path("final_figures/figure_4")
+parser = argparse.ArgumentParser(description="Supplementary Figure 9 generation")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="final_figures/figure_4", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+fig_out_dir = Path(args.fig_dir)
 fig_out_dir.mkdir(exist_ok=True, parents=True)
 
 
@@ -56,8 +64,7 @@ fig_out_dir.mkdir(exist_ok=True, parents=True)
 
 
 ### Load speech distractor conditions 
-out_dir = Path('final_results_to_share')
-out_dir.mkdir(parents=True, exist_ok=True)
+out_dir = DATA_ROOT
 speech_dist_results = pd.read_csv(out_dir / 'feature_gain_main_v10_all_1_distractor_spatial_configurations_raw.csv')
 wanted_azims = np.arange(-90, 91, 10)
 # Crop to wanted subset 
@@ -70,7 +77,6 @@ speech_dist_results['distractor_type'] = 'speech'
 
 
 ### Load SSN distractor conditions
-out_dir = Path("final_results_to_share")
 ssn_distractor_results = pd.read_csv(out_dir / 'feature_gain_main_v10_core_1_ssn_distractor_spatial_configurations_raw_ssn.csv')
 
 
@@ -128,7 +134,8 @@ plt.colorbar(acc_heatmap.get_children()[0], cax=cbar_ax_acc)
 cbar_ax_acc.set_ylabel('Prop. correct', fontsize=fontsize)
 fig.suptitle("Model simulation of distractor \n azimuth configurations", y=1.35, fontsize=fontsize)
 
-# plt.savefig(fig_out_dir / "sup_figure_x_speech_v_ssn_distractor_azim-x-azim.pdf", transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir / "sup_figure_x_speech_v_ssn_distractor_azim-x-azim.pdf", transparent=True, bbox_inches='tight')
 
 
 # # Supplementary figure 4b
@@ -191,5 +198,6 @@ fig.legend(handles=legend_elements, loc='upper right', fontsize=fontsize-2, fram
 
 fig.suptitle("Model simulation of distractor azimuth configurations\nSpeech vs Noise distractors", y=1.2, fontsize=fontsize)
 
-# plt.savefig(fig_out_dir / "azim-x-azim_lineplot_for_sup.pdf", transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir / "azim-x-azim_lineplot_for_sup.pdf", transparent=True, bbox_inches='tight')
 

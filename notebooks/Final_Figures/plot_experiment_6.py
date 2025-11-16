@@ -1,7 +1,25 @@
+try:
+    get_ipython  # type: ignore
+except NameError:
+    def get_ipython():
+        class _DummyShell:
+            def run_line_magic(self, *args, **kwargs):
+                pass
+
+            def run_cell_magic(self, *args, **kwargs):
+                pass
+
+            def magic(self, *args, **kwargs):
+                pass
+
+        return _DummyShell()
+
+
+import argparse
 import numpy as np 
 import pandas as pd
 import pickle
-%matplotlib inline
+get_ipython().run_line_magic('matplotlib', 'inline')
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path 
@@ -13,13 +31,14 @@ import importlib
 from tqdm.auto import tqdm
 import multiprocessing as mp
 from scipy import stats 
+from final_figures_paths import DATA_ROOT
 
 ### Run stats on human results 
 from statsmodels.stats.anova import AnovaRM
 import statsmodels.api as sm
 from statsmodels.formula.api import ols
 
-%matplotlib inline
+get_ipython().run_line_magic('matplotlib', 'inline')
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -31,11 +50,18 @@ matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['svg.fonttype'] = 'none'
-fig_out_dir = Path("final_figures/figure_4")
+
+parser = argparse.ArgumentParser(description="Experiment 6 figure generation")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="final_figures/figure_4", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+fig_out_dir = Path(args.fig_dir)
 fig_out_dir.mkdir(exist_ok=True, parents=True)
 
 
-path_to_human_results = Path('final_results_to_share')
+path_to_human_results = DATA_ROOT
 human_thresh_df = pd.read_pickle(path_to_human_results / 'summary_2024_human_threshold_results_avg_sex_cond_rel_part_max.pdpkl')
 N = 33
 
@@ -43,7 +69,7 @@ human_thresh_df_summary = human_thresh_df.groupby(['elev_delta', 'azim_delta']).
 # # flatten multiindex
 human_thresh_df_summary.columns = ['elev_delta', 'azim_delta', 'threshold', 'threshold_std']
 
-model_thresh_df = pd.read_csv('final_results_to_share/experiment_6_model_thresholds.csv')
+model_thresh_df = pd.read_csv(DATA_ROOT / 'experiment_6_model_thresholds.csv')
 
 #### Per sex 
 fig, axs = plt.subplots(1,2,figsize=(6,3))
@@ -75,12 +101,13 @@ for ix, ax in enumerate(axs):
         ax.set_title("Model thresholds" )
 
 plt.tight_layout()
-# plt.savefig(fig_out_dir / "figure_4c.pdf", transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir / "figure_4c.pdf", transparent=True, bbox_inches='tight')
 
 path_to_human_results
 
 raw_human_data = pd.read_pickle(path_to_human_results / 'raw_participant_threshold_data.pdpkl')
-raw_model_data = pd.read_csv('final_results_to_share/experiment_6_fba_model_summary.csv')
+raw_model_data = pd.read_csv(DATA_ROOT / 'experiment_6_fba_model_summary.csv')
 
 ### 80 trials per block. First block is trial num < 80. Last block is trial num <= 400. 
 practice_effect_df = raw_human_data.copy()
@@ -143,4 +170,5 @@ ratio = 1.0
 xleft, xright = ax.get_xlim()
 ybottom, ytop = ax.get_ylim()
 ax.set_aspect(abs((xright-xleft)/(ybottom-ytop))*ratio)
-# g.savefig(fig_out_dir / "figure_4_threshold_practice_effect.pdf", transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    g.savefig(fig_out_dir / "figure_4_threshold_practice_effect.pdf", transparent=True, bbox_inches='tight')

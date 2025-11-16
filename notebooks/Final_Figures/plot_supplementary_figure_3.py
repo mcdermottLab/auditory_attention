@@ -1,3 +1,4 @@
+import argparse
 import pickle
 import numpy as np 
 import re 
@@ -7,7 +8,23 @@ import json
 import pickle
 import src.util_process_prolific as up 
 
-%matplotlib inline 
+try:
+    get_ipython  # type: ignore
+except NameError:
+    def get_ipython():
+        class _DummyShell:
+            def run_line_magic(self, *args, **kwargs):
+                pass
+
+            def run_cell_magic(self, *args, **kwargs):
+                pass
+
+            def magic(self, *args, **kwargs):
+                pass
+
+        return _DummyShell()
+
+get_ipython().run_line_magic('matplotlib', 'inline')
 
 import matplotlib.pyplot as plt 
 import seaborn as sns
@@ -17,7 +34,13 @@ import matplotlib as mpl
 mpl.rcParams['pdf.fonttype'] = 42
 mpl.rcParams['ps.fonttype'] = 42
 
-outdir = Path("rebuttal_figs")
+parser = argparse.ArgumentParser(description="Supplementary Figure 3 generation")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="rebuttal_figs", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+outdir = Path(args.fig_dir)
 outdir.mkdir(parents=True, exist_ok=True)
 
 path_to_human_data = Path('/mindhive/mcdermott/www/imgriff/msjspsych/')
@@ -363,4 +386,5 @@ ax.legend(title='', frameon=False)
 plt.ylim(0,1)
 plt.title(f"Effect of cue duration", y=1.05)
 
-# plt.savefig(outdir / "cue_duration_effect_human_model.pdf", bbox_inches='tight', transparent=True)
+if not DRY_RUN:
+    plt.savefig(outdir / "cue_duration_effect_human_model.pdf", bbox_inches='tight', transparent=True)

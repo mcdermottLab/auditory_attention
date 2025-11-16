@@ -21,6 +21,7 @@ except NameError:
 # In[1]:
 
 
+import argparse
 import numpy as np 
 import pandas as pd
 import pickle
@@ -28,6 +29,7 @@ get_ipython().run_line_magic('matplotlib', 'inline')
 import matplotlib 
 import matplotlib.pyplot as plt
 import seaborn as sns
+from final_figures_paths import DATA_ROOT
 
 from pathlib import Path 
 import re 
@@ -45,7 +47,13 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['svg.fonttype'] = 'none'
 
-fig_out_dir = Path("final_figures/figure_2")
+parser = argparse.ArgumentParser(description="Experiment 3 figure generation")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="final_figures/figure_2", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+fig_out_dir = Path(args.fig_dir)
 fig_out_dir.mkdir(exist_ok=True, parents=True)
 
 
@@ -54,7 +62,7 @@ fig_out_dir.mkdir(exist_ok=True, parents=True)
 # In[3]:
 
 
-results = pd.read_csv("final_results_to_share/experiment_3_main_fba_arch_and_saddler_2024_texture_stim_results.csv")
+results = pd.read_csv(DATA_ROOT / "experiment_3_main_fba_arch_and_saddler_2024_texture_stim_results.csv")
 
 
 # # Correlation scatter plots
@@ -144,7 +152,8 @@ axs.set_xlim(0,1)
 axs.legend( loc='upper left', ncol=3, bbox_to_anchor=(1.3,1.3))
 plt.title("Experiment 3: Speech in textures", fontsize=fontsize, y=1.05) 
 
-# plt.savefig(fig_out_dir / "experiment_3_scatterplot.pdf", bbox_inches='tight', transparent=True)
+if not DRY_RUN:
+    plt.savefig(fig_out_dir / "experiment_3_scatterplot.pdf", bbox_inches='tight', transparent=True)
 
 
 # In[ ]:

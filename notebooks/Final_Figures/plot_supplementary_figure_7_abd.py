@@ -23,6 +23,7 @@ except NameError:
 # In[45]:
 
 
+import argparse
 import numpy as np 
 import h5py
 from pathlib import Path 
@@ -45,7 +46,14 @@ mpl.rcParams['ps.fonttype'] = 42
 import matplotlib as mpl
 mpl.rcParams['pdf.fonttype'] = 42
 mpl.rcParams['ps.fonttype'] = 42
-outdir = Path("rebuttal_figs")
+
+parser = argparse.ArgumentParser(description="Supplementary Figure 7 ABD generation")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="rebuttal_figs", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+outdir = Path(args.fig_dir)
 outdir.mkdir(parents=True, exist_ok=True)
 
 
@@ -307,7 +315,8 @@ for plt_i in range(2):
 
 plt.suptitle("RDMs for Cochleagram Representations by Azimuth", fontsize=20, y=1)
 plt.subplots_adjust(hspace=0.5, wspace=0.5)
-# plt.savefig(outdir / "cochleagram_azim_rdm.pdf", bbox_inches='tight', transparent=True)
+if not DRY_RUN:
+    plt.savefig(outdir / "cochleagram_azim_rdm.pdf", bbox_inches='tight', transparent=True)
 
 
 # In[50]:
@@ -354,7 +363,8 @@ ratio = 1
 ## make panels square 
 # adjust wspace and hspace
 plt.subplots_adjust(wspace=0.3, hspace=0.3)
-plt.savefig(outdir / "compare_azim_rdm_gradients.pdf", bbox_inches='tight', transparent=True)
+if not DRY_RUN:
+    plt.savefig(outdir / "compare_azim_rdm_gradients.pdf", bbox_inches='tight', transparent=True)
 
 
 # # Run RDMS with time-averaged activations for elevation
@@ -492,5 +502,6 @@ plt.suptitle("RDMs for Cochleagram Representations by Elevation", fontsize=20, y
 # adjust hspace
 plt.subplots_adjust(hspace=0.5, wspace=0.5)
 # plt.tight_layout()
-# plt.savefig(outdir / "cochleagram_elev_rdm.pdf", bbox_inches='tight', transparent=True)
+if not DRY_RUN:
+    plt.savefig(outdir / "cochleagram_elev_rdm.pdf", bbox_inches='tight', transparent=True)
 

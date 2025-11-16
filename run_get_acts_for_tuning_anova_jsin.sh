@@ -18,7 +18,7 @@ which python3
 rm -r /tmp/torchinductor_imgriff
 
 
-python3 get_acts_for_tuning_anova_jsin.py --config config/binaural_attn/word_task_v10_main_feature_gain_config.yaml \
+python3 src/get_acts_for_tuning_anova_jsin.py --config config/binaural_attn/word_task_v10_main_feature_gain_config.yaml \
                 --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt \
                 --n_activations 5000 \
                 --n_jobs 8 \

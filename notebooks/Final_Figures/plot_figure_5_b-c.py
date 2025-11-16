@@ -21,6 +21,7 @@ except NameError:
 # In[8]:
 
 
+import argparse
 import numpy as np 
 import pickle 
 import h5py
@@ -48,7 +49,14 @@ matplotlib.rcParams.update({'font.size': 10})
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['svg.fonttype'] = 'none'
-fig_out_dir = Path("rebuttal_figs/")
+
+parser = argparse.ArgumentParser(description="Figure 5b-c generation")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="rebuttal_figs/", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+fig_out_dir = Path(args.fig_dir)
 fig_out_dir.mkdir(parents=True, exist_ok=True)
 
 
@@ -314,6 +322,7 @@ sns.despine()
 # adjust spacing
 plt.subplots_adjust(wspace=0.5, hspace=0.5)
 
-# plt.savefig(fig_out_dir / "figure_5_all_arch_traces_three_azims.pdf", transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir / "figure_5_all_arch_traces_three_azims.pdf", transparent=True, bbox_inches='tight')
 
 

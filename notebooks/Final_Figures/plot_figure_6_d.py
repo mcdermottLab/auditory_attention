@@ -21,6 +21,7 @@ except NameError:
 # In[2]:
 
 
+import argparse
 import numpy as np 
 import pandas as pd
 import pickle
@@ -42,7 +43,13 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['svg.fonttype'] = 'none'
 
-fig_out_dir = Path("rebuttal_figs/figure_6")
+parser = argparse.ArgumentParser(description="Figure 6d generation")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="rebuttal_figs/figure_6", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+fig_out_dir = Path(args.fig_dir)
 fig_out_dir.mkdir(exist_ok=True, parents=True)
 
 
@@ -322,5 +329,6 @@ for ax in g.axes.flat:
         ax.spines[axis].set_linewidth(1.5)
 # save figure as svg 
 # plt.tight_layout()
-# plt.savefig(fig_out_dir/'fig_6_spatial_release_w_norm_before_gain.pdf', transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir/'fig_6_spatial_release_w_norm_before_gain.pdf', transparent=True, bbox_inches='tight')
 

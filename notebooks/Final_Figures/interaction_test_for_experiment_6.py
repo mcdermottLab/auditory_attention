@@ -21,6 +21,7 @@ except NameError:
 # In[17]:
 
 
+import argparse
 import numpy as np 
 import pandas as pd
 import pickle
@@ -35,6 +36,7 @@ from src import util_process_prolific as util_process
 import importlib
 from tqdm.auto import tqdm
 import multiprocessing as mp
+from final_figures_paths import DATA_ROOT
 
 
 # ## Load participant data
@@ -42,8 +44,13 @@ import multiprocessing as mp
 # In[18]:
 
 
-### 
-path_to_human_results = Path('final_results_to_share')
+parser = argparse.ArgumentParser(description="Interaction test for experiment 6")
+parser.add_argument("--dry-run", action="store_true", help="Unused; for CLI compatibility")
+parser.add_argument("--fig-dir", default="final_figures/figure_4", help="Unused; for CLI compatibility")
+args = parser.parse_args()
+
+###
+path_to_human_results = DATA_ROOT
 
 human_thresh_df = pd.read_pickle(path_to_human_results / 'summary_2024_human_threshold_results_avg_sex_cond.pdpkl')
 
@@ -135,7 +142,7 @@ def get_interaction(threshold_data, return_interaction=False):
 # In[ ]:
 
 
-human_data = pd.read_csv('final_results_to_share/experiment_6_participant_results.csv')
+human_data = pd.read_csv(DATA_ROOT / 'experiment_6_participant_results.csv')
 human_data.head()
 
 

@@ -23,10 +23,12 @@ except NameError:
 # In[ ]:
 
 
+import argparse
 import pickle as pkl
 import pandas as pd
 import numpy as np
 from pathlib import Path
+from final_figures_paths import DATA_ROOT
 
 get_ipython().run_line_magic('matplotlib', 'inline')
 import matplotlib
@@ -40,7 +42,14 @@ matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['svg.fonttype'] = 'none'
-fig_out_dir = Path("final_figures/figure_4")
+
+parser = argparse.ArgumentParser(description="Experiment 7 figure generation")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="final_figures/figure_4", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+fig_out_dir = Path(args.fig_dir)
 fig_out_dir.mkdir(exist_ok=True, parents=True)
 
 
@@ -55,10 +64,6 @@ MARKER_SIZE = util_analysis.MARKER_SIZE
 # In[2]:
 
 
-fig_out_dir = Path("final_figures/figure_4")
-fig_out_dir.mkdir(exist_ok=True, parents=True)
-
-
 # ## Plot main figure
 
 # ##### Load data
@@ -66,7 +71,7 @@ fig_out_dir.mkdir(exist_ok=True, parents=True)
 # In[28]:
 
 
-results_dir = Path("final_results_to_share")
+results_dir = DATA_ROOT
 results_df = pd.read_csv(results_dir / "experiment_7_df.csv")
 
 
@@ -121,7 +126,8 @@ for ax in g.axes.flat:
     ybottom, ytop = ax.get_ylim()
     ax.set_aspect(abs((xright-xleft)/(ybottom-ytop))*ratio)
 g.set(ylim=(0.4, 0.9))
-# g.savefig(fig_out_dir / "figure_4_model_human_accuracy.pdf", transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    g.savefig(fig_out_dir / "figure_4_model_human_accuracy.pdf", transparent=True, bbox_inches='tight')
 
 
 # ## Run stats on human results
@@ -223,5 +229,6 @@ xleft, xright = ax.get_xlim()
 ybottom, ytop = ax.get_ylim()
 ax.set_aspect(abs((xright-xleft)/(ybottom-ytop))*ratio)
 
-# g.savefig(fig_out_dir / "figure_4_model_practice_effect.pdf", transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    g.savefig(fig_out_dir / "figure_4_model_practice_effect.pdf", transparent=True, bbox_inches='tight')
 

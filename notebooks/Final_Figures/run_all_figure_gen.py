@@ -1,12 +1,19 @@
+import argparse
 import os
 import subprocess
 from pathlib import Path
 import sys
 
+from final_figures_paths import DATA_ROOT, PROJECT_ROOT
+
 # Add the src directory to the Python path for this script
-project_root = Path(__file__).resolve().parents[2]
-src_dir = project_root
+src_dir = PROJECT_ROOT
 sys.path.append(str(src_dir))
+python_executable = sys.executable
+
+parser = argparse.ArgumentParser(description="Run all Final Figures scripts")
+parser.add_argument("--dry-run", action="store_true", help="Propagate dry-run flag to individual scripts")
+args = parser.parse_args()
 
 # Directory containing the scripts
 scripts_dir = Path(__file__).parent
@@ -44,14 +51,23 @@ for script_file in script_files:
     script_path = os.path.join(scripts_dir, script_file)
     print(f"Executing {script_path}...")
 
-    # Run the script from the project root so relative paths (e.g., final_results_to_share)
+    # Run the script from the project root so relative paths (e.g., participant_data)
     # match the original notebooks' expectations. Pass the output directory as an absolute path.
+    cmd = [python_executable, script_path, "--fig-dir", str(figure_out_dir)]
+    if args.dry_run:
+        cmd.append("--dry-run")
+
     result = subprocess.run(
-        ["python3", script_path, str(figure_out_dir)],
-        capture_output=True,
-        text=True,
-        cwd=str(project_root),
-        env={**os.environ, "PYTHONPATH": str(src_dir)}  # Add src to PYTHONPATH
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+        cwd=str(PROJECT_ROOT),
+        env={
+            **os.environ,
+            "PYTHONPATH": str(src_dir),  # Add src to PYTHONPATH
+            "FINAL_FIGURES_DATA_ROOT": str(DATA_ROOT),
+        }
     )
 
     # Print the output of the script

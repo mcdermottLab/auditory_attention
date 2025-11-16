@@ -21,6 +21,7 @@ except NameError:
 # In[7]:
 
 
+import argparse
 import numpy as np 
 import pandas as pd
 import pickle
@@ -30,6 +31,7 @@ import seaborn as sns
 from pathlib import Path 
 import re
 from tqdm.auto import tqdm
+from final_figures_paths import DATA_ROOT
 
 get_ipython().run_line_magic('matplotlib', 'inline')
 import matplotlib.pyplot as plt
@@ -45,7 +47,13 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['svg.fonttype'] = 'none'
 
-fig_out_dir = Path("final_figures/figure_4")
+parser = argparse.ArgumentParser(description="Figure 4a and supplementary figures")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="final_figures/figure_4", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+fig_out_dir = Path(args.fig_dir)
 fig_out_dir.mkdir(exist_ok=True, parents=True)
 
 
@@ -62,7 +70,7 @@ remap_azim = lambda azim: 360 - azim if azim > 180 else 0 - azim
 # In[14]:
 
 
-out_dir = Path('final_results_to_share')
+out_dir = DATA_ROOT
 out_dir.mkdir(parents=True, exist_ok=True)
 
 out_name = out_dir / 'feature_gain_main_v10_all_1_distractor_spatial_configurations_raw.csv'
@@ -104,7 +112,8 @@ ax.set_ylabel('Target azimuth ($\degree$)', fontsize=fontsize)
 ax.set_title("Model simulation of talker \n azimuth configurations", y=1.05, fontsize=fontsize)
 ax.invert_yaxis()
 ax.set_aspect('equal')
-# plt.savefig(fig_out_dir / "figure_4_model_azim_summary.pdf", transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir / "figure_4_model_azim_summary.pdf", transparent=True, bbox_inches='tight')
 
 
 # In[ ]:
@@ -134,7 +143,8 @@ ax.set_title("Model simulation of talker \n elevation configurations", y=1.05, f
 
 ax.invert_yaxis()
 ax.set_aspect('equal')
-# plt.savefig(fig_out_dir / "figure_4_model_elevation_summary.pdf", transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir / "figure_4_model_elevation_summary.pdf", transparent=True, bbox_inches='tight')
 
 
 # # Supplementary figures 2 and 3
@@ -180,7 +190,8 @@ for ax in axes.ravel():
 axes[-1].axis('off')
 
 plt.tight_layout(rect=[0, 0, 0.9, 1])  # Adjust layout to make room for colorbars
-# plt.savefig(fig_out_dir / "azim_x_azim_per_elevation.pdf", transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir / "azim_x_azim_per_elevation.pdf", transparent=True, bbox_inches='tight')
 
 
 # ## Sup. Figure 3
@@ -225,5 +236,6 @@ for ax in axes.ravel():
     ax.set_aspect('equal')
 
 plt.tight_layout(rect=[0, 0, 0.9, 1])  # Adjust layout to make room for colorbars
-# plt.savefig(fig_out_dir / "elev_x_elev_per_azim.pdf", transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir / "elev_x_elev_per_azim.pdf", transparent=True, bbox_inches='tight')
 

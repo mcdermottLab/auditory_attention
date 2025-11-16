@@ -25,6 +25,7 @@ except NameError:
 # In[70]:
 
 
+import argparse
 import pickle
 import numpy as np 
 import re 
@@ -40,6 +41,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats 
 
+from final_figures_paths import DATA_ROOT
 import src.util_process_prolific as up 
 from src import util_analysis
 from tqdm import tqdm
@@ -53,7 +55,13 @@ mpl.rcParams['ps.fonttype'] = 42
 # In[73]:
 
 
-outdir = Path("rebuttal_figs")
+parser = argparse.ArgumentParser(description="Individual participants Figure 2 plots")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="rebuttal_figs", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+outdir = Path(args.fig_dir)
 outdir.mkdir(parents=True, exist_ok=True)
 
 
@@ -65,7 +73,7 @@ outdir.mkdir(parents=True, exist_ok=True)
 
 ### Load data
 
-human_data = pd.read_pickle('final_results_to_share/summary_2024_SWC_diotic_indiv_participant_results_195.pdpkl')
+human_data = pd.read_pickle(DATA_ROOT / 'summary_2024_SWC_diotic_indiv_participant_results_195.pdpkl')
 human_data['group'] = f'Human (N = {human_data.id_subject.nunique()})'
 
 # rename human_df columns to match fba_models
@@ -84,7 +92,7 @@ human_data['background_condition'] = human_data['background_condition'].replace(
 ## Get sex and lang summary 
 ### Load data
 
-human_data = pd.read_pickle('final_results_to_share/summary_2024_SWC_diotic_indiv_participant_results_195.pdpkl')
+human_data = pd.read_pickle(DATA_ROOT / 'summary_2024_SWC_diotic_indiv_participant_results_195.pdpkl')
 human_data['group'] = f'Human (N = {human_data.id_subject.nunique()})'
 
 # rename human_df columns to match fba_models
@@ -102,7 +110,7 @@ human_data['background_condition'] = human_data['background_condition'].replace(
                  
                  ### Load data
 
-human_sex_data = pd.read_pickle('final_results_to_share/summary_2024_SWC_diotic_sex_lang_summary_indiv_participant_results_195.pdpkl')
+human_sex_data = pd.read_pickle(DATA_ROOT / 'summary_2024_SWC_diotic_sex_lang_summary_indiv_participant_results_195.pdpkl')
 human_sex_data['group'] = f'Human (N = {human_sex_data.id_subject.nunique()})'
 
 # rename human_df columns to match fba_models
@@ -251,7 +259,8 @@ for ax in g.axes.flat:
 g.set_axis_labels("dB SNR", "Prop. target word")
 # g.tight_layout()
 
-# plt.savefig(outdir / 'exp_1_human_diotic_conditions_accuracy_violins.pdf', transparent=True,  bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(outdir / 'exp_1_human_diotic_conditions_accuracy_violins.pdf', transparent=True,  bbox_inches='tight')
 
 
 # ## Plot confusions
@@ -259,7 +268,7 @@ g.set_axis_labels("dB SNR", "Prop. target word")
 # In[56]:
 
 
-same_v_diff_sex_confusion_data = pd.read_csv("final_results_to_share/summary_2024_SWC_diotic_same_v_diff_sex_confusions_indiv_participant_results_195.csv", index_col=0)
+same_v_diff_sex_confusion_data = pd.read_csv(DATA_ROOT / "summary_2024_SWC_diotic_same_v_diff_sex_confusions_indiv_participant_results_195.csv", index_col=0)
 same_v_diff_sex_confusion_data.head()
 same_v_diff_sex_confusion_data['background_condition'] = same_v_diff_sex_confusion_data['sex_cond']
 # rename columns 
@@ -309,7 +318,8 @@ for ax in g.axes.flat:
 
 g.set_axis_labels("dB SNR", "Prop. distractor word")
 
-# plt.savefig(outdir / 'exp_1_human_diotic_conditions_confusions_violins.pdf', transparent=True,  bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(outdir / 'exp_1_human_diotic_conditions_confusions_violins.pdf', transparent=True,  bbox_inches='tight')
 # 
 
 
@@ -318,7 +328,7 @@ g.set_axis_labels("dB SNR", "Prop. distractor word")
 # In[ ]:
 
 
-exp_2_participant_df = pd.read_csv('final_results_to_share/experiment_2_df_for_plot_and_stats.csv')
+exp_2_participant_df = pd.read_csv(DATA_ROOT / 'experiment_2_df_for_plot_and_stats.csv')
 exp_2_participant_df = exp_2_participant_df[exp_2_participant_df.group.str.contains('Humans')]
 
 exp_2_to_plot = exp_2_participant_df[(exp_2_participant_df.target_harmonicity == exp_2_participant_df.distractor_harmonicity) | (exp_2_participant_df.distractor_harmonicity == 'No Distractor')]
@@ -405,7 +415,8 @@ for ax in g.axes.flat:
     # ax.set_yticklabels([0, 0.2, 0.4, 0.6, 0.8, 1.0], fontsize=tick_fontsize)
 plt.suptitle('Experiment 2: Participant-level performance', fontsize=12, y=1.05)
 
-# plt.savefig(outdir / 'exp_2_human_diotic_conditions.pdf', transparent=True,  bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(outdir / 'exp_2_human_diotic_conditions.pdf', transparent=True,  bbox_inches='tight')
 
     
 
@@ -415,7 +426,7 @@ plt.suptitle('Experiment 2: Participant-level performance', fontsize=12, y=1.05)
 # In[36]:
 
 
-exp_3_human_df = pd.read_csv('final_results_to_share/human_data_saddler_2023_speech_in_synthetic_textures.csv', index_col=0)
+exp_3_human_df = pd.read_csv(DATA_ROOT / 'human_data_saddler_2023_speech_in_synthetic_textures.csv', index_col=0)
 texture_manifest  = pd.read_pickle('/om2/user/msaddler/spatial_audio_pipeline/assets/human_experiment_v00/synthetic_textures/manifest.pdpkl')
 texture_ix_map = {item.index_texture:item.label for item in texture_manifest[['index_texture', 'label']].drop_duplicates().itertuples()}
 exp_3_human_df['texture_label'] = exp_3_human_df['index_texture'].map(texture_ix_map)
@@ -450,6 +461,7 @@ axs.set_xticklabels(xticklabels, rotation=90, ha='right', rotation_mode='anchor'
 axs.set_ylabel('Prop. correct', fontsize=10)
 axs.set_xlabel('Texture', fontsize=10)
 axs.set_title('Experiment 3: Participant-level performance', fontsize=12)
-# plt.savefig(outdir / 'exp_3_human_data_distribution_by_texture.pdf', transparent=True,  bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(outdir / 'exp_3_human_data_distribution_by_texture.pdf', transparent=True,  bbox_inches='tight')
 
 

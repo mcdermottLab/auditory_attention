@@ -30,6 +30,7 @@ except NameError:
 import pickle
 import numpy as np 
 import re 
+import argparse
 from pathlib import Path
 import pandas as pd
 import json
@@ -42,6 +43,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats 
 
+from final_figures_paths import DATA_ROOT
 import src.util_process_prolific as up 
 from src import util_analysis
 from tqdm import tqdm
@@ -50,7 +52,6 @@ importlib.reload(up)
 import matplotlib as mpl
 mpl.rcParams['pdf.fonttype'] = 42
 mpl.rcParams['ps.fonttype'] = 42
-
 
 # # Load data
 # 
@@ -61,7 +62,7 @@ mpl.rcParams['ps.fonttype'] = 42
 ### Load data
 
 # includes summary for all participants and each model architecture (10 feature-gain models + 3 alternates) - need to average individual feature gain models
-results_df = pd.read_csv('final_results_to_share/experiment_1_df.csv')
+results_df = pd.read_csv(DATA_ROOT / 'experiment_1_df.csv')
 
 ### Merge all feature-gain models into one group - will plot mean and SEM over architectures 
 models_to_summary = results_df[results_df.group == "Feature-gain Model"].copy()
@@ -76,9 +77,14 @@ human_fba_results = pd.concat([results_df[results_df.group.str.contains("Human")
 # In[3]:
 
 
-fig_out_dir = Path("rebuttal_figs/fig_2")
+parser = argparse.ArgumentParser(description="Experiment 1 + Supplementary Figure 1")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figure files")
+parser.add_argument("--fig-dir", default="rebuttal_figs/fig_2", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+fig_out_dir = Path(args.fig_dir)
 fig_out_dir.mkdir(exist_ok=True, parents=True)
-fig_out_dir
 
 
 # # Make plots
@@ -180,7 +186,8 @@ for ix in range(1, n_models):
 for ix, group in enumerate(hue_order):
     axs[1].text(-9, 0.9 - ix * 0.1, group, color=palette[group], fontsize=8, ha='left', va='center')
 
-# plt.savefig(fig_out_dir/'human_v_model_acc_speech_only.pdf', transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir/'human_v_model_acc_speech_only.pdf', transparent=True, bbox_inches='tight')
 
 # adjust w space 
 
@@ -275,7 +282,8 @@ for ix, group in enumerate(hue_order):
     axs[0].text(0, 0.4 - ix * 0.1, group, color=palette[group], fontsize=8, ha='center', va='center')
 
 
-# plt.savefig(fig_out_dir/'human_v_model_acc_noise_only.pdf', transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir/'human_v_model_acc_noise_only.pdf', transparent=True, bbox_inches='tight')
 # 
 
 
@@ -358,7 +366,8 @@ axs[0].set_ylabel("Prop. distractor word", fontsize=fontsize)
 for ix in range(1, n_models):
     axs[ix].set_ylabel("", fontsize=fontsize)
 
-# plt.savefig(fig_out_dir/'human_v_model_conf_english.pdf', transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir/'human_v_model_conf_english.pdf', transparent=True, bbox_inches='tight')
 
 
 # In[7]:
@@ -446,7 +455,8 @@ axs[0].text(-8, 0.2, "Same-sex distractor", color=palette["Same"], fontsize=6, h
 axs[0].text(-8, 0.1, "Different-sex distractor", color=palette["Different"], fontsize=6, ha='left', va='center')
 
 
-# plt.savefig(fig_out_dir/'human_model_same_diff_sex_acc.pdf', transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir/'human_model_same_diff_sex_acc.pdf', transparent=True, bbox_inches='tight')
 
 
 
@@ -534,7 +544,8 @@ for ix in range(1, n_models):
 axs[1].text(-9, 0.9, "Same-sex distractor", color=palette["Same"], fontsize=6, ha='left', va='center')
 axs[1].text(-9, 0.8, "Different-sex distractor", color=palette["Different"], fontsize=6, ha='left', va='center')
 
-# plt.savefig(fig_out_dir/'human_model_same_diff_sex_conf.pdf', transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir/'human_model_same_diff_sex_conf.pdf', transparent=True, bbox_inches='tight')
 
 
 
@@ -543,63 +554,68 @@ axs[1].text(-9, 0.8, "Different-sex distractor", color=palette["Different"], fon
 # In[25]:
 
 
-from pingouin import rm_anova
+anova_csv = DATA_ROOT / "summary_2024_SWC_diotic_same_v_diff_sex_confusions_indiv_participant_results_195.csv"
 
-df_for_anova = pd.read_csv("final_results_to_share/summary_2024_SWC_diotic_same_v_diff_sex_confusions_indiv_participant_results_195.csv")
-to_anova = df_for_anova[df_for_anova.sex_cond.isin(["Same", "Different"])].copy()
-human_rm_anova_table = rm_anova(data=to_anova, dv='adjusted_confusions_mean', subject='id_subject', within=["snr", "sex_cond"], effsize='np2')
-print("ANOVA for humans")
-human_rm_anova_table
+if anova_csv.exists():
+    from pingouin import rm_anova
+
+    df_for_anova = pd.read_csv(anova_csv)
+    to_anova = df_for_anova[df_for_anova.sex_cond.isin(["Same", "Different"])].copy()
+    human_rm_anova_table = rm_anova(data=to_anova, dv='adjusted_confusions_mean', subject='id_subject', within=["snr", "sex_cond"], effsize='np2')
+    print("ANOVA for humans")
+    human_rm_anova_table
 
 
-# In[ ]:
+    # In[ ]:
 
 
-# --- bootstrap CIs for partial eta squared ---
-import warnings
-warnings.filterwarnings(
-      "ignore",
-      category=FutureWarning,
-  )
-print("\nBootstrapping partial η² confidence intervals...")
-np.random.seed(123) 
+    # --- bootstrap CIs for partial eta squared ---
+    import warnings
+    warnings.filterwarnings(
+          "ignore",
+          category=FutureWarning,
+      )
+    print("\nBootstrapping partial η² confidence intervals...")
+    np.random.seed(123) 
 
-n_bootstrap = 2000
-subjects = to_anova["id_subject"].unique()
-bootstrap_np2 = {src: [] for src in human_rm_anova_table["Source"]}
+    n_bootstrap = 2000
+    subjects = to_anova["id_subject"].unique()
+    bootstrap_np2 = {src: [] for src in human_rm_anova_table["Source"]}
 
-for _ in tqdm(range(n_bootstrap), desc="Partial η² bootstrap"):
-    sampled_ids = np.random.choice(subjects, size=len(subjects), replace=True)
-    boot_df = to_anova[to_anova["id_subject"].isin(sampled_ids)].copy()
+    for _ in tqdm(range(n_bootstrap), desc="Partial η² bootstrap"):
+        sampled_ids = np.random.choice(subjects, size=len(subjects), replace=True)
+        boot_df = to_anova[to_anova["id_subject"].isin(sampled_ids)].copy()
 
-    try:
-        boot_table = rm_anova(
-            data=boot_df,
-            dv="adjusted_confusions_mean",
-            subject="id_subject",
-            within=["snr", "sex_cond"],
-            effsize="np2",
-        )
-        for src, np2 in zip(boot_table["Source"], boot_table["np2"]):
-            bootstrap_np2[src].append(np2)
-    except Exception:
-        continue  # skip rare failed fits
+        try:
+            boot_table = rm_anova(
+                data=boot_df,
+                dv="adjusted_confusions_mean",
+                subject="id_subject",
+                within=["snr", "sex_cond"],
+                effsize="np2",
+            )
+            for src, np2 in zip(boot_table["Source"], boot_table["np2"]):
+                bootstrap_np2[src].append(np2)
+        except Exception:
+            continue  # skip rare failed fits
 
-alpha = 0.05
-lower = alpha / 2 * 100
-upper = (1 - alpha / 2) * 100
+    alpha = 0.05
+    lower = alpha / 2 * 100
+    upper = (1 - alpha / 2) * 100
 
-human_rm_anova_table["np2_CI_lower"] = [
-    np.percentile(bootstrap_np2[src], lower) if bootstrap_np2[src] else np.nan
-    for src in human_rm_anova_table["Source"]
-]
-human_rm_anova_table["np2_CI_upper"] = [
-    np.percentile(bootstrap_np2[src], upper) if bootstrap_np2[src] else np.nan
-    for src in human_rm_anova_table["Source"]
-]
+    human_rm_anova_table["np2_CI_lower"] = [
+        np.percentile(bootstrap_np2[src], lower) if bootstrap_np2[src] else np.nan
+        for src in human_rm_anova_table["Source"]
+    ]
+    human_rm_anova_table["np2_CI_upper"] = [
+        np.percentile(bootstrap_np2[src], upper) if bootstrap_np2[src] else np.nan
+        for src in human_rm_anova_table["Source"]
+    ]
 
-print("\nPartial η² with 95% CIs")
-display(human_rm_anova_table)
+    print("\nPartial η² with 95% CIs")
+    print(human_rm_anova_table)
+else:
+    print(f"WARNING: {anova_csv} not found; skipping ANOVA/bootstrapping block.")
 
 
 # In[9]:
@@ -692,7 +708,8 @@ axs[1].text(-9, 0.8, "Mandarin distractor", color=palette["Mandarin"], fontsize=
 
 
 # set space between pannels 
-# plt.savefig(fig_out_dir/'human_model_unfamiliar_language.pdf', transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir/'human_model_unfamiliar_language.pdf', transparent=True, bbox_inches='tight')
 
 
 
@@ -873,12 +890,9 @@ axs[-1].legend(handles, labels, title='Distractor', loc='center', fontsize=8, nc
 # adjust space between pannels
 plt.subplots_adjust(wspace=0.5, hspace=0.5)
 
-# plt.savefig(fig_out_dir/'indiv_models_experiment_1.pdf', transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir/'indiv_models_experiment_1.pdf', transparent=True, bbox_inches='tight')
 
-# adjust w space 
-
-
-# In[ ]:
 
 
 

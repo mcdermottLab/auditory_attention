@@ -21,6 +21,7 @@ except NameError:
 # In[34]:
 
 
+import argparse
 import pickle as pkl
 import pandas as pd
 import numpy as np
@@ -37,6 +38,7 @@ from importlib import reload
 import matplotlib 
 from pprint import pprint
 from matplotlib import container
+from final_figures_paths import DATA_ROOT
 
 
 # In[35]:
@@ -48,7 +50,13 @@ matplotlib.rcParams['ps.fonttype'] = 42
 
 matplotlib.rcParams['svg.fonttype'] = 'none'
 
-fig_out_dir = Path("rebuttal_figs/figure_6")
+parser = argparse.ArgumentParser(description="Figure 6 a-c generation")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="rebuttal_figs/figure_6", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+fig_out_dir = Path(args.fig_dir)
 fig_out_dir.mkdir(parents=True, exist_ok=True)
 
 
@@ -57,7 +65,7 @@ fig_out_dir.mkdir(parents=True, exist_ok=True)
 
 ### Import pre-formated data 
 
-results_dir = Path('final_results_to_share')
+results_dir = DATA_ROOT
 
 # diotic SWC 
 diotic_results = pd.read_csv(results_dir / "experiment_1_df.csv")
@@ -115,7 +123,7 @@ combined_results.model.value_counts()
 # In[39]:
 
 
-results_dir = Path('final_results_to_share')
+results_dir = DATA_ROOT
 outfile = results_dir / 'norm_then_gain_model_summary_all_experiments.csv'
 norm_then_gain_df = pd.read_csv(outfile)
 
@@ -649,7 +657,8 @@ ax.set_xticks(np.arange(len(model_order)))
 ax.set_xticklabels(xtick_labels, fontsize=fontsize);
 
 
-# plt.savefig(fig_out_dir / "figure_6_human-model_dissim_bar_w_norm_pre_gain.pdf", bbox_inches='tight', transparent=True)
+if not DRY_RUN:
+    plt.savefig(fig_out_dir / "figure_6_human-model_dissim_bar_w_norm_pre_gain.pdf", bbox_inches='tight', transparent=True)
 
 
 # ## Plot figure 6c. 
@@ -873,7 +882,8 @@ plt.subplots_adjust(wspace=0.5)
 
 for ax in axs.flat:
     ax.set(aspect='equal')
-# plt.savefig(fig_out_dir / "figure_6_human_model_sim_scatter_w_norm_pre_gain.svg", bbox_inches='tight', transparent=True)
+if not DRY_RUN:
+    plt.savefig(fig_out_dir / "figure_6_human_model_sim_scatter_w_norm_pre_gain.svg", bbox_inches='tight', transparent=True)
 
 
 # ### Run mutual information analysis 
@@ -984,7 +994,8 @@ for h in handles:
 labels[0] = labels[0].replace("M", 'm')
 ax.legend(new_handles, labels, fontsize=fontsize-3,  frameon=False)#, bbox_to_anchor=(0.8, 0.4))
 sns.despine()
-# plt.savefig(fig_out_dir / "sup_fig_12_human_model_mutual_information.pdf", transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir / "sup_fig_12_human_model_mutual_information.pdf", transparent=True, bbox_inches='tight')
 labels
 
 
@@ -1180,7 +1191,8 @@ plt.subplots_adjust(wspace=0.5)
 
 for ax in axs.flat:
     ax.set(aspect='equal')
-# plt.savefig(fig_out_dir / "sup_fig_14_model_v_feature_gain_model_scatter.svg", transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir / "sup_fig_14_model_v_feature_gain_model_scatter.svg", transparent=True, bbox_inches='tight')
 
 
 # In[ ]:

@@ -21,6 +21,7 @@ except NameError:
 # In[1]:
 
 
+import argparse
 import numpy as np 
 import pandas as pd
 import pickle
@@ -31,6 +32,7 @@ from pathlib import Path
 import re 
 import pickle 
 from src import util_analysis 
+from final_figures_paths import DATA_ROOT
 
 
 # In[2]:
@@ -45,7 +47,13 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['svg.fonttype'] = 'none'
 
-fig_out_dir = Path("final_figures/figure_3")
+parser = argparse.ArgumentParser(description="Experiment 4 figure generation")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="final_figures/figure_3", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+fig_out_dir = Path(args.fig_dir)
 fig_out_dir.mkdir(exist_ok=True, parents=True)
 
 
@@ -73,7 +81,7 @@ byrne_data['distractor_azim'] = byrne_data['distractor_azim'].astype(int).abs()
 
 ## Model data 
 
-grouped_results = pd.read_csv("final_results_to_share/experiment_4_results.csv")
+grouped_results = pd.read_csv(DATA_ROOT / "experiment_4_results.csv")
 
 
 # In[4]:
@@ -158,7 +166,8 @@ for ax in g.axes.flat:
     for axis in ['bottom','left']:
         ax.spines[axis].set_linewidth(1.5)
 
-# plt.savefig(fig_out_dir/'human_v_model_srm.pdf', transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir/'human_v_model_srm.pdf', transparent=True, bbox_inches='tight')
 
 
 # ## Run model stats

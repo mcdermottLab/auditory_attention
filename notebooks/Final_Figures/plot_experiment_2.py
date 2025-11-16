@@ -1,22 +1,16 @@
-import sys
+import argparse
 import pickle
-import numpy as np 
-import re 
-from pathlib import Path
-import pandas as pd
-import json 
-import matplotlib
-import matplotlib.pyplot as plt 
-import seaborn as sns
-from src import util_analysis 
-
-import re 
-
-import warnings
 import numpy as np
 import pandas as pd
+import warnings
+from pathlib import Path
+import matplotlib
+import matplotlib.pyplot as plt
+import seaborn as sns
 from tqdm import tqdm
 from pingouin import rm_anova
+from final_figures_paths import DATA_ROOT
+from src import util_analysis
 
 
 def bootstrap_partial_eta_ci(
@@ -88,10 +82,16 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['svg.fonttype'] = 'none'
 
-fig_out_dir = Path("rebuttal_figs/fig_2")
+parser = argparse.ArgumentParser(description="Experiment 2 figure generation")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="rebuttal_figs/fig_2", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+fig_out_dir = Path(args.fig_dir)
 fig_out_dir.mkdir(exist_ok=True, parents=True)
 
-results_dir = Path('final_results_to_share')
+results_dir = DATA_ROOT
 
 results = pd.read_csv(results_dir / "experiment_2_df_for_plot_and_stats.csv")
 
@@ -421,5 +421,6 @@ for ix in range(1, n_models):
 axs[-1].legend(loc='upper left', bbox_to_anchor=(1, 1), fontsize=fontsize)
 
 
-# plt.savefig(fig_out_dir/'experiment_2.pdf', transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir/'experiment_2.pdf', transparent=True, bbox_inches='tight')
 

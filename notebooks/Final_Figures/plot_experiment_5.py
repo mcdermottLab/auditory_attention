@@ -21,12 +21,14 @@ except NameError:
 # In[8]:
 
 
+import argparse
 import numpy as np 
 import pandas as pd
 import pickle
 get_ipython().run_line_magic('matplotlib', 'inline')
 import matplotlib.pyplot as plt
 import seaborn as sns
+from final_figures_paths import DATA_ROOT
 from pathlib import Path 
 import re 
 import matplotlib 
@@ -38,7 +40,13 @@ matplotlib.rcParams['pdf.fonttype'] = 42
 matplotlib.rcParams['ps.fonttype'] = 42
 matplotlib.rcParams['svg.fonttype'] = 'none'
 
-fig_out_dir = Path("final_figures/figure_3")
+parser = argparse.ArgumentParser(description="Experiment 5 (precedence) figure generation")
+parser.add_argument("--dry-run", action="store_true", help="Skip writing figures to disk")
+parser.add_argument("--fig-dir", default="final_figures/figure_3", help="Output directory for figures")
+args = parser.parse_args()
+DRY_RUN = args.dry_run
+
+fig_out_dir = Path(args.fig_dir)
 fig_out_dir.mkdir(exist_ok=True, parents=True)
 
 
@@ -47,7 +55,7 @@ fig_out_dir.mkdir(exist_ok=True, parents=True)
 # In[9]:
 
 
-model_results = pd.read_csv('final_results_to_share/experiment_5_precedence_effects.csv')
+model_results = pd.read_csv(DATA_ROOT / 'experiment_5_precedence_effects.csv')
 
 
 # ## Human data from figure extraction
@@ -168,5 +176,6 @@ for ax in g.axes.flat:
         ax.spines[axis].set_linewidth(1.5)
 # don't share y ticks
 
-# plt.savefig(fig_out_dir/'experiment_5_precedence_effect.pdf', transparent=True, bbox_inches='tight')
+if not DRY_RUN:
+    plt.savefig(fig_out_dir/'experiment_5_precedence_effect.pdf', transparent=True, bbox_inches='tight')
 
