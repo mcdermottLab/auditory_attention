@@ -1,52 +1,61 @@
 # Auditory Attention
 
-Repository associated with publication  Ian Griffith, R. Preston Hess and Josh H. McDermott (submitted) _Optimized feature gains explain and predict successes and failures of human selective listening._
+This repository accompanies Ian Griffith, R. Preston Hess, and Josh H. McDermott, _Optimized feature gains explain and predict successes and failures of human selective listening_.  
+It contains the trained attention models, curated human-participant datasets, demo stimuli, notebooks, and evaluation scripts needed to reproduce every figure and statistic in the manuscript. The sections below walk new users through the layout, dependencies, and common workflows.
 
-## Dependencies
+## Repository map
 
-- Python 3.11.5
-- Pytorch 2.1+
-- Pytorch lightning 2.1+
-- Computing power (~4 A100 GPUs) and memory space (both 100GB RAM/ 80GB GPU memory) are necessary if you'd like to train your own model.
+- `src/` – PyTorch Lightning modules, cochlear front-end implementations, audio transforms, and utilities shared across training and evaluation.
+- `config/` – YAML files describing model architectures, datasets, and hyperparameters.
+- `corpus/` – Dataset/dataloader definitions for model training and behavioral simulations.
+- `notebooks/` – Jupyter notebooks for exploratory analysis and figure generation.
+  - `notebooks/Final_Figures/` contains both `.ipynb` and `.py` counterparts for every main and supplementary figure. Run `python notebooks/Final_Figures/run_all_figure_gen.py` to regenerate the full figure suite and associated statistics.
+- `participant_data/` – Clean CSV/PKL tables for human experiments (per-trial logs, summary stats, ANOVA inputs, metadata). These are the authoritative data sources consumed by the notebooks.
+- `attn_cue_models/` – Pretrained checkpoints and PyTorch Lightning logs for the feature-gain models analyzed in the paper.
+- `demo_stimuli/` – Male/female cue-target `.wav` files plus mixtures so you can audition the models immediately.
+- `final_results_to_share/` – Aggregated model + human metrics used by the figure scripts.
+- `eval_*.py` – Standalone scripts that reproduce each behavioral experiment (see “Running analyses” below).
+- `*.sh` – SLURM-ready job scripts showing how we ran the corresponding Python programs on MIT OpenMind.
 
+## Included data directories
 
-## Required data 
-- 'attn_cue_models/' is a folder full of training checkpoints and outlogs from PyTorch Lightning. Sub folders are named for the model architecture/task and
-    contain their checkpoints.
+- `attn_cue_models/` ships with checkpoints and training logs organized by architecture/task (e.g., `word_task_v10_main_feature_gain_config`). Each directory contains the `.ckpt` files referenced throughout the manuscript.
+- `demo_stimuli/` provides the example `.wav` files used in the quick-start code below (male/female cues, targets, and mixtures).
+- `participant_data/` contains curated experiment tables: raw participant thresholds, per-trial CSVs, summary pickles for ANOVAs, and metadata spreadsheets.
+- `final_results_to_share/` offers precomputed aggregates for every model/human comparison, allowing the notebooks to render figures without recomputing heavy simulations.
 
-- 'demo_stimuli/' is a folder containing example audio files (as .wav files) that can be run through the model. These include cue and target excerpts produced by both a male and female talker. Below is an example demonstrating how to pre-process the audio to generate a two-talker mixture, and run the audio through the model.
+## Getting started
 
-- 'final_results_to_share' contains summarized data for all model and human experiments, and is used by the scripts in `notebooks/Final_Figures/` to reproduce the respective figures. 
+1. **Install dependencies**
+   - Python 3.11.5
+   - PyTorch 2.1+
+   - PyTorch Lightning 2.1+
+   - Additional packages listed in `requirements.txt` (recommended: create a conda env and `pip install -r requirements.txt`)
+2. **Hardware expectations**  
+   Training fresh models mirrors the paper’s setup (~4×A100 GPUs and ~100 GB host / 80 GB device RAM). Figure generation and evaluation can run on a single GPU with modest memory.
+3. **Verify tracked assets**  
+   After cloning, confirm that `attn_cue_models/`, `demo_stimuli/`, `participant_data/`, and `final_results_to_share/` are present. If not, re-run `git lfs pull` (when applicable) or download the shared data bundle.
 
-## Structure
+## Running analyses
 
-- 'config/' is a folder of `.yaml` configuration files specifying training data configurations, the cochlear front end, and model hyperparameters for a given model. 
+- **Regenerate the full figure suite**
+  ```
+  python notebooks/Final_Figures/run_all_figure_gen.py
+  ```
+  Outputs land in `notebooks/Final_Figures/all_figures_output/` and include the statistics reported in the manuscript.
+- **Per-experiment simulations**
+  - `eval_swc_mono_stim.py` – Experiment 1
+  - `eval_swc_popham_2024.py` – Experiment 2
+  - `eval_texture_backgrounds.py` – Experiment 3
+  - `eval_symmetric_distractors.py` – Arbitrary spatial configurations plus Experiments 4–5
+  - `eval_sim_array_threshold_experiment_v02.py` – Experiment 6 (thresholds)
+  - `eval_sim_array_spotlight_experiment_v02.py` – Experiment 7 (spotlight task)
+  - `get_acts_for_tuning_and_selection_analysis.py` – Activation dumps for Figure 5 / Supplementary Figure 5
+- **Cluster execution**  
+  Use the `.sh` scripts (e.g., `run_unit_tuning_anova_parallel.sh`) as templates for your scheduler; they capture the exact resource settings we used on OpenMind.
 
-- 'corpus/' contains pytorch dataset classes training and human experiment simulations.
-
-- 'notebooks/' contains jupyter notebooks for data exploration and figure generation see inside for another readme.
-    - 'notebooks/Final_Figures/' contains both `.ipynb` and `.py` files that can be used to reproduce all main and supplementary figures.
-    - run `notebooks/Final_Figures/run_all_figure_gen.py` to generate all figures and run all reported statistics.     
-
-- 'src/' contains necessary code for the models and stimuli generation.
-
-- evaluation files are in the main directory level.
-    - `eval_swc_mono_stim.py` is used to simulate experiment 1.
-    - `eval_swc_popham_2024.py` is used to simulate experiment 2.
-    - `eval_texture_backgrounds.py` is used to simulate experiment 3.
-    - `eval_symmetric_distractors.py` is a modular script. It is used to simulate all arbitrary spatial configurations (figure 4a; supplementary figures 2-4), and simulate experiments 4 and 5.
-    - `eval_sim_array_threshold_experiment_v02.py` is used to simulate experiment 6. 
-    - `eval_sim_array_spotlight_experiment_v02.py` is used to simulate experiment 7. 
-    - `get_acts_for_tuning_and_selection_analysis.py` is used to obtain model activations for the stage of selection analysis (figure 5 and supplementary figure 5). 
-
-- all `*.sh` scripts show examples of how corresponding `.py` scripts were exectued on the OpenMind compute cluster, indluding compute resource requirments.
-
-## Requirements 
-
-Create a conda environment including the packages in requirements.txt to run model training, evaluation and plotting scripts. 
-
-## Snippet for loading and running model:
-```
+## Quick-start: load a checkpoint and run the demo stimuli
+```python
 import yaml
 import pickle 
 from pathlib import Path
@@ -119,3 +128,6 @@ model_logits = model(female_cue_cgram, mixture_cgram)
 female_word_pred = model_logits.softmax(-1).argmax(dim=1).item()
 print(f"Female cue -> True word: {female_target_word}. Predicted word: {class_ix_to_word[female_word_pred]}")
 # should print "True word: above. Predicted word: above"
+```
+
+This example relies entirely on tracked assets (`config/`, `attn_cue_models/`, `demo_stimuli/`, `cv_800_word_label_to_int_dict.pkl`). After confirming it runs end-to-end, you can swap in your own stimuli, adjust the audio transforms, or fine-tune the models with different configs. For deeper dives, inspect the notebooks in `notebooks/Final_Figures/` or the evaluation scripts listed earlier.
