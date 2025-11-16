@@ -5,8 +5,234 @@ from numpy.polynomial import Polynomial
 from typing import Optional, Union, Tuple, List, Dict
 from scipy import stats
 import pandas as pd
-
+import seaborn as sns 
 import re
+import scipy.stats as stats
+from tqdm import tqdm
+import warnings
+from pingouin import rm_anova
+
+
+MARKER_SIZE = 8
+
+def sign_test(x, mu0):
+    n = len(x)
+    n_pos = np.sum(x > mu0)
+    n_neg = np.sum(x < mu0)
+    effect_m = (n_pos - n_neg) / 2 
+    p = stats.binomtest(min(n_pos, n_neg), n, p=0.5).pvalue
+    return effect_m, p, n_pos, n_neg
+
+
+# function to calculate Cohen's d for independent samples
+def cohend(d1, d2):
+	# calculate the size of samples
+	n1, n2 = len(d1), len(d2)
+	# calculate the variance of the samples
+	s1, s2 = np.var(d1, ddof=1), np.var(d2, ddof=1)
+	# calculate the pooled standard deviation
+	s = np.sqrt(((n1 - 1) * s1 + (n2 - 1) * s2) / (n1 + n2 - 2))
+	# calculate the means of the samples
+	u1, u2 = np.mean(d1), np.mean(d2)
+	# calculate the effect size
+	return (u1 - u2) / s
+
+## Cohen's d for paired samples
+def cohend_paired(d1, d2):
+    # is difference of means, divided by standard deviation of differences
+    return (np.mean(d1) - np.mean(d2))/ np.std(d1 - d2, ddof=1)
+
+
+def bootstrap_partial_eta_ci(
+    df: pd.DataFrame,
+    dv_col: str,
+    subject_col: str,
+    within_factors: list[str],
+    n_bootstrap: int = 2000,
+    ci_level: float = 0.95,
+    random_state: int | None = None,
+    tqdm_desc: str = "Partial η² bootstrap",
+    suppress_future_warnings: bool = True,
+):
+    """Run pingouin rm_anova and add bootstrap CIs for partial eta squared."""
+    if suppress_future_warnings:
+        warnings.filterwarnings("ignore", category=FutureWarning)
+
+    rng = np.random.default_rng(random_state)
+
+    # Base ANOVA
+    anova_table = rm_anova(
+        data=df,
+        dv=dv_col,
+        subject=subject_col,
+        within=within_factors,
+        effsize="np2",
+    )
+
+    subjects = df[subject_col].unique()
+    bootstrap_np2 = {src: [] for src in anova_table["Source"]}
+
+    for _ in tqdm(range(n_bootstrap), desc=tqdm_desc):
+        sampled_ids = rng.choice(subjects, size=len(subjects), replace=True)
+        boot_df = df[df[subject_col].isin(sampled_ids)].copy()
+
+        try:
+            boot_table = rm_anova(
+                data=boot_df,
+                dv=dv_col,
+                subject=subject_col,
+                within=within_factors,
+                effsize="np2",
+            )
+            for src, np2 in zip(boot_table["Source"], boot_table["np2"]):
+                bootstrap_np2[src].append(np2)
+        except Exception:
+            continue  # skip occasional singular fits
+
+    alpha = 1 - ci_level
+    lower = alpha / 2 * 100
+    upper = (1 - alpha / 2) * 100
+
+    anova_table["np2_CI_lower"] = [
+        np.percentile(bootstrap_np2[src], lower) if bootstrap_np2[src] else np.nan
+        for src in anova_table["Source"]
+    ]
+    anova_table["np2_CI_upper"] = [
+        np.percentile(bootstrap_np2[src], upper) if bootstrap_np2[src] else np.nan
+        for src in anova_table["Source"]
+    ]
+
+    return anova_table, bootstrap_np2
+
+
+def bootstrap_paired_ttest_cohens_d(
+    x: np.ndarray,
+    y: np.ndarray,
+    n_bootstrap: int = 2000,
+    ci_level: float = 0.95,
+    random_state: int | None = None,
+):
+    """Return paired t-test stats, Cohen's d, and bootstrap CI for d."""
+    assert len(x) == len(y), "paired samples must have same length"
+    rng = np.random.default_rng(random_state)
+
+    # point estimates
+    t_res = stats.ttest_rel(x, y, nan_policy="raise")
+    diff = x - y
+    cohens_d = diff.mean() / diff.std(ddof=1)
+
+    # bootstrap
+    boot_ds = []
+    idx = np.arange(len(x))
+    for _ in range(n_bootstrap):
+        sample_idx = rng.choice(idx, size=len(idx), replace=True)
+        diff_boot = (x[sample_idx] - y[sample_idx])
+        sd_boot = diff_boot.std(ddof=1)
+        if sd_boot == 0:  # guard against zero variance
+            continue
+        boot_ds.append(diff_boot.mean() / sd_boot)
+
+    alpha = 1 - ci_level
+    lower = np.percentile(boot_ds, alpha / 2 * 100)
+    upper = np.percentile(boot_ds, (1 - alpha / 2) * 100)
+
+    return {
+        "t": t_res.statistic,
+        "df": t_res.df,
+        "p": t_res.pvalue,
+        "d": cohens_d,
+        "d_ci_lower": lower,
+        "d_ci_upper": upper,
+        "n_bootstrap": len(boot_ds),
+    }
+
+
+def bootstrap_sign_test_summary(
+    baseline_values: np.ndarray,
+    comparison_values: dict[str, np.ndarray],
+    n_bootstrap: int = 2000,
+    random_state: int | None = None,
+):
+    """
+    Bootstrap the sign-test pipeline used for r² / RMSE comparisons.
+
+    Parameters
+    ----------
+    baseline_values : np.ndarray
+        Distribution you currently compare every model against (e.g., pooled
+        feature-gain values).
+    comparison_values : dict[str, np.ndarray]
+        Mapping {model_name: value_array}. Each array plays the role of `mu0`
+        in the original sign test.
+    n_bootstrap : int
+        Number of bootstrap resamples at the participant/model level.
+    random_state : int | None
+        Seed for reproducibility.
+
+    Returns
+    -------
+    dict
+        {
+          model_name: {
+            "diff_mean": …,
+            "n_pos": …,
+            "n_neg": …,
+            "n_total": …,
+            "sign_test_stat": …,
+            "sign_test_p": …,
+            "boot_ci_low": …,
+            "boot_ci_high": …,
+            "boot_samples": np.ndarray([...])
+          },
+          …
+        }
+    """
+    rng = np.random.default_rng(random_state)
+    results = {}
+
+    for model, model_vals in comparison_values.items():
+        # point estimate (matches existing cell)
+        stat, p, n_pos, n_neg = sign_test(baseline_values, mu0=model_vals)
+        diff = baseline_values.mean() - model_vals.mean()
+
+        # bootstrap resampling across participants/models
+        boot_diffs = []
+        boot_stats = []
+        boot_ps = []
+
+        n_baseline = len(baseline_values)
+        n_model = len(model_vals)
+
+        for _ in range(n_bootstrap):
+            b_idx = rng.choice(n_baseline, n_baseline, replace=True)
+            m_idx = rng.choice(n_model, n_model, replace=True)
+
+            boot_baseline = baseline_values[b_idx]
+            boot_model = model_vals[m_idx]
+
+            boot_diffs.append(boot_baseline.mean() - boot_model.mean())
+            st, pv, n_pos, n_neg = sign_test(boot_baseline, mu0=boot_model)
+            boot_stats.append(st)
+            boot_ps.append(pv)
+
+        ci_low = np.percentile(boot_diffs, 2.5)
+        ci_high = np.percentile(boot_diffs, 97.5)
+
+        results[model] = {
+            "diff_mean": diff,
+            "sign_test_stat": stat,
+            "n_pos": n_pos,
+            "n_neg": n_neg,
+            "n_total": n_baseline,
+            "sign_test_p": p,
+            "boot_ci_low": ci_low,
+            "boot_ci_high": ci_high,
+            "boot_diff_samples": np.asarray(boot_diffs),
+            "boot_stat_samples": np.asarray(boot_stats),
+            "boot_p_samples": np.asarray(boot_ps),
+        }
+
+    return results
 
 ################################################
 # Psychometric functions written by Mark Saddler 
@@ -111,7 +337,9 @@ def get_model_name(stem):
     elif "50Hz" in stem:
         str_name = '50Hz cutoff'
     elif 'backbone' in stem:
-        if 'babble' in stem:
+        if 'saddler_dataset' in stem:
+            str_name = 'Backbone arch Saddler dataset'
+        elif 'babble' in stem:
             if 'coloc' in stem:
                 str_name = 'Backbone babble all co-located'
             elif 'word_babble_and_noise' in stem:
@@ -165,6 +393,7 @@ model_name_order = [
                     'Baseline CNN',
                     'Early-only',
                     'Late-only',
+                    'Norm before gain model'
                 ]
 model_name_order_w_50Hz = model_name_order + ["50Hz cutoff"]
 
@@ -175,6 +404,7 @@ model_color_dict = {
     'Baseline CNN': '#808080',
     'Early-only': '#4046CA',
     'Late-only': '#F68511',
+    'Norm before gain model': 'gold',
     '50Hz cutoff': '#DE3D82',
 }
 
@@ -212,6 +442,8 @@ def draw_stats_bar(ax, x1, x2, y, h, text, th=0.025, lw=1.5, col='k', fontsize=1
     
 
 def get_star(p_val):
+    if p_val >= 0.05:
+        return None
     if p_val < 0.05:
         text = "*"
     if p_val < 0.01:
@@ -263,12 +495,101 @@ def split_half_reliability(data: pd.DataFrame,
     else:
         iterable = range(n_splits)
     for i in iterable:
-        split1 = data.sample(frac=0.5)
+        split1 = data.sample(frac=0.5, replace=False)
         split2 = data.drop(split1.index)
         split1 = split1.groupby(groupby_condition)[measure_string].mean().values
         split2 = split2.groupby(groupby_condition)[measure_string].mean().values
+        print(split1.shape, split2.shape)
         r, p = stats.pearsonr(split1, split2)
         reliabilities[i] = r
     mean_r = np.mean(reliabilities)
     split_half_r = (2*mean_r) / (1 + mean_r)
     return split_half_r, reliabilities
+
+
+# split half reliability
+def split_half_reliability_trial_level(data: pd.DataFrame,
+                           measure_string: Optional[str] = "measure",
+                           groupby_condition: Optional[Tuple[str, list]] = ["stim_name", "measure"],
+                           sortby_string: Optional[str] = "stim_name",
+                           n_splits: Optional[int] = 1000,
+                           tqdm: Optional[bool] = False,
+                           n_to_samp: int = 1,
+                           ) -> Tuple[float, List[float]]:
+    """
+    Calculate the split-half reliability of a measure.
+    The split-half reliability is calculated by splitting the data in half
+    and calculating the correlation between the two halves.
+    Args:
+        data (pd.DataFrame): DataFrame containing the data.
+        groupby_condition (str or list of str): Column name(s) to group by.
+        measure_string (str): Column name of the measure to calculate reliability for.
+        n_splits (int): Number of splits to perform.
+        tqdm (bool): Whether to show a progress bar.
+    Returns:
+        Tuple[float, List[float]]: Split-half reliability and list of reliabilities for each split.
+    """
+    condition_counts = data.condition.value_counts()
+    to_keep = condition_counts[condition_counts >= 4].index
+    data = data[data.condition.isin(to_keep)]
+    conditions = data.condition.unique()
+    n_conds = len(conditions)
+    cond_dict = {i: cond for i, cond in enumerate(conditions)}
+    reliabilities = np.zeros((n_splits, n_conds))
+    if tqdm:
+        from tqdm import trange
+        iterable = trange(n_splits, desc="Calculating split-half reliability")
+    else:
+        iterable = range(n_splits)
+    for i in iterable:
+        split1 = data.groupby(groupby_condition).sample(n=n_to_samp, random_state=i, replace=False)
+        split2 = data.drop(split1.index).groupby(groupby_condition).sample(n=n_to_samp, random_state=i, replace=False)
+        for j in range(n_conds):
+            cond = cond_dict[j]
+            split1_cond = split1[split1.condition == cond]
+            split2_cond = split2[split2.condition == cond]
+            split1_cond = split1_cond.sort_values(sortby_string)[measure_string].values
+            split2_cond = split2_cond.sort_values(sortby_string)[measure_string].values
+            r, p = stats.pearsonr(split1_cond, split2_cond)
+            reliabilities[i, j] = r
+
+    mean_r = np.nanmean(reliabilities, axis=0) # average per condition 
+    split_half_r = (2*mean_r) / (1 + mean_r)
+    return split_half_r, reliabilities, cond_dict
+
+#################################
+# Color pallete for fig 2 and 6
+#################################
+
+def diotic_exp_color_palette():
+    # add colors for diotic experimental conditions 
+    hue_order = ['clean', '1-talker',  '2-talker',  '4-talker', 'babble'] # 'noise',  'music', 'natural scene']
+    palette={}
+    palette['clean'] = 'k'
+    palette['Mandarin'] = 'seagreen'
+
+    # set speech color gradient 
+    speech_palette = sns.color_palette("RdPu_r")
+    speech_order = hue_order[1:][::-1]
+
+    for ix, group in enumerate(speech_order):
+        palette[group] = speech_palette[ix]
+
+    # add colors for noise conditions 
+    noise_order = ['noise',  'music', 'natural scene']
+    noise_palette = sns.color_palette("YlOrBr_r", n_colors=6)
+    noise_order = noise_order[::-1]
+
+    for ix, group in enumerate(noise_order):
+        palette[group] = noise_palette[ix]
+
+    # add same and different sex color palette 
+    hue_order = ['Different', 'Same']
+    sex_palette = dict(zip(hue_order, sns.color_palette(palette='colorblind', n_colors=10, as_cmap=False)))
+    palette['Same'] = sex_palette['Same']
+    palette['Different'] = 'tab:cyan'
+    palette['English'] = 'tab:pink'
+    palette['Mandarin'] = 'seagreen'
+
+    return palette
+

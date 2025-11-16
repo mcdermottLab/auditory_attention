@@ -96,6 +96,12 @@ combined_results.model.value_counts()
 combined_results['snr_condition_str'] = combined_results['snr'].astype(str) + ' dB ' + combined_results['background_condition']
 human_results = combined_results[combined_results.group.str.contains('Human')]
 human_results = human_results.sort_values(['snr', 'background_condition'])
+human_summary = (
+    human_results.groupby(['snr', 'background_condition'], as_index=False)[
+        ['accuracy', 'confusions']
+    ]
+    .mean()
+)
 
 model_list = [model for model in combined_results.model.unique() if 'Human' not in model]
 
@@ -637,13 +643,35 @@ for ix, model in enumerate(model_order):
         model_results = combined_results[combined_results.model == model]
         model_results = model_results.sort_values(['snr', 'background_condition'])
 
-    axs[ix].scatter(x=human_results.accuracy, y=model_results.accuracy,
+    model_summary = (
+        model_results.groupby(['snr', 'background_condition'], as_index=False)[
+            ['accuracy', 'confusions']
+        ]
+        .mean()
+    )
+
+    paired_results = human_summary.merge(
+        model_summary,
+        on=['snr', 'background_condition'],
+        how='inner',
+        suffixes=('_human', '_model'),
+    )
+
+    if paired_results.empty:
+        continue
+
+    acc_colors = [palette[cond] for cond in paired_results['background_condition']]
+    conf_colors = [
+        confusion_palette[cond] for cond in paired_results['background_condition']
+    ]
+
+    axs[ix].scatter(x=paired_results.accuracy_human, y=paired_results.accuracy_model,
                         marker='x', #alpha=0.5,
                         c=acc_colors,
                         linestyle='',
                         #   s=3,
                           )
-    axs[ix].scatter(x=human_results.confusions, y=model_results.confusions,
+    axs[ix].scatter(x=paired_results.confusions_human, y=paired_results.confusions_model,
                         marker='o', #alpha=0.5,
                         facecolors='none', edgecolors=conf_colors,
                         linestyle='',

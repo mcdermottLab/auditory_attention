@@ -4,24 +4,25 @@ Repository associated with publication  Ian Griffith, R. Preston Hess and Josh H
 
 ## Dependencies
 
-- Python 3.12
+- Python 3.11.5
 - Pytorch 2.1+
 - Pytorch lightning 2.1+
 - Computing power (~4 A100 GPUs) and memory space (both 100GB RAM/ 80GB GPU memory) are necessary if you'd like to train your own model.
 
 
-## Structure
-
+## Required data 
 - 'attn_cue_models/' is a folder full of training checkpoints and outlogs from PyTorch Lightning. Sub folders are named for the model architecture/task and
     contain their checkpoints.
-
-- 'config/' is a folder of `.yaml` configuration files specifying training data configurations, the cochlear front end, and model hyperparameters for a given model. 
-
-- 'corpus/' contains pytorch dataset classes training and human experiment simulations.
 
 - 'demo_stimuli/' is a folder containing example audio files (as .wav files) that can be run through the model. These include cue and target excerpts produced by both a male and female talker. Below is an example demonstrating how to pre-process the audio to generate a two-talker mixture, and run the audio through the model.
 
 - 'final_results_to_share' contains summarized data for all model and human experiments, and is used by the scripts in `notebooks/Final_Figures/` to reproduce the respective figures. 
+
+## Structure
+
+- 'config/' is a folder of `.yaml` configuration files specifying training data configurations, the cochlear front end, and model hyperparameters for a given model. 
+
+- 'corpus/' contains pytorch dataset classes training and human experiment simulations.
 
 - 'notebooks/' contains jupyter notebooks for data exploration and figure generation see inside for another readme.
     - 'notebooks/Final_Figures/' contains both `.ipynb` and `.py` files that can be used to reproduce all main and supplementary figures.
