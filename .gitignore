@@ -114,42 +114,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# data and log directory
-log
-runs
-save
-TODO
-checkpoint
-run.sh
-ckpt
-outLogs
-result
-outLogs
-attn_cue_models
-attentional_gain_activations
-ARO_2023_figs
-demo_plots
-librispeech_pl
-null_activation_corrs
-results
-single_word_results
-wav2vec_exp
-wav2vec_1e-5_lr_exp
-word_rec
-lightning_logs
-behavioral_experiments
-results_figs
-binaural_eval
-popham_mono_eval
-confidenceScorers
-pre_train_word_loc
-ARO_2025
-confidencceScores/
-final_results_dir
-Denmark_2024
-api_util/
-phaselocknet_torch
-
 # swap file
 *.swp
 eg_gen_architecture.py
@@ -179,3 +143,13 @@ prelim_binaural_figs/diff_min_same_confusion_at_0_elev.pdf
 *.hparams.yaml
 *.pkl
 notebooks/Final_Figures_old/
+# track curated data directories even though we ignore data extensions above
+!participant_data/
+!participant_data/**
+!attn_cue_models/
+!attn_cue_models/**
+!demo_stimuli/
+!demo_stimuli/**
+attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt
+participant_data/figure_5_model_activation_corrs.csv
+participant_data/summary_2024_SWC_diotic_same_v_diff_sex_confusions_indiv_participant_results_195.csv
