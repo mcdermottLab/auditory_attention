@@ -143,13 +143,3 @@ prelim_binaural_figs/diff_min_same_confusion_at_0_elev.pdf
 *.hparams.yaml
 *.pkl
 notebooks/Final_Figures_old/
-# track curated data directories even though we ignore data extensions above
-!participant_data/
-!participant_data/**
-!attn_cue_models/
-!attn_cue_models/**
-!demo_stimuli/
-!demo_stimuli/**
-attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt
-participant_data/figure_5_model_activation_corrs.csv
-participant_data/summary_2024_SWC_diotic_same_v_diff_sex_confusions_indiv_participant_results_195.csv
