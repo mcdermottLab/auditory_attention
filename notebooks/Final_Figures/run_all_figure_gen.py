@@ -36,7 +36,7 @@ script_files = [
     "plot_experiment_7.py",
     "interaction_test_for_experiment_6.py",
     "individual_participants_fig_2.py",
-    "plot_figure_4a_and_supplementary_figures_x_and_x.py",
+    "plot_figure_4a_and_supplementary_model_spatial_sim.py",
     "plot_figure_5_b-c.py",
     "plot_figure_6_a-c.py",
     "plot_figure_6_d.py",
