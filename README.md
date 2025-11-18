@@ -2,28 +2,28 @@
 
 The repository for Ian Griffith, R. Preston Hess, and Josh H. McDermott, _Optimized feature gains explain and predict successes and failures of human selective listening_.  
 
-It contains the trained attention models, curated human-participant datasets, demo stimuli, notebooks, and evaluation scripts needed to reproduce every figure and statistic in the manuscript. The sections below walk new users through the layout, dependencies, and common workflows.
+ Contained is a trained attention model, the processed human participant and model simulation datasets, demo stimuli, notebooks, and evaluation scripts needed to the figures and statistical tests in the manuscript. The sections below describe the layout, dependencies, and common workflows.
+
+## Data directories
+To use the repository, first download the model checkpoint, participant data, model simulation results, and demo stimuli from our [OSF project cite](https://doi.org/10.17605/OSF.IO/WJZVU) as zip archives corresponding to `attn_cue_models`, `data`, and `demo_stimuli`.
+
+- `attn_cue_models.zip` holds a checkpoint for our best model (e.g., `word_task_v10_main_feature_gain_config`).
+- `demo_stimuli.zip` provides the example `.wav` files used in the quick-start code below (male/female cues, targets, and mixtures).
+- `data.zip` contains processed experiment tables: CSV/PKL tables with the aggregated model and human results used by the figure scripts for all experiments and model simulations.
 
 ## Repository map
 
-- `src/` – PyTorch Lightning modules, cochlear front-end implementations, audio transforms, and utilities shared across training and evaluation.
+- `attn_cue_models/` – Pretrained checkpoint for the best feature-gain model analyzed in the paper.
 - `config/` – YAML files describing model architectures, datasets, and hyperparameters.
 - `corpus/` – Dataset/dataloader definitions for model training and behavioral simulations.
+- `data/` – CSV/PKL tables with the aggregated model and human results used by the figure scripts.
+- `demo_stimuli/` – Male/female cue-target `.wav` files plus mixtures so you can run the model.
 - `notebooks/` – Jupyter notebooks for exploratory analysis and figure generation.
-  - `notebooks/Final_Figures/` contains both `.ipynb` and `.py` counterparts for every main and supplementary figure. Run `python notebooks/Final_Figures/run_all_figure_gen.py` to regenerate the full figure suite and associated statistics.
-- `participant_data/` – Clean CSV/PKL tables for human experiments (per-trial logs, summary stats, ANOVA inputs, metadata). These are the authoritative data sources consumed by the notebooks.
-- `attn_cue_models/` – Pretrained checkpoints and PyTorch Lightning logs for the feature-gain models analyzed in the paper.
-- `demo_stimuli/` – Male/female cue-target `.wav` files plus mixtures so you can audition the models immediately.
-- `final_results_to_share/` – Aggregated model + human metrics used by the figure scripts.
+  - `notebooks/Final_Figures/` contains both `.ipynb` and `.py` counterparts for every main and supplementary figure. Run `python notebooks/Final_Figures/run_all_figure_gen.py` to regenerate all figures and associated statistics.
+- `src/` – PyTorch Lightning modules, cochlear front-end implementations, audio transforms, and utilities shared across training and evaluation.
 - `eval_*.py` – Standalone scripts that reproduce each behavioral experiment (see “Running analyses” below).
 - `*.sh` – SLURM-ready job scripts showing how we ran the corresponding Python programs on MIT OpenMind.
 
-## Included data directories
-
-- `attn_cue_models/` ships with checkpoints and training logs organized by architecture/task (e.g., `word_task_v10_main_feature_gain_config`). Each directory contains the `.ckpt` files referenced throughout the manuscript.
-- `demo_stimuli/` provides the example `.wav` files used in the quick-start code below (male/female cues, targets, and mixtures).
-- `participant_data/` contains curated experiment tables: raw participant thresholds, per-trial CSVs, summary pickles for ANOVAs, and metadata spreadsheets.
-- `final_results_to_share/` offers precomputed aggregates for every model/human comparison, allowing the notebooks to render figures without recomputing heavy simulations.
 
 ## Getting started
 
@@ -33,25 +33,23 @@ It contains the trained attention models, curated human-participant datasets, de
    - PyTorch Lightning 2.1+
    - Additional packages listed in `requirements.txt` (recommended: create a conda env and `pip install -r requirements.txt`)
 2. **Hardware expectations**  
-   Training fresh models mirrors the paper’s setup (~4×A100 GPUs and ~100 GB host / 80 GB device RAM). Figure generation and evaluation can run on a single GPU with modest memory.
-3. **Verify tracked assets**  
-   After cloning, confirm that `attn_cue_models/`, `demo_stimuli/`, `participant_data/`, and `final_results_to_share/` are present. If not, re-run `git lfs pull` (when applicable) or download the shared data bundle.
+   Model training used a DDP environment with 4×A100-80GB GPUs and 100 GB host RAM with 4 CPUs feeding each GPU. Models took roughly 7-10 days to converge (depending on architecture size).
 
-## Running analyses
 
-- **Regenerate the full figure suite**
-  ```
-  python notebooks/Final_Figures/run_all_figure_gen.py
-  ```
-  Outputs land in `notebooks/Final_Figures/all_figures_output/` and include the statistics reported in the manuscript.
+## Experiment mapping
+
 - **Per-experiment simulations**
-  - `eval_swc_mono_stim.py` – Experiment 1
-  - `eval_swc_popham_2024.py` – Experiment 2
-  - `eval_texture_backgrounds.py` – Experiment 3
-  - `eval_symmetric_distractors.py` – Arbitrary spatial configurations plus Experiments 4–5
+  - `eval_swc_mono_stim.py` – Experiment 1 (main diotic conditions; distractor sex & language)
+  - `eval_swc_popham_2024.py` – Experiment 2 (talker harmonicity)
+  - `eval_texture_backgrounds.py` – Experiment 3 (Saddler & McDermott 2024 background textures)
+  - `eval_symmetric_distractors.py` – Extended data fig. 4 at all spatial configurations; Experiment 4 (Byrne et al. 2023)
+  - `eval_precedence.py` - Experiment 5 (Simulate Freyman et al. 1999)
   - `eval_sim_array_threshold_experiment_v02.py` – Experiment 6 (thresholds)
   - `eval_sim_array_spotlight_experiment_v02.py` – Experiment 7 (spotlight task)
-  - `get_acts_for_tuning_and_selection_analysis.py` – Activation dumps for Figure 5 / Supplementary Figure 5
+  - `eval_cue_duration.py` - Experiment 1b (cue duration)
+  - `get_acts_for_tuning_and_selection_analysis.py` – Activations for figure 5 / Extended data figure 5
+  - `get_acts_for_tuning_anova_jsin.py` - Activations for Extended data figure 7
+  - `src/unit_tuning_anova_parallel.py` - ANOVAs for Extended data figure 7
 - **Cluster execution**  
   Use the `.sh` scripts (e.g., `run_unit_tuning_anova_parallel.sh`) as templates for your scheduler; they capture the exact resource settings we used on OpenMind.
 
