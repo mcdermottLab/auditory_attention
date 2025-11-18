@@ -1,16 +1,12 @@
 #!/bin/bash
 #SBATCH --job-name=train_new_binaural_attn
-#SBATCH --output=outLogs/control_arch_half_data_%j.out
-#SBATCH --error=outLogs/control_arch_half_data_%j.err 
+#SBATCH --output=outLogs/control_arch_post_norm_%j.out
+#SBATCH --error=outLogs/control_arch_post_norm_%j.err 
 #SBATCH --mem=1000Gb
-#SBATCH --time=1-00:00:00
+#SBATCH --time=2-00:00:00
 #SBATCH --partition=mit_preemptable # ou_bcs_normal, mit_preemptable
 #SBATCH --cpus-per-task=32
 #SBATCH --gres=gpu:h200:4
-
-
-
-
 
 module add miniforge
 
