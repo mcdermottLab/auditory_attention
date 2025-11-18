@@ -19,7 +19,7 @@ which python3
 
 python3 get_acts_for_RDM_analysis.py --config config/binaural_attn/word_task_v10_main_feature_gain_config.yaml \
                 --ckpt_path attn_cue_models/word_task_v10_main_feature_gain_config/checkpoints/epoch=1-step=24679-v1.ckpt \
-                --model_dir /om/scratch/Thu/imgriff/acts_for_RDM_analysis \
+                --model_dir acts_for_RDM_analysis \
                 --n_activations 100 \
                 --n_jobs 0 \
                 --coch_only 

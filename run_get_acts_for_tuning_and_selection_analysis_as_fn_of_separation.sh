@@ -7,7 +7,7 @@
 #SBATCH --time=20:00:00
 #SBATCH --partition=use-everything
 #SBATCH --gres=gpu:a100:1 
-#SBATCH --array=0,1,2,4,6,8  # 0-12
+#SBATCH --array=3,4,7,12 # 0-12
 
 module load openmind8/anaconda/3-2022.10
 export HDF5_USE_FILE_LOCKING=FALSE
@@ -26,7 +26,7 @@ python3 get_acts_for_tuning_and_selection_analysis_as_fn_of_separation.py --conf
                 --output_dir stage_of_selection_activations \
                 --resume_progress \
                 --overwrite \
-                --random_weights
+                # --random_weights
                 # --diotic \
 
 

@@ -15,6 +15,14 @@ from pingouin import rm_anova
 
 MARKER_SIZE = 8
 
+def sign_test(x, mu0):
+    n = len(x)
+    n_pos = np.sum(x > mu0)
+    n_neg = np.sum(x < mu0)
+    effect_m = (n_pos - n_neg) / 2 
+    p = stats.binomtest(min(n_pos, n_neg), n, p=0.5).pvalue
+    return effect_m, p, n_pos, n_neg
+
 
 # function to calculate Cohen's d for independent samples
 def cohend(d1, d2):
@@ -139,6 +147,92 @@ def bootstrap_paired_ttest_cohens_d(
     }
 
 
+def bootstrap_sign_test_summary(
+    baseline_values: np.ndarray,
+    comparison_values: dict[str, np.ndarray],
+    n_bootstrap: int = 2000,
+    random_state: int | None = None,
+):
+    """
+    Bootstrap the sign-test pipeline used for r² / RMSE comparisons.
+
+    Parameters
+    ----------
+    baseline_values : np.ndarray
+        Distribution you currently compare every model against (e.g., pooled
+        feature-gain values).
+    comparison_values : dict[str, np.ndarray]
+        Mapping {model_name: value_array}. Each array plays the role of `mu0`
+        in the original sign test.
+    n_bootstrap : int
+        Number of bootstrap resamples at the participant/model level.
+    random_state : int | None
+        Seed for reproducibility.
+
+    Returns
+    -------
+    dict
+        {
+          model_name: {
+            "diff_mean": …,
+            "n_pos": …,
+            "n_neg": …,
+            "n_total": …,
+            "sign_test_stat": …,
+            "sign_test_p": …,
+            "boot_ci_low": …,
+            "boot_ci_high": …,
+            "boot_samples": np.ndarray([...])
+          },
+          …
+        }
+    """
+    rng = np.random.default_rng(random_state)
+    results = {}
+
+    for model, model_vals in comparison_values.items():
+        # point estimate (matches existing cell)
+        stat, p, n_pos, n_neg = sign_test(baseline_values, mu0=model_vals)
+        diff = baseline_values.mean() - model_vals.mean()
+
+        # bootstrap resampling across participants/models
+        boot_diffs = []
+        boot_stats = []
+        boot_ps = []
+
+        n_baseline = len(baseline_values)
+        n_model = len(model_vals)
+
+        for _ in range(n_bootstrap):
+            b_idx = rng.choice(n_baseline, n_baseline, replace=True)
+            m_idx = rng.choice(n_model, n_model, replace=True)
+
+            boot_baseline = baseline_values[b_idx]
+            boot_model = model_vals[m_idx]
+
+            boot_diffs.append(boot_baseline.mean() - boot_model.mean())
+            st, pv, n_pos, n_neg = sign_test(boot_baseline, mu0=boot_model)
+            boot_stats.append(st)
+            boot_ps.append(pv)
+
+        ci_low = np.percentile(boot_diffs, 2.5)
+        ci_high = np.percentile(boot_diffs, 97.5)
+
+        results[model] = {
+            "diff_mean": diff,
+            "sign_test_stat": stat,
+            "n_pos": n_pos,
+            "n_neg": n_neg,
+            "n_total": n_baseline,
+            "sign_test_p": p,
+            "boot_ci_low": ci_low,
+            "boot_ci_high": ci_high,
+            "boot_diff_samples": np.asarray(boot_diffs),
+            "boot_stat_samples": np.asarray(boot_stats),
+            "boot_p_samples": np.asarray(boot_ps),
+        }
+
+    return results
 
 ################################################
 # Psychometric functions written by Mark Saddler 
@@ -401,10 +495,11 @@ def split_half_reliability(data: pd.DataFrame,
     else:
         iterable = range(n_splits)
     for i in iterable:
-        split1 = data.sample(frac=0.5)
+        split1 = data.sample(frac=0.5, replace=False)
         split2 = data.drop(split1.index)
         split1 = split1.groupby(groupby_condition)[measure_string].mean().values
         split2 = split2.groupby(groupby_condition)[measure_string].mean().values
+        print(split1.shape, split2.shape)
         r, p = stats.pearsonr(split1, split2)
         reliabilities[i] = r
     mean_r = np.mean(reliabilities)

@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH --job-name=get_unit_acts
-#SBATCH --output=outLogs/get_unit_acts_for_anova_%j.out
-#SBATCH --error=outLogs/get_unit_acts_for_anova_%j.err
+#SBATCH --output=outLogs/get_unit_acts_for_anova_jsin_%j.out
+#SBATCH --error=outLogs/get_unit_acts_for_anova_jsin_%j.err
 #SBATCH --mem=20Gb                           
 #SBATCH --cpus-per-task=8
 #SBATCH --time=12:00:00
