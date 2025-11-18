@@ -2,7 +2,7 @@
 
 This repository is for Ian Griffith, R. Preston Hess, and Josh H. McDermott, _Optimized feature gains explain and predict successes and failures of human selective listening_.  
 
- It contains a trained attention model; processed human-participant and model-simulation datasets; demo stimuli; notebooks; and evaluation scripts needed to generate the figures and statistical tests in the manuscript. The sections below describe the layout, dependencies, and common workflows.
+ It contains a trained attention model, processed human-participant and model-simulation datasets, demo stimulik, notebooks, and evaluation scripts needed to generate the figures and statistical tests in the manuscript. The sections below describe the layout, dependencies, and common workflows.
 
 ## Data directories
 To use the repository, first download the model checkpoint, participant data, model simulation results, and demo stimuli from our [OSF project site](https://doi.org/10.17605/OSF.IO/WJZVU) as zip archives corresponding to `attn_cue_models`, `data`, and `demo_stimuli`.
