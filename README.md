@@ -1,11 +1,11 @@
 # Auditory Attention
 
-The repository for Ian Griffith, R. Preston Hess, and Josh H. McDermott, _Optimized feature gains explain and predict successes and failures of human selective listening_.  
+This repository is for Ian Griffith, R. Preston Hess, and Josh H. McDermott, _Optimized feature gains explain and predict successes and failures of human selective listening_.  
 
- Contained is a trained attention model, the processed human participant and model simulation datasets, demo stimuli, notebooks, and evaluation scripts needed to the figures and statistical tests in the manuscript. The sections below describe the layout, dependencies, and common workflows.
+ It contains a trained attention model; processed human-participant and model-simulation datasets; demo stimuli; notebooks; and evaluation scripts needed to generate the figures and statistical tests in the manuscript. The sections below describe the layout, dependencies, and common workflows.
 
 ## Data directories
-To use the repository, first download the model checkpoint, participant data, model simulation results, and demo stimuli from our [OSF project cite](https://doi.org/10.17605/OSF.IO/WJZVU) as zip archives corresponding to `attn_cue_models`, `data`, and `demo_stimuli`.
+To use the repository, first download the model checkpoint, participant data, model simulation results, and demo stimuli from our [OSF project site](https://doi.org/10.17605/OSF.IO/WJZVU) as zip archives corresponding to `attn_cue_models`, `data`, and `demo_stimuli`.
 
 - `attn_cue_models.zip` holds a checkpoint for our best model (e.g., `word_task_v10_main_feature_gain_config`).
 - `demo_stimuli.zip` provides the example `.wav` files used in the quick-start code below (male/female cues, targets, and mixtures).
@@ -31,7 +31,7 @@ To use the repository, first download the model checkpoint, participant data, mo
    - Python 3.11.5
    - PyTorch 2.1+
    - PyTorch Lightning 2.1+
-   - Additional packages listed in `requirements.txt` (recommended: create a conda env and `pip install -r requirements.txt`)
+   - Additional packages listed in `requirements.txt` (recommended: create a Conda environment and run `pip install -r requirements.txt`)
 2. **Hardware expectations**  
    Model training used a DDP environment with 4×A100-80GB GPUs and 100 GB host RAM with 4 CPUs feeding each GPU. Models took roughly 7-10 days to converge (depending on architecture size).
 
@@ -42,14 +42,14 @@ To use the repository, first download the model checkpoint, participant data, mo
   - `eval_swc_mono_stim.py` – Experiment 1 (main diotic conditions; distractor sex & language)
   - `eval_swc_popham_2024.py` – Experiment 2 (talker harmonicity)
   - `eval_texture_backgrounds.py` – Experiment 3 (Saddler & McDermott 2024 background textures)
-  - `eval_symmetric_distractors.py` – Extended data fig. 4 at all spatial configurations; Experiment 4 (Byrne et al. 2023)
-  - `eval_precedence.py` - Experiment 5 (Simulate Freyman et al. 1999)
+  - `eval_symmetric_distractors.py` – Extended Data Figure 4 at all spatial configurations; Experiment 4 (Byrne et al. 2023)
+  - `eval_precedence.py` - Experiment 5 (simulate Freyman et al. 1999)
   - `eval_sim_array_threshold_experiment_v02.py` – Experiment 6 (thresholds)
   - `eval_sim_array_spotlight_experiment_v02.py` – Experiment 7 (spotlight task)
-  - `eval_cue_duration.py` - Experiment 1b (cue duration)
-  - `get_acts_for_tuning_and_selection_analysis.py` – Activations for figure 5 / Extended data figure 5
-  - `get_acts_for_tuning_anova_jsin.py` - Activations for Extended data figure 7
-  - `src/unit_tuning_anova_parallel.py` - ANOVAs for Extended data figure 7
+  - `eval_cue_duration.py` - Experiment 1b (cue duration)
+  - `get_acts_for_tuning_and_selection_analysis.py` – Activations for Figure 5 / Extended Data Figure 5
+  - `get_acts_for_tuning_anova_jsin.py` - Activations for Extended Data Figure 7
+  - `src/unit_tuning_anova_parallel.py` - ANOVAs for Extended Data Figure 7
 - **Cluster execution**  
   Use the `.sh` scripts (e.g., `run_unit_tuning_anova_parallel.sh`) as templates for your scheduler; they capture the exact resource settings we used on OpenMind.
 
