@@ -75,7 +75,7 @@ def main(args):
             location_ixs[f"{elev} elev"] = loc_ixs
 
 
-    optimal_bins = 15 # optimal_bin_count(target_f0s)
+    optimal_bins = optimal_bin_count(target_f0s)
     counts, bins = np.histogram(target_f0s, bins=optimal_bins)
     f0_assignments = np.digitize(target_f0s, bins, right=True)
     bins = bins.round(0)
