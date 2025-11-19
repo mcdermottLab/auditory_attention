@@ -1,11 +1,12 @@
 # Auditory Attention
 
-This repository is for Ian M. Griffith, R. Preston Hess, and Josh H. McDermott, _Optimized feature gains explain and predict successes and failures of human selective listening_.  
-
-It contains a trained attention model, processed human-participant and model-simulation data, demo sounds, training and evaluation scripts, and analysis notebooks needed to generate the figures and statistical tests in the manuscript. The sections below describe the layout, dependencies, and example use.
+The code repository for  "_Optimized feature gains explain and predict successes and failures of human selective listening_" by Ian M. Griffith, R. Preston Hess, and Josh H. McDermott.
+___
+![Figure 1](figure_1.svg)
+___
 
 ## Data directories
-To use the repository, first download the model checkpoint, participant data, model simulation results, and demo stimuli from our [OSF project site](https://doi.org/10.17605/OSF.IO/WJZVU) as zip archives corresponding to `attn_cue_models`, `data`, and `demo_stimuli`.
+To use the repository, first download the model checkpoint, participant data, model simulation results, and demo stimuli as zip archives corresponding to `attn_cue_models`, `data`, and `demo_stimuli`from our [OSF project site: https://doi.org/10.17605/OSF.IO/WJZVU](https://doi.org/10.17605/OSF.IO/WJZVU).
 
 - `attn_cue_models.zip` holds a checkpoint for our best model (e.g., `word_task_v10_main_feature_gain_config`).
 - `demo_stimuli.zip` provides the example `.wav` files used in the quick-start code below (male/female cues, targets, and mixtures).
@@ -25,7 +26,7 @@ To use the repository, first download the model checkpoint, participant data, mo
 - `*.sh` – SLURM-ready job scripts showing how we ran the corresponding Python programs on MIT OpenMind.
 
 
-## Getting started
+## Requirements
 
 1. **Install dependencies**
    - Python 3.11.5
