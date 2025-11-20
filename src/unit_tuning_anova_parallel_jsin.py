@@ -213,14 +213,19 @@ def main(args):
     def process_unit(unit_i):
         ssq_per_cat = np.zeros(4)
         prop_var = np.zeros(4)
-        for ix, category in enumerate(["C(f0)", "C(location)", "C(word_int)",  "C(speaker_int)"]):
-            formula = f"activation ~ {category}"
-            model = ols(formula, act_df[act_df.unit_ix == unit_i]).fit()
-            anova_table = sm.stats.anova_lm(model)
-            total_ss = anova_table.sum_sq.sum()
-            ssq = anova_table['sum_sq'][:-1].item()
-            ssq_per_cat[ix] = ssq
-            prop_var[ix] = (ssq / total_ss)
+        try:
+            for ix, category in enumerate(["C(f0)", "C(location)", "C(word_int)",  "C(speaker_int)"]):
+                formula = f"activation ~ {category}"
+                model = ols(formula, act_df[act_df.unit_ix == unit_i]).fit()
+                anova_table = sm.stats.anova_lm(model, typ=1)
+                total_ss = anova_table.sum_sq.sum()
+                ssq = anova_table['sum_sq'][:-1].item()
+                ssq_per_cat[ix] = ssq
+                prop_var[ix] = (ssq / total_ss)
+        except Exception as e:
+            print(f"Error processing unit {unit_i}: {e}")
+            ssq_per_cat[:] = np.nan
+            prop_var[:] = np.nan
         return unit_i, prop_var, ssq_per_cat
 
     # Process only the units assigned to this job
