@@ -21,9 +21,8 @@ To use the repository, first download the model checkpoint, participant data, mo
 - `demo_stimuli/` – Male/female cue-target `.wav` files plus mixtures so you can run the model.
 - `notebooks/` – Jupyter notebooks for exploratory analysis and figure generation.
   - `notebooks/Final_Figures/` contains both `.ipynb` and `.py` counterparts for every main and supplementary figure. Run `python notebooks/Final_Figures/run_all_figure_gen.py` to regenerate all figures and associated statistics.
-- `src/` – PyTorch Lightning modules, cochlear front-end implementations, audio transforms, and utilities shared across training and evaluation.
-- `eval_*.py` – Standalone scripts that reproduce each behavioral experiment (see “Running analyses” below).
-- `*.sh` – SLURM-ready job scripts showing how we ran the corresponding Python programs on MIT OpenMind.
+- `src/` – PyTorch Lightning modules, cochlear front-end implementations, audio transforms, utilities, and every experiment entrypoint (e.g., `src/eval_*.py`). Run them with `python -m src.<module_name>`.
+- `scripts/` – SLURM-ready job scripts that change into the repo root, export `PYTHONPATH`, and invoke the corresponding `src/...` modules. Use them as templates for MIT OpenMind or adapt them to your own scheduler.
 
 
 ## Requirements
@@ -39,20 +38,20 @@ To use the repository, first download the model checkpoint, participant data, mo
 
 ## Experiment mapping
 
-- **Per-experiment simulations**
-  - `eval_swc_mono_stim.py` – Experiment 1 (main diotic conditions; distractor sex & language)
-  - `eval_swc_popham_2024.py` – Experiment 2 (talker harmonicity)
-  - `eval_texture_backgrounds.py` – Experiment 3 (Saddler & McDermott 2024 background textures)
-  - `eval_symmetric_distractors.py` – Extended Data Figure 4 at all spatial configurations; Experiment 4 (Byrne et al. 2023)
-  - `eval_precedence.py` - Experiment 5 (simulate Freyman et al. 1999)
-  - `eval_sim_array_threshold_experiment_v02.py` – Experiment 6 (thresholds)
-  - `eval_sim_array_spotlight_experiment_v02.py` – Experiment 7 (spotlight task)
-  - `eval_cue_duration.py` - Experiment 1b (cue duration)
-  - `get_acts_for_tuning_and_selection_analysis.py` – Activations for Figure 5 / Extended Data Figure 5
-  - `get_acts_for_tuning_anova_jsin.py` - Activations for Extended Data Figure 7
-  - `src/unit_tuning_anova_parallel.py` - ANOVAs for Extended Data Figure 7
+- **Per-experiment simulations** (call with `python -m src.<module_name>`)
+  - `src/eval_swc_mono_stim.py` – Experiment 1 (main diotic conditions; distractor sex & language)
+  - `src/eval_swc_popham_2024.py` – Experiment 2 (talker harmonicity)
+  - `src/eval_texture_backgrounds.py` – Experiment 3 (Saddler & McDermott 2024 background textures)
+  - `src/eval_symmetric_distractors.py` – Extended Data Figure 4 at all spatial configurations; Experiment 4 (Byrne et al. 2023)
+  - `src/eval_precedence.py` – Experiment 5 (simulate Freyman et al. 1999)
+  - `src/eval_sim_array_threshold_experiment_v02.py` – Experiment 6 (thresholds)
+  - `src/eval_sim_array_spotlight_experiment_v02.py` – Experiment 7 (spotlight task)
+  - `src/eval_cue_duration.py` – Experiment 1b (cue duration)
+  - `src/get_acts_for_tuning_and_selection_analysis.py` – Activations for Figure 5 / Extended Data Figure 5
+  - `src/get_acts_for_tuning_anova_jsin.py` – Activations for Extended Data Figure 7
+  - `src/unit_tuning_anova_parallel_jsin.py` – ANOVAs for Extended Data Figure 7
 - **Cluster execution**  
-  Use the `.sh` scripts (e.g., `run_unit_tuning_anova_parallel.sh`) as templates for your scheduler; they capture the exact resource settings we used on OpenMind.
+  Use the scripts in `scripts/` (e.g., `scripts/run_unit_tuning_anova_parallel.sh`) as templates for your scheduler; they capture the exact resource settings we used on OpenMind.
 
 ## Quick-start: load a checkpoint and run the demo stimuli
 ```python
