@@ -6,11 +6,11 @@ ___
 ___
 
 ## Data directories
-To use the repository, first download the model checkpoint, participant data, model simulation results, and demo stimuli as zip archives corresponding to `attn_cue_models`, `data`, and `demo_stimuli`from our [OSF project site: https://doi.org/10.17605/OSF.IO/WJZVU](https://doi.org/10.17605/OSF.IO/WJZVU).
+To use the repository, first download the model checkpoint, participant data, model simulation results, and demo stimuli as archives corresponding to `attn_cue_models`, `data`, and `demo_stimuli`from our [OSF project site: https://doi.org/10.17605/OSF.IO/WJZVU](https://doi.org/10.17605/OSF.IO/WJZVU).
 
 - `attn_cue_models.zip` holds a checkpoint for our best model (e.g., `word_task_v10_main_feature_gain_config`).
 - `demo_stimuli.zip` provides the example `.wav` files used in the quick-start code below (male/female cues, targets, and mixtures).
-- `data.zip` contains processed experiment tables: CSV/PKL tables with the aggregated model and human results used by the figure scripts for all experiments and model simulations.
+- `data.tar` contains processed experiment tables: CSV/PKL tables with the aggregated model and human results used by the figure scripts for all experiments and model simulations.
 
 ## Repository map
 
