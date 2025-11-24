@@ -22,12 +22,10 @@ scripts_dir = Path(__file__).parent
 figure_out_dir = scripts_dir / "all_figures_output"
 figure_out_dir.mkdir(parents=True, exist_ok=True)
 
-# List all Python scripts in the directory
-script_files = [f for f in os.listdir(scripts_dir) if f.endswith(".py") and f != "run_all_figure_gen.py"]
-
-
+# List of Python scripts to run for all main and extended figures
 script_files = [
-    "plot_experiment_1_and_sup_fig_1.py",
+    # Main figures 1–3
+    "plot_experiment_1_and_ext_data_fig_1.py",
     "plot_experiment_2.py",
     "plot_experiment_3.py",
     "plot_experiment_4.py",
@@ -36,14 +34,19 @@ script_files = [
     "plot_experiment_7.py",
     "interaction_test_for_experiment_6.py",
     "individual_participants_fig_2.py",
+    # Figure 4 + related extended data
     "plot_figure_4a_and_supplementary_model_spatial_sim.py",
+    "plot_extended_data_figure_3_abd.py",
+    "plot_extended_data_figure_4.py",
+    # Extended Data for Experiment 1b cue duration and Figure 5
+    "plot_extended_data_fig_2_experiment_1b_cue_duration.py",
+    "plot_extended_data_fig_5.py",
+    "plot_extended_data_figure_6.py",
+    # Figures 5–6 and associated extended data
     "plot_figure_5_b-c.py",
     "plot_figure_6_a-c.py",
+    "plot_figure_6_a-c_extended_data_figs_7_8_9.py",
     "plot_figure_6_d.py",
-    "plot_supplementary_figure_3.py",
-    "plot_supplementary_figure_7_abd.py",
-    "plot_supplementary_figure_9.py",
-    "plot_sup_figure_10.py",
 ]
 
 # Execute each script sequentially
