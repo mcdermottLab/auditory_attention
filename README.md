@@ -1,6 +1,6 @@
 # Auditory Attention
 
-The code repository for  "_Optimized feature gains explain and predict successes and failures of human selective listening_" by Ian M. Griffith, R. Preston Hess, and Josh H. McDermott (_in press_, Nature Human Behavior).
+The repository for "_Optimized feature gains explain and predict successes and failures of human selective listening_" by Ian M. Griffith, R. Preston Hess, and Josh H. McDermott, [Nature Human Behaviour (2026)](https://www.nature.com/articles/s41562-026-02414-7).
 ___
 ![Figure 1](imgs/figure_1.svg)
 ___
